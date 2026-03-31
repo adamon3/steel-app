@@ -128,6 +128,7 @@ export const useStore = create((set, get) => ({
       user_id: user.id, title: workout.title, notes: workout.notes || '',
       duration_mins: workout.duration_mins || 0, total_volume: totalVolume,
       total_sets: totalSets, has_pr: hasPr, steeled_from: workout.steeled_from || null,
+      is_public: workout.is_public !== false,
     }).select().single();
     if (error || !w) return null;
 

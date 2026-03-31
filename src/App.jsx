@@ -3,8 +3,9 @@ import { useStore } from './lib/store';
 import { COLORS, TabBar, Toast, Spinner, Avatar, getInitials } from './components/UI';
 import Auth from './pages/Auth';
 import Feed from './pages/Feed';
-import LogWorkout from './pages/LogWorkout';
 import Discover from './pages/Discover';
+import LogWorkout from './pages/LogWorkout';
+import Leaderboard from './pages/Leaderboard';
 import UserProfile from './pages/UserProfile';
 import Profile from './pages/Profile';
 
@@ -12,7 +13,8 @@ const tabs = [
   { id: 'feed', label: 'Feed', icon: '📱' },
   { id: 'discover', label: 'Discover', icon: '🔍' },
   { id: 'log', label: 'Log', icon: '💪' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
+  { id: 'leaderboard', label: 'Ranks', icon: '🏆' },
+  { id: 'profile', label: 'Me', icon: '👤' },
 ];
 
 export default function App() {
@@ -20,7 +22,7 @@ export default function App() {
   const [tab, setTab] = useState('feed');
   const [toast, setToast] = useState(null);
   const [steelPrefill, setSteelPrefill] = useState(null);
-  const [viewUserId, setViewUserId] = useState(null); // for viewing other profiles
+  const [viewUserId, setViewUserId] = useState(null);
 
   useEffect(() => { init(); }, []);
 
@@ -40,7 +42,6 @@ export default function App() {
     }
   };
 
-  // Called from UserProfile when steeling from a profile view
   const handleSteelFromProfile = (template, title, athleteName) => {
     setSteelPrefill(template);
     setViewUserId(null);
@@ -56,10 +57,6 @@ export default function App() {
     }
   };
 
-  const handleBackFromProfile = () => {
-    setViewUserId(null);
-  };
-
   if (loading) {
     return (
       <div style={{ background: COLORS.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -70,7 +67,7 @@ export default function App() {
 
   if (!user) return <Auth />;
 
-  // If viewing another user's profile, show that
+  // Viewing another user's profile
   if (viewUserId) {
     return (
       <div style={{
@@ -78,14 +75,10 @@ export default function App() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         color: COLORS.text,
       }}>
-        <div style={{
-          padding: '16px 16px 8px', position: 'sticky', top: 0, zIndex: 10,
-          background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)',
-        }}>
+        <div style={{ padding: '16px 16px 8px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
-              <span style={{ color: COLORS.text }}>STEEL</span>
-              <span style={{ color: COLORS.accent }}>.</span>
+              <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
             </span>
             {profile && (
               <div onClick={() => { setViewUserId(null); setTab('profile'); }} style={{ cursor: 'pointer' }}>
@@ -95,18 +88,13 @@ export default function App() {
           </div>
         </div>
         <div style={{ padding: '8px 16px 100px' }}>
-          <UserProfile
-            userId={viewUserId}
-            onBack={handleBackFromProfile}
-            onSteel={handleSteelFromProfile}
-          />
+          <UserProfile userId={viewUserId} onBack={() => setViewUserId(null)} onSteel={handleSteelFromProfile} />
         </div>
         <Toast message={toast} />
         <style>{`
           @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
           @keyframes spin { to { transform: rotate(360deg); } }
-          * { box-sizing: border-box; }
-          ::-webkit-scrollbar { display: none; }
+          * { box-sizing: border-box; } ::-webkit-scrollbar { display: none; }
           body { margin: 0; background: ${COLORS.bg}; }
           input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
           input[type="number"] { -moz-appearance: textfield; }
@@ -122,14 +110,10 @@ export default function App() {
       color: COLORS.text,
     }}>
       {/* Header */}
-      <div style={{
-        padding: '16px 16px 8px', position: 'sticky', top: 0, zIndex: 10,
-        background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)',
-      }}>
+      <div style={{ padding: '16px 16px 8px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
-            <span style={{ color: COLORS.text }}>STEEL</span>
-            <span style={{ color: COLORS.accent }}>.</span>
+            <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
           </span>
           {profile && (
             <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
@@ -145,30 +129,20 @@ export default function App() {
         {tab === 'feed' && <Feed onSteel={handleSteel} onProfile={handleViewProfile} />}
         {tab === 'discover' && <Discover onViewProfile={handleViewProfile} />}
         {tab === 'log' && (
-          <LogWorkout
-            prefill={steelPrefill}
-            onDone={() => {
-              setSteelPrefill(null);
-              setTab('feed');
-            }}
-          />
+          <LogWorkout prefill={steelPrefill} onDone={() => { setSteelPrefill(null); setTab('feed'); }} />
         )}
+        {tab === 'leaderboard' && <Leaderboard onViewProfile={handleViewProfile} />}
         {tab === 'profile' && <Profile onViewProfile={handleViewProfile} />}
       </div>
 
       <Toast message={toast} />
 
       <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { display: none; }
+        * { box-sizing: border-box; } ::-webkit-scrollbar { display: none; }
         body { margin: 0; background: ${COLORS.bg}; }
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
       `}</style>
     </div>

@@ -117,6 +117,7 @@ export default function LogWorkout({ prefill, onDone }) {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [previousData, setPreviousData] = useState({}); // exerciseId -> previous sets
+  const [isPublic, setIsPublic] = useState(true);
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
@@ -245,6 +246,7 @@ export default function LogWorkout({ prefill, onDone }) {
       duration_mins: durationMins,
       steeled_from: prefill?.steeled_from || null,
       template_id: templateId,
+      is_public: isPublic,
       exercises: workoutExercises.map(e => ({
         exercise_id: e.exercise_id, notes: e.notes,
         sets: e.sets.map(s => ({
@@ -401,6 +403,29 @@ export default function LogWorkout({ prefill, onDone }) {
           }}>{"💾"} Save as Template</button>
         )
       )}
+
+      {/* Privacy toggle */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 14px', borderRadius: 10, background: COLORS.card,
+        border: `1px solid ${COLORS.border}`, marginBottom: 12,
+      }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{isPublic ? '🌍 Public' : '🔒 Private'}</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim }}>{isPublic ? 'Visible in feed & leaderboards' : 'Only you can see this'}</div>
+        </div>
+        <button onClick={() => setIsPublic(!isPublic)} style={{
+          width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer',
+          background: isPublic ? COLORS.accent : COLORS.border, position: 'relative',
+          transition: 'background 0.2s',
+        }}>
+          <div style={{
+            width: 22, height: 22, borderRadius: 11, background: '#fff',
+            position: 'absolute', top: 3,
+            left: isPublic ? 23 : 3, transition: 'left 0.2s',
+          }} />
+        </button>
+      </div>
 
       {/* Cancel */}
       <button onClick={onDone} style={{

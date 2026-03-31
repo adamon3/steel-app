@@ -99,7 +99,7 @@ function StatsView({ workouts, unit }) {
 }
 
 // ── Workouts History Tab ──
-function WorkoutsView({ workouts, unit }) {
+function WorkoutsView({ workouts, unit, onTogglePrivacy }) {
   if (workouts.length === 0) return <EmptyState emoji="🏋️" title="No workouts yet" subtitle="Log your first workout to see it here" />;
 
   return (
@@ -110,15 +110,23 @@ function WorkoutsView({ workouts, unit }) {
           <div key={w.id} style={{
             background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10,
             border: `1px solid ${COLORS.border}`,
+            opacity: w.is_public === false ? 0.7 : 1,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</span>
+                  {w.is_public === false && <span style={{ fontSize: 11, color: COLORS.textDim }}>{"🔒"}</span>}
+                </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(w.created_at)}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {w.has_pr && <Badge color={COLORS.pro}>{"🏆"} PR</Badge>}
                 {w.steeled_from && <Badge color={COLORS.accent}>{"📋"}</Badge>}
+                <button onClick={() => onTogglePrivacy(w.id, w.is_public)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 4px',
+                  color: COLORS.textDim,
+                }}>{w.is_public !== false ? '🌍' : '🔒'}</button>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
@@ -259,6 +267,7 @@ function EditProfile({ profile, onSave, onCancel }) {
     sport: profile.sport || '',
     gym: profile.gym || '',
     unit_pref: profile.unit_pref || 'kg',
+    show_leaderboard: profile.show_leaderboard !== false,
   });
 
   return (
@@ -270,6 +279,31 @@ function EditProfile({ profile, onSave, onCancel }) {
       <Input label="Gym" value={form.gym} onChange={e => setForm({ ...form, gym: e.target.value })} placeholder="e.g. Nuffield Health Barbican" />
       <Select label="Weight Unit" value={form.unit_pref} onChange={e => setForm({ ...form, unit_pref: e.target.value })}
         options={[{ value: 'kg', label: 'Kilograms (kg)' }, { value: 'lbs', label: 'Pounds (lbs)' }]} />
+
+      {/* Leaderboard visibility toggle */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 0', marginTop: 4, marginBottom: 8,
+      }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{"🏆"} Show on Leaderboards</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim }}>
+            {form.show_leaderboard ? 'Your lifts appear in gym rankings' : 'Hidden from gym rankings'}
+          </div>
+        </div>
+        <button onClick={() => setForm({ ...form, show_leaderboard: !form.show_leaderboard })} style={{
+          width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer',
+          background: form.show_leaderboard ? COLORS.accent : COLORS.border, position: 'relative',
+          transition: 'background 0.2s',
+        }}>
+          <div style={{
+            width: 22, height: 22, borderRadius: 11, background: '#fff',
+            position: 'absolute', top: 3,
+            left: form.show_leaderboard ? 23 : 3, transition: 'left 0.2s',
+          }} />
+        </button>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <Button onClick={() => onSave(form)} style={{ flex: 1 }}>Save</Button>
         <Button variant="secondary" onClick={onCancel} style={{ flex: 1 }}>Cancel</Button>
@@ -387,7 +421,11 @@ export default function Profile({ onViewProfile }) {
       {loading ? <Spinner /> : (
         <>
           {subTab === 'Stats' && <StatsView workouts={workouts} unit={unit} />}
-          {subTab === 'Workouts' && <WorkoutsView workouts={workouts} unit={unit} />}
+          {subTab === 'Workouts' && <WorkoutsView workouts={workouts} unit={unit} onTogglePrivacy={async (workoutId, currentPublic) => {
+            const newVal = currentPublic === false ? true : false;
+            await supabase.from('workouts').update({ is_public: newVal }).eq('id', workoutId);
+            setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, is_public: newVal } : w));
+          }} />}
           {subTab === 'PRs' && <PRsView workouts={workouts} unit={unit} />}
           {subTab === 'Following' && <FollowingView userId={user.id} onViewProfile={onViewProfile || (() => {})} />}
         </>
