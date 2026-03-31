@@ -153,7 +153,7 @@ export default function App() {
             }}
           />
         )}
-        {tab === 'profile' && <Profile />}
+        {tab === 'profile' && <Profile onViewProfile={handleViewProfile} />}
       </div>
 
       <Toast message={toast} />
