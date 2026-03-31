@@ -36,8 +36,6 @@ export default function App() {
   };
 
   const handleProfile = (userId) => {
-    // For MVP, just switch to profile tab
-    // Full user profiles come in v2
     setTab('profile');
   };
 
@@ -85,7 +83,6 @@ export default function App() {
             onDone={() => {
               setSteelPrefill(null);
               setTab('feed');
-              showToast('Workout saved! 💪');
             }}
           />
         )}

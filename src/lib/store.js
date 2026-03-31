@@ -6,6 +6,7 @@ export const useStore = create((set, get) => ({
   profile: null,
   exercises: [],
   feed: [],
+  templates: [],
   loading: true,
 
   setUser: (user) => set({ user }),
@@ -18,7 +19,6 @@ export const useStore = create((set, get) => ({
       await get().fetchProfile(session.user.id);
     }
     set({ loading: false });
-
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         set({ user: session.user });
@@ -30,170 +30,150 @@ export const useStore = create((set, get) => ({
   },
 
   fetchProfile: async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (data) set({ profile: data });
   },
 
   updateProfile: async (updates) => {
     const { user } = get();
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
+    const { data } = await supabase.from('profiles')
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', user.id)
-      .select()
-      .single();
+      .eq('id', user.id).select().single();
     if (data) set({ profile: data });
   },
 
   fetchExercises: async () => {
-    const { data } = await supabase
-      .from('exercises')
-      .select('*')
-      .order('name');
+    const { data } = await supabase.from('exercises').select('*').order('name');
     if (data) set({ exercises: data });
+  },
+
+  fetchTemplates: async () => {
+    const { user } = get();
+    if (!user) return;
+    const { data } = await supabase
+      .from('templates')
+      .select('*, template_exercises (id, sort_order, exercise_id, default_sets, default_reps, default_weight, exercises:exercise_id (id, name, muscle_group))')
+      .eq('user_id', user.id)
+      .order('last_used', { ascending: false, nullsFirst: false });
+    if (data) set({ templates: data });
+  },
+
+  saveTemplate: async (name, exercises) => {
+    const { user } = get();
+    if (!user) return;
+    const { data: tmpl } = await supabase
+      .from('templates').insert({ user_id: user.id, name }).select().single();
+    if (!tmpl) return;
+    const rows = exercises.map((ex, i) => ({
+      template_id: tmpl.id,
+      exercise_id: ex.exercise_id,
+      sort_order: i,
+      default_sets: ex.sets?.length || 3,
+      default_reps: ex.sets?.[0]?.reps || 10,
+      default_weight: ex.sets?.[0]?.weight || 0,
+    }));
+    await supabase.from('template_exercises').insert(rows);
+    await get().fetchTemplates();
+  },
+
+  deleteTemplate: async (templateId) => {
+    await supabase.from('template_exercises').delete().eq('template_id', templateId);
+    await supabase.from('templates').delete().eq('id', templateId);
+    await get().fetchTemplates();
+  },
+
+  getPreviousSets: async (exerciseId) => {
+    const { user } = get();
+    if (!user) return null;
+    const { data: workouts } = await supabase
+      .from('workouts').select('id').eq('user_id', user.id)
+      .order('created_at', { ascending: false }).limit(20);
+    if (!workouts) return null;
+    for (const w of workouts) {
+      const { data: we } = await supabase
+        .from('workout_exercises')
+        .select('sets (set_number, weight, reps)')
+        .eq('workout_id', w.id).eq('exercise_id', exerciseId).limit(1);
+      if (we && we.length > 0 && we[0].sets?.length > 0) {
+        return we[0].sets.sort((a, b) => a.set_number - b.set_number);
+      }
+    }
+    return null;
   },
 
   fetchFeed: async () => {
     const { data } = await supabase
       .from('workouts')
-      .select(`
-        *,
-        profiles:user_id (id, username, display_name, sport, gym, avatar_url),
-        workout_exercises (
-          id, sort_order, notes,
-          exercises:exercise_id (id, name, muscle_group),
-          sets (id, set_number, weight, reps, is_pr, set_type)
-        ),
-        likes (user_id),
-        comments (id)
-      `)
+      .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
       .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(20);
+      .order('created_at', { ascending: false }).limit(20);
     if (data) set({ feed: data });
   },
 
   saveWorkout: async (workout) => {
     const { user } = get();
     if (!user) return null;
-
-    // Calculate totals
-    let totalVolume = 0;
-    let totalSets = 0;
-    let hasPr = false;
+    let totalVolume = 0, totalSets = 0, hasPr = false;
     workout.exercises.forEach(ex => {
       ex.sets.forEach(s => {
-        totalVolume += s.weight * s.reps;
-        totalSets += 1;
-        if (s.is_pr) hasPr = true;
+        if (s.completed !== false) {
+          totalVolume += (s.weight || 0) * (s.reps || 0);
+          totalSets += 1;
+          if (s.is_pr) hasPr = true;
+        }
       });
     });
-
-    // Insert workout
-    const { data: w, error } = await supabase
-      .from('workouts')
-      .insert({
-        user_id: user.id,
-        title: workout.title,
-        notes: workout.notes || '',
-        duration_mins: workout.duration_mins || 0,
-        total_volume: totalVolume,
-        total_sets: totalSets,
-        has_pr: hasPr,
-        steeled_from: workout.steeled_from || null,
-      })
-      .select()
-      .single();
-
+    const { data: w, error } = await supabase.from('workouts').insert({
+      user_id: user.id, title: workout.title, notes: workout.notes || '',
+      duration_mins: workout.duration_mins || 0, total_volume: totalVolume,
+      total_sets: totalSets, has_pr: hasPr, steeled_from: workout.steeled_from || null,
+    }).select().single();
     if (error || !w) return null;
 
-    // Insert exercises and sets
     for (let i = 0; i < workout.exercises.length; i++) {
       const ex = workout.exercises[i];
-      const { data: we } = await supabase
-        .from('workout_exercises')
-        .insert({
-          workout_id: w.id,
-          exercise_id: ex.exercise_id,
-          sort_order: i,
-          notes: ex.notes || '',
-        })
-        .select()
-        .single();
-
+      const done = ex.sets.filter(s => s.completed !== false);
+      if (done.length === 0) continue;
+      const { data: we } = await supabase.from('workout_exercises').insert({
+        workout_id: w.id, exercise_id: ex.exercise_id, sort_order: i, notes: ex.notes || '',
+      }).select().single();
       if (we) {
-        const setsToInsert = ex.sets.map((s, j) => ({
-          workout_exercise_id: we.id,
-          set_number: j + 1,
-          weight: s.weight,
-          reps: s.reps,
-          is_pr: s.is_pr || false,
-          set_type: s.set_type || 'normal',
-        }));
-        await supabase.from('sets').insert(setsToInsert);
+        await supabase.from('sets').insert(done.map((s, j) => ({
+          workout_exercise_id: we.id, set_number: j + 1,
+          weight: s.weight || 0, reps: s.reps || 0,
+          is_pr: s.is_pr || false, set_type: s.set_type || 'normal',
+        })));
       }
     }
-
+    if (workout.template_id) {
+      await supabase.from('templates').update({ last_used: new Date().toISOString() }).eq('id', workout.template_id);
+    }
     await get().fetchFeed();
     return w;
   },
 
   steelWorkout: async (workoutId) => {
-    // Fetch the full workout to copy
-    const { data: original } = await supabase
-      .from('workouts')
-      .select(`
-        *,
-        workout_exercises (
-          sort_order, notes,
-          exercises:exercise_id (id, name),
-          sets (set_number, weight, reps, set_type)
-        )
-      `)
-      .eq('id', workoutId)
-      .single();
-
+    const { data: original } = await supabase.from('workouts')
+      .select('*, workout_exercises (sort_order, notes, exercises:exercise_id (id, name), sets (set_number, weight, reps, set_type))')
+      .eq('id', workoutId).single();
     if (!original) return null;
-
-    const workout = {
-      title: original.title,
-      notes: '',
-      steeled_from: original.id,
-      exercises: original.workout_exercises
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map(we => ({
-          exercise_id: we.exercises.id,
-          notes: we.notes,
-          sets: we.sets
-            .sort((a, b) => a.set_number - b.set_number)
-            .map(s => ({
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.set_type,
-              is_pr: false,
-            })),
+    return {
+      title: original.title, notes: '', steeled_from: original.id,
+      exercises: original.workout_exercises.sort((a, b) => a.sort_order - b.sort_order).map(we => ({
+        exercise_id: we.exercises.id, name: we.exercises.name, notes: we.notes,
+        sets: we.sets.sort((a, b) => a.set_number - b.set_number).map(s => ({
+          weight: s.weight, reps: s.reps, set_type: s.set_type, is_pr: false,
         })),
+      })),
     };
-
-    return workout; // Return template, don't auto-save
   },
 
   toggleLike: async (workoutId) => {
     const { user } = get();
     if (!user) return;
-
-    const { data: existing } = await supabase
-      .from('likes')
-      .select()
-      .eq('user_id', user.id)
-      .eq('workout_id', workoutId)
-      .single();
-
+    const { data: existing } = await supabase.from('likes').select()
+      .eq('user_id', user.id).eq('workout_id', workoutId).single();
     if (existing) {
       await supabase.from('likes').delete().eq('user_id', user.id).eq('workout_id', workoutId);
     } else {
@@ -205,14 +185,8 @@ export const useStore = create((set, get) => ({
   toggleFollow: async (targetId) => {
     const { user } = get();
     if (!user) return;
-
-    const { data: existing } = await supabase
-      .from('follows')
-      .select()
-      .eq('follower_id', user.id)
-      .eq('following_id', targetId)
-      .single();
-
+    const { data: existing } = await supabase.from('follows').select()
+      .eq('follower_id', user.id).eq('following_id', targetId).single();
     if (existing) {
       await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', targetId);
     } else {
