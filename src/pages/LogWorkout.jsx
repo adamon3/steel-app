@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../lib/store';
-import { COLORS, Button, Input, Spinner, convertWeight, convertWeightBack, formatVolume } from '../components/UI';
+import { COLORS, Button, Input, Icon, Spinner, convertWeight, convertWeightBack, formatVolume } from '../components/UI';
 
 // ── Rest Timer Popup ──
 function RestTimer({ seconds, onDismiss }) {
@@ -67,12 +67,12 @@ function TemplateSelector({ onSelect, onEmpty, templates }) {
   return (
     <div>
       <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>Start Workout</div>
-      <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 20 }}>Choose a template or start empty</div>
+      <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 20 }}>Choose a template or start fresh</div>
       <button onClick={onEmpty} style={{
         width: '100%', padding: 16, borderRadius: 12, border: 'none', fontSize: 15, fontWeight: 700,
         fontFamily: 'inherit', cursor: 'pointer', marginBottom: 20,
         background: COLORS.accent, color: COLORS.bg,
-      }}>Start Empty Workout</button>
+      }}>Start a New Workout</button>
 
       {templates.length > 0 && (
         <>
@@ -88,7 +88,9 @@ function TemplateSelector({ onSelect, onEmpty, templates }) {
                   {(t.template_exercises || []).sort((a, b) => a.sort_order - b.sort_order).map(te => te.exercises?.name).filter(Boolean).join(', ')}
                 </div>
                 {t.last_used && (
-                  <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 6 }}>{"🕐"} {new Date(t.last_used).toLocaleDateString()}</div>
+                  <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 6 }}>
+                    <Icon name="clock" size={12} color={COLORS.textDim} /> {new Date(t.last_used).toLocaleDateString()}
+                  </div>
                 )}
               </button>
             ))}
@@ -178,7 +180,6 @@ export default function LogWorkout({ prefill, onDone }) {
 
   const handleStartEmpty = () => {
     setPhase('logging');
-    setShowPicker(true);
   };
 
   const addExercise = (ex) => {
@@ -439,29 +440,170 @@ export default function LogWorkout({ prefill, onDone }) {
 
       {/* Exercise Picker Modal */}
       {showPicker && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ background: COLORS.bg, flex: 1, marginTop: 40, borderRadius: '20px 20px 0 0', padding: 16, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>Choose Exercise</span>
-              <button onClick={() => { setShowPicker(false); setSearch(''); }} style={{ background: 'none', border: 'none', color: COLORS.textDim, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', fontWeight: 600 }}>Close</button>
+        <ExercisePicker
+          exercises={exercises}
+          search={search}
+          setSearch={setSearch}
+          onSelect={addExercise}
+          onClose={() => { setShowPicker(false); setSearch(''); }}
+          onCreateCustom={async (name, muscleGroup) => {
+            const { user } = useStore.getState();
+            const { data } = await (await import('../lib/supabase')).supabase
+              .from('exercises')
+              .insert({ name, muscle_group: muscleGroup, is_custom: true, created_by: user?.id })
+              .select()
+              .single();
+            if (data) {
+              await fetchExercises();
+              addExercise(data);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Exercise Picker with muscle group filter + custom creation ──
+function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCreateCustom }) {
+  const [muscleFilter, setMuscleFilter] = useState('All');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newGroup, setNewGroup] = useState('Chest');
+
+  const MUSCLE_GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Legs', 'Biceps', 'Triceps', 'Forearms', 'Glutes', 'Core', 'Cardio', 'Mobility', 'Olympic'];
+
+  const filtered = exercises.filter(e => {
+    const matchSearch = search === '' || e.name.toLowerCase().includes(search.toLowerCase());
+    const matchGroup = muscleFilter === 'All' || e.muscle_group === muscleFilter;
+    return matchSearch && matchGroup;
+  });
+
+  const grouped = {};
+  filtered.forEach(e => {
+    if (!grouped[e.muscle_group]) grouped[e.muscle_group] = [];
+    grouped[e.muscle_group].push(e);
+  });
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    onCreateCustom(newName.trim(), newGroup);
+    setShowCreate(false);
+    setNewName('');
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: COLORS.bg, flex: 1, marginTop: 20, borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 16px 0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>Choose Exercise</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setShowCreate(true)} style={{
+                background: COLORS.accent, border: 'none', borderRadius: 6, padding: '6px 10px',
+                cursor: 'pointer', fontSize: 12, color: COLORS.bg, fontWeight: 700, fontFamily: 'inherit',
+              }}>+ New</button>
+              <button onClick={onClose} style={{
+                background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: COLORS.textDim, fontFamily: 'inherit',
+              }}>Close</button>
             </div>
-            <input placeholder="Search exercises..." value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.card, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }} />
-            {Object.entries(grouped).map(([group, exs]) => (
-              <div key={group}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textDim, padding: '10px 0 4px', textTransform: 'uppercase', letterSpacing: 1 }}>{group}</div>
-                {exs.map(ex => (
-                  <button key={ex.id} onClick={() => addExercise(ex)} style={{
-                    display: 'block', width: '100%', padding: '12px 8px', border: 'none',
-                    borderBottom: `1px solid ${COLORS.border}`, background: 'transparent',
-                    color: COLORS.text, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left',
-                  }}>{ex.name}</button>
-                ))}
-              </div>
+          </div>
+
+          {/* Search */}
+          <input placeholder="Search exercises..." value={search} onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
+              background: COLORS.card, color: COLORS.text, fontSize: 14, fontFamily: 'inherit',
+              outline: 'none', marginBottom: 10, boxSizing: 'border-box',
+            }} />
+
+          {/* Muscle group filter */}
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 10 }}>
+            {MUSCLE_GROUPS.map(g => (
+              <button key={g} onClick={() => setMuscleFilter(g)} style={{
+                padding: '5px 10px', borderRadius: 16, border: 'none', cursor: 'pointer',
+                fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
+                background: muscleFilter === g ? COLORS.accent : COLORS.card,
+                color: muscleFilter === g ? COLORS.bg : COLORS.textDim,
+              }}>{g}</button>
             ))}
           </div>
         </div>
-      )}
+
+        {/* Exercise list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
+          {Object.keys(grouped).length === 0 && (
+            <div style={{ textAlign: 'center', padding: 30, color: COLORS.textDim }}>
+              <div style={{ fontSize: 14, marginBottom: 8 }}>No exercises found</div>
+              <button onClick={() => setShowCreate(true)} style={{
+                background: COLORS.accent, border: 'none', borderRadius: 8, padding: '10px 20px',
+                cursor: 'pointer', fontSize: 13, color: COLORS.bg, fontWeight: 700, fontFamily: 'inherit',
+              }}>Create Custom Exercise</button>
+            </div>
+          )}
+          {Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).map(([group, exs]) => (
+            <div key={group}>
+              <div style={{
+                fontSize: 11, fontWeight: 700, color: COLORS.accent, padding: '10px 0 4px',
+                textTransform: 'uppercase', letterSpacing: 1,
+                position: 'sticky', top: 0, background: COLORS.bg, zIndex: 1,
+              }}>{group} ({exs.length})</div>
+              {exs.sort((a,b) => a.name.localeCompare(b.name)).map(ex => (
+                <button key={ex.id} onClick={() => onSelect(ex)} style={{
+                  display: 'flex', width: '100%', padding: '11px 8px', border: 'none',
+                  borderBottom: `1px solid ${COLORS.border}`, background: 'transparent',
+                  color: COLORS.text, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
+                  textAlign: 'left', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span>{ex.name}</span>
+                  {ex.is_custom && <span style={{ fontSize: 10, color: COLORS.textDim, background: COLORS.card, padding: '2px 6px', borderRadius: 4 }}>Custom</span>}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Create custom exercise overlay */}
+        {showCreate && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, background: COLORS.card,
+            borderTop: `1px solid ${COLORS.border}`, borderRadius: '16px 16px 0 0',
+            padding: 20, zIndex: 2,
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>Create Custom Exercise</div>
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Exercise name"
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit',
+                outline: 'none', marginBottom: 10, boxSizing: 'border-box',
+              }} />
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 6, fontWeight: 600 }}>Muscle Group</div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 14 }}>
+              {MUSCLE_GROUPS.filter(g => g !== 'All').map(g => (
+                <button key={g} onClick={() => setNewGroup(g)} style={{
+                  padding: '5px 10px', borderRadius: 16, border: 'none', cursor: 'pointer',
+                  fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                  background: newGroup === g ? COLORS.accent : COLORS.bg,
+                  color: newGroup === g ? COLORS.bg : COLORS.textDim,
+                }}>{g}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleCreate} disabled={!newName.trim()} style={{
+                flex: 1, padding: 12, borderRadius: 8, border: 'none', background: COLORS.accent,
+                color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                opacity: newName.trim() ? 1 : 0.5,
+              }}>Create & Add</button>
+              <button onClick={() => setShowCreate(false)} style={{
+                padding: '12px 16px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                background: 'transparent', color: COLORS.textDim, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+              }}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
+import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, getGuestPreviousSets, getGuestPrefs, clearGuestData } from './localStorage';
 
 export const useStore = create((set, get) => ({
   user: null,
@@ -8,25 +9,85 @@ export const useStore = create((set, get) => ({
   feed: [],
   templates: [],
   loading: true,
+  isGuest: true, // true until logged in
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => set({ user, isGuest: !user }),
   setProfile: (profile) => set({ profile }),
 
   init: async () => {
+    // Always fetch exercises (public, no auth needed)
+    get().fetchExercises();
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      set({ user: session.user });
+      set({ user: session.user, isGuest: false });
       await get().fetchProfile(session.user.id);
+      await get().syncGuestWorkouts(); // sync any local workouts
     }
     set({ loading: false });
+
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        set({ user: session.user });
+        set({ user: session.user, isGuest: false });
         await get().fetchProfile(session.user.id);
+        await get().syncGuestWorkouts();
+        await get().fetchTemplates();
+        await get().fetchFeed();
       } else {
-        set({ user: null, profile: null });
+        set({ user: null, profile: null, isGuest: true });
       }
     });
+  },
+
+  // Sync local guest workouts to Supabase after login
+  syncGuestWorkouts: async () => {
+    const { user } = get();
+    if (!user) return;
+    const localWorkouts = getGuestWorkouts();
+    if (localWorkouts.length === 0) return;
+
+    for (const lw of localWorkouts) {
+      try {
+        let totalVolume = 0, totalSets = 0, hasPr = false;
+        (lw.exercises || []).forEach(ex => {
+          (ex.sets || []).forEach(s => {
+            if (s.completed !== false) {
+              totalVolume += (s.weight || 0) * (s.reps || 0);
+              totalSets += 1;
+              if (s.is_pr) hasPr = true;
+            }
+          });
+        });
+
+        const { data: w } = await supabase.from('workouts').insert({
+          user_id: user.id, title: lw.title || 'Workout', notes: lw.notes || '',
+          duration_mins: lw.duration_mins || 0, total_volume: totalVolume,
+          total_sets: totalSets, has_pr: hasPr, is_public: lw.is_public !== false,
+          created_at: lw.created_at,
+        }).select().single();
+
+        if (w) {
+          for (let i = 0; i < (lw.exercises || []).length; i++) {
+            const ex = lw.exercises[i];
+            const done = (ex.sets || []).filter(s => s.completed !== false);
+            if (done.length === 0) continue;
+            const { data: we } = await supabase.from('workout_exercises').insert({
+              workout_id: w.id, exercise_id: ex.exercise_id, sort_order: i,
+            }).select().single();
+            if (we) {
+              await supabase.from('sets').insert(done.map((s, j) => ({
+                workout_exercise_id: we.id, set_number: j + 1,
+                weight: s.weight || 0, reps: s.reps || 0,
+                is_pr: s.is_pr || false, set_type: s.set_type || 'normal',
+              })));
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to sync workout:', e);
+      }
+    }
+    clearGuestData();
   },
 
   fetchProfile: async (userId) => {
@@ -49,7 +110,12 @@ export const useStore = create((set, get) => ({
   },
 
   fetchTemplates: async () => {
-    const { user } = get();
+    const { user, isGuest } = get();
+    if (isGuest) {
+      // Load from local storage
+      set({ templates: getGuestTemplates() });
+      return;
+    }
     if (!user) return;
     const { data } = await supabase
       .from('templates')
@@ -60,18 +126,18 @@ export const useStore = create((set, get) => ({
   },
 
   saveTemplate: async (name, exercises) => {
-    const { user } = get();
+    const { user, isGuest } = get();
+    if (isGuest) {
+      saveGuestTemplate(name, exercises);
+      set({ templates: getGuestTemplates() });
+      return;
+    }
     if (!user) return;
-    const { data: tmpl } = await supabase
-      .from('templates').insert({ user_id: user.id, name }).select().single();
+    const { data: tmpl } = await supabase.from('templates').insert({ user_id: user.id, name }).select().single();
     if (!tmpl) return;
     const rows = exercises.map((ex, i) => ({
-      template_id: tmpl.id,
-      exercise_id: ex.exercise_id,
-      sort_order: i,
-      default_sets: ex.sets?.length || 3,
-      default_reps: ex.sets?.[0]?.reps || 10,
-      default_weight: ex.sets?.[0]?.weight || 0,
+      template_id: tmpl.id, exercise_id: ex.exercise_id, sort_order: i,
+      default_sets: ex.sets?.length || 3, default_reps: ex.sets?.[0]?.reps || 10, default_weight: ex.sets?.[0]?.weight || 0,
     }));
     await supabase.from('template_exercises').insert(rows);
     await get().fetchTemplates();
@@ -84,7 +150,10 @@ export const useStore = create((set, get) => ({
   },
 
   getPreviousSets: async (exerciseId) => {
-    const { user } = get();
+    const { user, isGuest } = get();
+    if (isGuest) {
+      return getGuestPreviousSets(exerciseId);
+    }
     if (!user) return null;
     const { data: workouts } = await supabase
       .from('workouts').select('id').eq('user_id', user.id)
@@ -112,8 +181,14 @@ export const useStore = create((set, get) => ({
   },
 
   saveWorkout: async (workout) => {
-    const { user } = get();
-    if (!user) return null;
+    const { user, isGuest } = get();
+
+    // Guest mode: save locally
+    if (isGuest || !user) {
+      return saveGuestWorkout(workout);
+    }
+
+    // Logged in: save to Supabase
     let totalVolume = 0, totalSets = 0, hasPr = false;
     workout.exercises.forEach(ex => {
       ex.sets.forEach(s => {

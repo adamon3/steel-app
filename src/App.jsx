@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from './lib/store';
-import { COLORS, TabBar, Toast, Spinner, Avatar, getInitials } from './components/UI';
+import { COLORS, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
 import Auth from './pages/Auth';
 import Feed from './pages/Feed';
 import Discover from './pages/Discover';
@@ -10,28 +10,72 @@ import UserProfile from './pages/UserProfile';
 import Profile from './pages/Profile';
 
 const tabs = [
-  { id: 'feed', label: 'Feed', icon: '📱' },
-  { id: 'discover', label: 'Discover', icon: '🔍' },
-  { id: 'log', label: 'Log', icon: '💪' },
-  { id: 'leaderboard', label: 'Ranks', icon: '🏆' },
-  { id: 'profile', label: 'Me', icon: '👤' },
+  { id: 'feed', label: 'Home', icon: 'home' },
+  { id: 'discover', label: 'Discover', icon: 'search' },
+  { id: 'log', label: '', icon: 'plus', center: true },
+  { id: 'leaderboard', label: 'Ranks', icon: 'trophy' },
+  { id: 'profile', label: 'You', icon: 'user' },
 ];
 
+// Blurred overlay for pages that need sign-up
+function AuthGate({ children, message, onSignUp }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ filter: 'blur(6px)', pointerEvents: 'none', opacity: 0.5 }}>
+        {children}
+      </div>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', padding: 32,
+      }}>
+        <Icon name="lock" size={40} color={COLORS.accent} />
+        <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12, textAlign: 'center' }}>
+          {message || 'Sign up to unlock'}
+        </div>
+        <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, textAlign: 'center' }}>
+          Create a free account to access this feature
+        </div>
+        <button onClick={onSignUp} style={{
+          marginTop: 16, padding: '12px 32px', borderRadius: 10, border: 'none',
+          background: COLORS.accent, color: COLORS.bg, fontWeight: 700, fontSize: 15,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>Sign Up Free</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const { user, profile, loading, init } = useStore();
-  const [tab, setTab] = useState('feed');
+  const { user, profile, loading, init, isGuest, fetchFeed, fetchTemplates } = useStore();
+  const [tab, setTab] = useState('log'); // Default to workout tab for guests
   const [toast, setToast] = useState(null);
   const [steelPrefill, setSteelPrefill] = useState(null);
   const [viewUserId, setViewUserId] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
 
   useEffect(() => { init(); }, []);
+
+  // Once logged in, fetch social data
+  useEffect(() => {
+    if (!isGuest) {
+      fetchFeed();
+      fetchTemplates();
+    }
+  }, [isGuest]);
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
 
+  const promptAuth = (msg) => {
+    setAuthMessage(msg || '');
+    setShowAuth(true);
+  };
+
   const handleSteel = async (workout) => {
+    if (isGuest) { promptAuth('Sign up to Steel workouts from other athletes'); return; }
     const template = await useStore.getState().steelWorkout(workout.id);
     if (template) {
       template.steeled_from = workout.id;
@@ -50,11 +94,8 @@ export default function App() {
   };
 
   const handleViewProfile = (userId) => {
-    if (userId === user?.id) {
-      setTab('profile');
-    } else {
-      setViewUserId(userId);
-    }
+    if (isGuest) { promptAuth('Sign up to view athlete profiles'); return; }
+    if (userId === user?.id) { setTab('profile'); } else { setViewUserId(userId); }
   };
 
   if (loading) {
@@ -65,75 +106,154 @@ export default function App() {
     );
   }
 
-  if (!user) return <Auth />;
-
-  // Viewing another user's profile
-  if (viewUserId) {
-    return (
-      <div style={{
-        background: COLORS.bg, minHeight: '100vh',
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: COLORS.text,
-      }}>
-        <div style={{ padding: '16px 16px 8px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
-              <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
-            </span>
-            {profile && (
-              <div onClick={() => { setViewUserId(null); setTab('profile'); }} style={{ cursor: 'pointer' }}>
-                <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} />
-              </div>
-            )}
-          </div>
-        </div>
-        <div style={{ padding: '8px 16px 100px' }}>
+  // Main app shell — works for both guests and logged-in users
+  const renderContent = () => {
+    // Viewing another user's profile (logged in only)
+    if (viewUserId && !isGuest) {
+      return (
+        <div style={{ padding: '8px 16px 90px' }}>
           <UserProfile userId={viewUserId} onBack={() => setViewUserId(null)} onSteel={handleSteelFromProfile} />
         </div>
-        <Toast message={toast} />
-        <style>{`
-          @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-          @keyframes spin { to { transform: rotate(360deg); } }
-          * { box-sizing: border-box; } ::-webkit-scrollbar { display: none; }
-          body { margin: 0; background: ${COLORS.bg}; }
-          input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-          input[type="number"] { -moz-appearance: textfield; }
-        `}</style>
+      );
+    }
+
+    return (
+      <div style={{ padding: '0 16px 90px' }}>
+        {/* HOME / FEED */}
+        {tab === 'feed' && (
+          isGuest ? (
+            <div>
+              {/* Show a peek of the feed then gate */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Activity Feed</div>
+                <div style={{ fontSize: 13, color: COLORS.textDim }}>See what athletes at your gym are lifting</div>
+              </div>
+              <AuthGate message="Sign up to see the community feed" onSignUp={() => promptAuth('Join Steel to see workouts from athletes you follow')}>
+                {/* Fake feed cards for blur effect */}
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ background: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, height: 180 }} />
+                ))}
+              </AuthGate>
+            </div>
+          ) : (
+            <Feed onSteel={handleSteel} onProfile={handleViewProfile} />
+          )
+        )}
+
+        {/* DISCOVER */}
+        {tab === 'discover' && (
+          isGuest ? (
+            <AuthGate message="Sign up to discover athletes" onSignUp={() => promptAuth('Create an account to find and follow athletes')}>
+              {[1,2,3].map(i => (
+                <div key={i} style={{ background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}`, height: 120 }} />
+              ))}
+            </AuthGate>
+          ) : (
+            <Discover onViewProfile={handleViewProfile} />
+          )
+        )}
+
+        {/* LOG WORKOUT — always available, even for guests */}
+        {tab === 'log' && (
+          <LogWorkout
+            prefill={steelPrefill}
+            onDone={() => {
+              setSteelPrefill(null);
+              showToast('Workout saved!');
+              if (!isGuest) setTab('feed');
+            }}
+          />
+        )}
+
+        {/* LEADERBOARD */}
+        {tab === 'leaderboard' && (
+          isGuest ? (
+            <AuthGate message="Sign up to see gym leaderboards" onSignUp={() => promptAuth('Join Steel to compete on your gym\'s leaderboard')}>
+              <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, height: 60 }} />
+              {[1,2,3,4,5].map(i => (
+                <div key={i} style={{ background: COLORS.card, borderRadius: 14, padding: 12, marginBottom: 8, border: `1px solid ${COLORS.border}`, height: 50 }} />
+              ))}
+            </AuthGate>
+          ) : (
+            <Leaderboard onViewProfile={handleViewProfile} />
+          )
+        )}
+
+        {/* PROFILE */}
+        {tab === 'profile' && (
+          isGuest ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Icon name="user" size={48} color={COLORS.textDim} />
+              <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12 }}>Your Profile</div>
+              <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, marginBottom: 20, lineHeight: 1.5 }}>
+                Sign up to save your workouts to the cloud, access them from any device, and join the community.
+              </div>
+              {/* Show guest workout count */}
+              {(() => {
+                try {
+                  const local = JSON.parse(localStorage.getItem('steel_guest_workouts') || '[]');
+                  if (local.length > 0) {
+                    return (
+                      <div style={{ background: `${COLORS.accent}12`, border: `1px solid ${COLORS.accent}25`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                        <div style={{ fontSize: 14, color: COLORS.accent, fontWeight: 600 }}>
+                          You have {local.length} workout{local.length > 1 ? 's' : ''} saved locally
+                        </div>
+                        <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
+                          Sign up to sync them to your account
+                        </div>
+                      </div>
+                    );
+                  }
+                } catch {}
+                return null;
+              })()}
+              <button onClick={() => promptAuth('Create your account to save your workouts')} style={{
+                padding: '14px 32px', borderRadius: 12, border: 'none',
+                background: COLORS.accent, color: COLORS.bg, fontWeight: 700, fontSize: 16,
+                cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+              }}>Create Account</button>
+              <button onClick={() => promptAuth('')} style={{
+                marginTop: 10, padding: '12px 32px', borderRadius: 12, background: COLORS.card,
+                border: `1px solid ${COLORS.border}`, color: COLORS.text, fontWeight: 600,
+                fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+              }}>Log In</button>
+            </div>
+          ) : (
+            <Profile onViewProfile={handleViewProfile} />
+          )
+        )}
       </div>
     );
-  }
+  };
 
   return (
-    <div style={{
-      background: COLORS.bg, minHeight: '100vh',
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      color: COLORS.text,
-    }}>
+    <div style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
       {/* Header */}
-      <div style={{ padding: '16px 16px 8px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ padding: '16px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
             <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
           </span>
-          {profile && (
+          {isGuest ? (
+            <button onClick={() => promptAuth('')} style={{
+              background: COLORS.accent, border: 'none', borderRadius: 8,
+              padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+              color: COLORS.bg, fontFamily: 'inherit',
+            }}>Sign Up</button>
+          ) : profile && (
             <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
               <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} />
             </div>
           )}
         </div>
-        <TabBar tabs={tabs} active={tab} onChange={(t) => { setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
       </div>
 
-      {/* Content */}
-      <div style={{ padding: '0 16px 100px' }}>
-        {tab === 'feed' && <Feed onSteel={handleSteel} onProfile={handleViewProfile} />}
-        {tab === 'discover' && <Discover onViewProfile={handleViewProfile} />}
-        {tab === 'log' && (
-          <LogWorkout prefill={steelPrefill} onDone={() => { setSteelPrefill(null); setTab('feed'); }} />
-        )}
-        {tab === 'leaderboard' && <Leaderboard onViewProfile={handleViewProfile} />}
-        {tab === 'profile' && <Profile onViewProfile={handleViewProfile} />}
-      </div>
+      {renderContent()}
+
+      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => { setViewUserId(null); setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
+
+      {/* Auth modal */}
+      {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} />}
 
       <Toast message={toast} />
 

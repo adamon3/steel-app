@@ -1,93 +1,146 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Button, EmptyState, Spinner, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+
+function CommentSection({ workoutId, initialCount }) {
+  const { user } = useStore();
+  const [comments, setComments] = useState([]);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const fetchComments = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('comments')
+      .select('*, profiles:user_id (display_name, username)')
+      .eq('workout_id', workoutId).order('created_at', { ascending: true });
+    if (data) setComments(data);
+    setLoading(false);
+  };
+
+  const postComment = async () => {
+    if (!newComment.trim() || !user) return;
+    await supabase.from('comments').insert({ user_id: user.id, workout_id: workoutId, body: newComment.trim() });
+    setNewComment('');
+    fetchComments();
+  };
+
+  return (
+    <div>
+      <button onClick={() => { if (!showComments) fetchComments(); setShowComments(!showComments); }} style={{
+        background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+        color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 4, padding: 0,
+      }}>
+        <Icon name="comment" size={16} color={COLORS.textDim} />
+        <span>{comments.length || initialCount || 0}</span>
+      </button>
+      {showComments && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLORS.border}` }}>
+          {loading ? <div style={{ fontSize: 12, color: COLORS.textDim }}>Loading...</div> : (
+            <>
+              {comments.map(c => (
+                <div key={c.id} style={{ marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: COLORS.text }}>{c.profiles?.display_name}</span>
+                  <span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 6 }}>{c.body}</span>
+                  <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(c.created_at)}</div>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add a comment..."
+                  onKeyDown={e => e.key === 'Enter' && postComment()}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                <button onClick={postComment} style={{ background: COLORS.accent, color: COLORS.bg, border: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Post</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
   const { user, toggleLike } = useStore();
   const [liked, setLiked] = useState(false);
   const [steeled, setSteeled] = useState(false);
+  const [likeCount, setLikeCount] = useState(workout.likes?.length || 0);
   const p = workout.profiles;
 
   useEffect(() => {
-    if (user && workout.likes) {
-      setLiked(workout.likes.some(l => l.user_id === user.id));
-    }
+    if (user && workout.likes) setLiked(workout.likes.some(l => l.user_id === user.id));
   }, [workout.likes, user]);
 
   const handleLike = async () => {
-    setLiked(!liked);
-    await toggleLike(workout.id);
+    setLiked(!liked); setLikeCount(c => liked ? c - 1 : c + 1); await toggleLike(workout.id);
   };
-
-  const handleSteel = () => {
-    setSteeled(true);
-    onSteel(workout);
-    setTimeout(() => setSteeled(false), 2000);
-  };
+  const handleSteel = () => { setSteeled(true); onSteel(workout); setTimeout(() => setSteeled(false), 2000); };
 
   const exercises = (workout.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
   const unit = unitPref || 'kg';
+  const prCount = exercises.reduce((t, we) => t + (we.sets || []).filter(s => s.is_pr).length, 0);
 
   return (
-    <div style={{ background: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 12, border: `1px solid ${COLORS.border}` }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} onClick={() => onProfile?.(p?.id)} />
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span onClick={() => onProfile?.(p?.id)} style={{ fontWeight: 700, color: COLORS.text, cursor: 'pointer', fontSize: 14 }}>{p?.display_name}</span>
-            {p?.sport && <Badge color={COLORS.orange}>{p.sport}</Badge>}
+    <div style={{ background: COLORS.card, borderRadius: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
+      <div style={{ padding: '14px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} onClick={() => onProfile?.(p?.id)} />
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span onClick={() => onProfile?.(p?.id)} style={{ fontWeight: 700, color: COLORS.text, cursor: 'pointer', fontSize: 14 }}>{p?.display_name}</span>
+              {p?.sport && <Badge color={COLORS.orange}>{p.sport}</Badge>}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 1 }}>{timeAgo(workout.created_at)}{p?.gym ? ` · ${p.gym}` : ''}</div>
           </div>
-          <div style={{ fontSize: 12, color: COLORS.textDim }}>{p?.gym || 'Unknown gym'} · {timeAgo(workout.created_at)}</div>
+        </div>
+        <div style={{ fontWeight: 800, fontSize: 18, color: COLORS.text, marginBottom: 10 }}>{workout.title}</div>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
+          {[
+            ...(workout.duration_mins > 0 ? [{ label: 'Duration', value: `${workout.duration_mins}m` }] : []),
+            { label: `Volume (${unit})`, value: formatVolume(convertWeight(workout.total_volume, unit)) },
+            { label: 'Sets', value: workout.total_sets },
+            ...(prCount > 0 ? [{ label: 'PRs', value: prCount, highlight: true }] : []),
+          ].map((s, i) => (
+            <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < 3 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
+              <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: s.highlight ? COLORS.pro : COLORS.text }}>{s.value}</div>
+            </div>
+          ))}
         </div>
       </div>
-
-      {/* Title */}
-      <div style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, marginBottom: 8 }}>{workout.title}</div>
-
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        {workout.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{"⏱"} {workout.duration_mins} min</span>}
-        <span style={{ fontSize: 12, color: COLORS.textDim }}>{"🏋️"} {formatVolume(convertWeight(workout.total_volume, unit))} {unit}</span>
-        {workout.has_pr && <span style={{ fontSize: 12, color: COLORS.pro }}>{"🏆"} New PR!</span>}
-        {workout.steeled_from && <span style={{ fontSize: 12, color: COLORS.accent }}>{"📋"} Steeled</span>}
-      </div>
-
-      {/* Exercises */}
-      <div style={{ background: `${COLORS.bg}88`, borderRadius: 10, padding: 10, marginBottom: 12 }}>
+      <div style={{ padding: '0 16px 12px' }}>
         {exercises.slice(0, 4).map((we, i) => {
           const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
-          const topWeight = Math.max(...sets.map(s => s.weight), 0);
-          const topSet = sets.find(s => s.weight === topWeight);
+          const topW = Math.max(...sets.map(s => s.weight), 0);
+          const topSet = sets.find(s => s.weight === topW);
           const hasPr = sets.some(s => s.is_pr);
           return (
-            <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0',
-              borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
-              <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{we.exercises?.name}</span>
-              <span style={{ fontSize: 12, color: COLORS.textDim }}>
-                {sets.length} sets · top {convertWeight(topWeight, unit)}{unit} x{topSet?.reps || 0}
-                {hasPr && <span style={{ color: COLORS.pro, marginLeft: 4 }}>PR!</span>}
-              </span>
+            <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{we.exercises?.name}</span>
+                {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>PR</span>}
+              </div>
+              <span style={{ fontSize: 12, color: COLORS.textDim }}>{sets.length} sets · {convertWeight(topW, unit)}{unit} x{topSet?.reps || 0}</span>
             </div>
           );
         })}
-        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 4 }}>+{exercises.length - 4} more exercises</div>}
+        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6 }}>+{exercises.length - 4} more</div>}
       </div>
-
-      {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <button onClick={handleLike} style={{
-            background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
-            color: liked ? COLORS.red : COLORS.textDim, fontWeight: liked ? 600 : 400,
-          }}>{liked ? "❤️" : "🤍"} {(workout.likes?.length || 0)}</button>
-          <span style={{ fontSize: 13, color: COLORS.textDim }}>{"💬"} {workout.comments?.length || 0}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: `1px solid ${COLORS.border}`, background: `${COLORS.bg}40` }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <button onClick={handleLike} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+            <Icon name={liked ? 'heartFill' : 'heart'} size={18} color={liked ? COLORS.red : COLORS.textDim} />
+            <span style={{ fontSize: 13, color: liked ? COLORS.red : COLORS.textDim, fontWeight: liked ? 600 : 400 }}>{likeCount}</span>
+          </button>
+          <CommentSection workoutId={workout.id} initialCount={workout.comments?.length || 0} />
         </div>
         <button onClick={handleSteel} style={{
-          background: steeled ? `${COLORS.accent}33` : COLORS.accent, color: steeled ? COLORS.accent : COLORS.bg,
-          border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-          fontFamily: 'inherit', transition: 'all 0.2s',
-        }}>{steeled ? "✓ Steeled!" : "📋 Steel it"}</button>
+          background: steeled ? `${COLORS.accent}22` : COLORS.accent, color: steeled ? COLORS.accent : COLORS.bg,
+          border: steeled ? `1px solid ${COLORS.accent}44` : 'none', borderRadius: 8, padding: '7px 14px',
+          fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
+        }}>
+          <Icon name="copy" size={14} color={steeled ? COLORS.accent : COLORS.bg} />{steeled ? 'Steeled!' : 'Steel it'}
+        </button>
       </div>
     </div>
   );
@@ -96,19 +149,12 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
 export default function Feed({ onSteel, onProfile }) {
   const { feed, fetchFeed, profile } = useStore();
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchFeed().then(() => setLoading(false));
-  }, []);
-
+  useEffect(() => { fetchFeed().then(() => setLoading(false)); }, []);
   if (loading) return <Spinner />;
-  if (!feed.length) return <EmptyState emoji="🏋️" title="No workouts yet" subtitle="Be the first to log a workout and show up in the feed!" />;
-
+  if (!feed.length) return <EmptyState icon="weight" title="No workouts yet" subtitle="Be the first to log a workout and show up in the feed!" />;
   return (
     <div>
-      {feed.map(w => (
-        <WorkoutCard key={w.id} workout={w} unitPref={profile?.unit_pref} onSteel={onSteel} onProfile={onProfile} />
-      ))}
+      {feed.map(w => <WorkoutCard key={w.id} workout={w} unitPref={profile?.unit_pref} onSteel={onSteel} onProfile={onProfile} />)}
     </div>
   );
 }
