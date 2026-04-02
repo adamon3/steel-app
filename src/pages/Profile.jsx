@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Avatar, Badge, Button, Icon, Input, Select, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight, calcWeekStreak } from '../components/UI';
+import BodyStatsComponent from '../components/BodyStats';
+import { PlateCalculator as PlateCalcComponent } from '../components/Tools';
 
-const TABS = ['Stats', 'Workouts', 'PRs', 'Following'];
+const TABS = ['Stats', 'Workouts', 'Progress', 'PRs', 'Body', 'Following'];
 
 function SubTab({ tabs, active, onChange }) {
   return (
@@ -21,6 +23,9 @@ function SubTab({ tabs, active, onChange }) {
 }
 
 function StatsView({ workouts, unit }) {
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
+  const [selectedDay, setSelectedDay] = useState(null);
+
   const total = workouts.length;
   const totalVol = workouts.reduce((s, w) => s + (Number(w.total_volume) || 0), 0);
   const totalSets = workouts.reduce((s, w) => s + (Number(w.total_sets) || 0), 0);
@@ -31,8 +36,133 @@ function StatsView({ workouts, unit }) {
   const thisWeek = workouts.filter(w => new Date(w.created_at) > weekAgo);
   const weekVol = thisWeek.reduce((s, w) => s + (Number(w.total_volume) || 0), 0);
 
+  // Build workout map by date for calendar
+  const workoutsByDate = {};
+  workouts.forEach(w => {
+    const key = new Date(w.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD
+    if (!workoutsByDate[key]) workoutsByDate[key] = [];
+    workoutsByDate[key].push(w);
+  });
+
+  // Calendar grid
+  const { year, month } = calMonth;
+  const firstDay = new Date(year, month, 1);
+  const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Monday start
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = firstDay.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const today = new Date().toLocaleDateString('en-CA');
+
+  const prevMonth = () => setCalMonth(p => p.month === 0 ? { year: p.year - 1, month: 11 } : { year: p.year, month: p.month - 1 });
+  const nextMonth = () => {
+    const now = new Date();
+    if (year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth())) return;
+    setCalMonth(p => p.month === 11 ? { year: p.year + 1, month: 0 } : { year: p.year, month: p.month + 1 });
+  };
+
+  // Workout count this month
+  const monthWorkouts = workouts.filter(w => {
+    const d = new Date(w.created_at);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
+
+  // Selected day workouts
+  const selectedWorkouts = selectedDay ? (workoutsByDate[selectedDay] || []) : [];
+
   return (
     <div>
+      {/* Workout Calendar */}
+      <div style={{ background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
+        {/* Month nav */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
+            <Icon name="back" size={18} color={COLORS.textDim} />
+          </button>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, textAlign: 'center' }}>{monthName}</div>
+            <div style={{ fontSize: 11, color: COLORS.textDim, textAlign: 'center' }}>{monthWorkouts.length} workout{monthWorkouts.length !== 1 ? 's' : ''}</div>
+          </div>
+          <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', opacity: (year === new Date().getFullYear() && month >= new Date().getMonth()) ? 0.3 : 1 }}>
+            <Icon name="back" size={18} color={COLORS.textDim} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+        </div>
+
+        {/* Day headers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: COLORS.textDim, padding: 4 }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+          {/* Empty cells before month starts */}
+          {Array.from({ length: startDay }).map((_, i) => <div key={`e-${i}`} />)}
+          {/* Day cells */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayWorkouts = workoutsByDate[dateKey] || [];
+            const hasWorkout = dayWorkouts.length > 0;
+            const hasPr = dayWorkouts.some(w => w.has_pr);
+            const isToday = dateKey === today;
+            const isSelected = dateKey === selectedDay;
+            const isFuture = new Date(dateKey) > new Date();
+
+            return (
+              <button key={day} onClick={() => hasWorkout ? setSelectedDay(isSelected ? null : dateKey) : null}
+                style={{
+                  width: '100%', aspectRatio: '1', borderRadius: 8, border: 'none',
+                  cursor: hasWorkout ? 'pointer' : 'default',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: 1, padding: 2,
+                  background: isSelected ? `${COLORS.accent}25` : isToday ? `${COLORS.accent}10` : 'transparent',
+                  opacity: isFuture ? 0.3 : 1,
+                }}>
+                <span style={{
+                  fontSize: 12, fontWeight: isToday ? 800 : 500,
+                  color: isSelected ? COLORS.accent : isToday ? COLORS.accent : hasWorkout ? COLORS.text : COLORS.textDim,
+                }}>{day}</span>
+                {hasWorkout && (
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: hasPr ? COLORS.pro : COLORS.accent }} />
+                    {dayWorkouts.length > 1 && <div style={{ width: 5, height: 5, borderRadius: '50%', background: COLORS.accent, opacity: 0.5 }} />}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Selected day detail */}
+      {selectedDay && selectedWorkouts.length > 0 && (
+        <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 16, border: `1px solid ${COLORS.accent}33` }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent, marginBottom: 8 }}>
+            {new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </div>
+          {selectedWorkouts.map(w => {
+            const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+            return (
+              <div key={w.id} style={{ padding: '8px 0', borderBottom: `1px solid ${COLORS.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: COLORS.text }}>{w.title}</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.duration_mins}m</span>}
+                  <span style={{ fontSize: 12, color: COLORS.textDim }}>{formatVolume(convertWeight(w.total_volume, unit))} {unit}</span>
+                  <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.total_sets} sets</span>
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
+                  {exercises.map(we => we.exercises?.name).filter(Boolean).join(', ')}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
         {[
           { icon: 'weight', v: total, l: 'Workouts' },
@@ -66,6 +196,166 @@ function StatsView({ workouts, unit }) {
       </div>
     </div>
   );
+}
+
+// ── Progress Graphs ──
+function ProgressView({ workouts, unit }) {
+  const [selectedExercise, setSelectedExercise] = useState(null);
+
+  // Build exercise history from all workouts
+  const exerciseHistory = {};
+  workouts.forEach(w => {
+    (w.workout_exercises || []).forEach(we => {
+      const name = we.exercises?.name;
+      if (!name) return;
+      if (!exerciseHistory[name]) exerciseHistory[name] = [];
+      const sets = (we.sets || []);
+      const maxWeight = Math.max(...sets.map(s => s.weight), 0);
+      const totalVol = sets.reduce((t, s) => t + (s.weight * s.reps), 0);
+      const est1RM = Math.max(...sets.map(s => s.reps > 0 ? Math.round(s.weight * (1 + s.reps / 30)) : 0), 0);
+      exerciseHistory[name].push({ date: w.created_at, maxWeight, totalVol, est1RM, sets: sets.length });
+    });
+  });
+
+  // Sort by most frequently done
+  const exerciseNames = Object.keys(exerciseHistory).sort((a, b) => exerciseHistory[b].length - exerciseHistory[a].length);
+  const active = selectedExercise || exerciseNames[0];
+  const data = (exerciseHistory[active] || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Muscle group heatmap
+  const muscleCount = {};
+  const weekAgo = new Date(Date.now() - 7 * 86400000);
+  workouts.filter(w => new Date(w.created_at) > weekAgo).forEach(w => {
+    (w.workout_exercises || []).forEach(we => {
+      const group = we.exercises?.muscle_group;
+      if (group) muscleCount[group] = (muscleCount[group] || 0) + 1;
+    });
+  });
+
+  if (exerciseNames.length === 0) return <EmptyState icon="weight" title="No data yet" subtitle="Complete some workouts to see your progress" />;
+
+  // Simple SVG line chart
+  const chartW = 320, chartH = 140, padL = 40, padR = 10, padT = 10, padB = 24;
+  const drawW = chartW - padL - padR, drawH = chartH - padT - padB;
+
+  const renderChart = (values, label, color) => {
+    if (values.length < 2) return <div style={{ fontSize: 12, color: COLORS.textDim, padding: 8 }}>Need 2+ sessions to show graph</div>;
+    const minV = Math.min(...values), maxV = Math.max(...values);
+    const range = maxV - minV || 1;
+    const points = values.map((v, i) => {
+      const x = padL + (i / (values.length - 1)) * drawW;
+      const y = padT + drawH - ((v - minV) / range) * drawH;
+      return `${x},${y}`;
+    }).join(' ');
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDim, marginBottom: 4 }}>{label}</div>
+        <svg width={chartW} height={chartH} style={{ maxWidth: '100%' }}>
+          {/* Grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map(p => {
+            const y = padT + drawH - p * drawH;
+            const val = Math.round(minV + p * range);
+            return (
+              <g key={p}>
+                <line x1={padL} y1={y} x2={chartW - padR} y2={y} stroke={COLORS.border} strokeWidth="0.5" />
+                <text x={padL - 4} y={y + 4} fill={COLORS.textDim} fontSize="10" textAnchor="end">{convertWeight(val, unit)}</text>
+              </g>
+            );
+          })}
+          {/* Line */}
+          <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Dots */}
+          {values.map((v, i) => {
+            const x = padL + (i / (values.length - 1)) * drawW;
+            const y = padT + drawH - ((v - minV) / range) * drawH;
+            return <circle key={i} cx={x} cy={y} r="3" fill={color} />;
+          })}
+          {/* Date labels */}
+          {data.filter((_, i) => i === 0 || i === data.length - 1).map((d, i) => {
+            const idx = i === 0 ? 0 : data.length - 1;
+            const x = padL + (idx / (data.length - 1)) * drawW;
+            return <text key={i} x={x} y={chartH - 4} fill={COLORS.textDim} fontSize="9" textAnchor={i === 0 ? 'start' : 'end'}>{new Date(d.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</text>;
+          })}
+        </svg>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Muscle group heatmap */}
+      {Object.keys(muscleCount).length > 0 && (
+        <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>This Week's Muscle Groups</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {Object.entries(muscleCount).sort((a, b) => b[1] - a[1]).map(([group, count]) => {
+              const intensity = Math.min(count / 4, 1);
+              return (
+                <div key={group} style={{
+                  padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  background: `rgba(0, 230, 118, ${0.1 + intensity * 0.3})`,
+                  color: intensity > 0.5 ? COLORS.accent : COLORS.textDim,
+                  border: `1px solid rgba(0, 230, 118, ${0.15 + intensity * 0.2})`,
+                }}>{group} ({count})</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Exercise selector */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDim, marginBottom: 6 }}>EXERCISE</div>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+          {exerciseNames.slice(0, 15).map(name => (
+            <button key={name} onClick={() => setSelectedExercise(name)} style={{
+              padding: '6px 12px', borderRadius: 16, border: 'none', cursor: 'pointer',
+              fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
+              background: active === name ? COLORS.accent : COLORS.card,
+              color: active === name ? COLORS.bg : COLORS.textDim,
+            }}>{name} ({exerciseHistory[name].length})</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Charts */}
+      {data.length > 0 && (
+        <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, border: `1px solid ${COLORS.border}` }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>{active}</div>
+          {renderChart(data.map(d => d.maxWeight), 'Max Weight', COLORS.accent)}
+          {renderChart(data.map(d => d.est1RM), 'Estimated 1RM', COLORS.orange)}
+          {renderChart(data.map(d => d.totalVol), 'Session Volume', '#448AFF')}
+          <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 8 }}>{data.length} sessions tracked</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── CSV Export ──
+function exportWorkoutsCSV(workouts, unit) {
+  const rows = [['Date', 'Workout', 'Exercise', 'Set', 'Weight (' + unit + ')', 'Reps', 'Est 1RM', 'PR']];
+  workouts.forEach(w => {
+    (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order).forEach(we => {
+      (we.sets || []).sort((a, b) => a.set_number - b.set_number).forEach(s => {
+        const weight = convertWeight(s.weight, unit);
+        const est1RM = s.reps > 0 ? Math.round(s.weight * (1 + s.reps / 30) * 10) / 10 : 0;
+        rows.push([
+          new Date(w.created_at).toLocaleDateString(),
+          w.title, we.exercises?.name || '', s.set_number,
+          weight, s.reps, convertWeight(est1RM, unit), s.is_pr ? 'Yes' : '',
+        ]);
+      });
+    });
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `steel-workouts-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function WorkoutsView({ workouts, unit, onTogglePrivacy }) {
@@ -280,12 +570,35 @@ export default function Profile({ onViewProfile }) {
             await supabase.from('workouts').update({ is_public: newVal }).eq('id', workoutId);
             setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, is_public: newVal } : w));
           }} />}
+          {subTab === 'Progress' && <ProgressView workouts={workouts} unit={unit} />}
           {subTab === 'PRs' && <PRsView workouts={workouts} unit={unit} />}
+          {subTab === 'Body' && (
+            <>
+              <BodyStatsComponent unit={unit} />
+              <div style={{ marginTop: 16 }}>
+                <PlateCalcComponent />
+              </div>
+            </>
+          )}
           {subTab === 'Following' && <FollowingView userId={user.id} onViewProfile={onViewProfile || (() => {})} />}
         </>
       )}
 
+      {/* Settings section */}
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
+        {/* Data export */}
+        {workouts.length > 0 && (
+          <button onClick={() => exportWorkoutsCSV(workouts, unit)} style={{
+            width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            background: COLORS.card, color: COLORS.text, cursor: 'pointer', fontSize: 13,
+            fontWeight: 600, fontFamily: 'inherit', marginBottom: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+            <Icon name="settings" size={16} color={COLORS.textDim} />
+            Download My Data (CSV)
+          </button>
+        )}
+
         <button onClick={async () => { await supabase.auth.signOut(); }} style={{
           width: '100%', padding: 12, borderRadius: 10, border: `1px solid #FF525233`,
           background: '#FF525210', color: '#FF5252', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',

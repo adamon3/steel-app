@@ -2,27 +2,62 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../lib/store';
 import { COLORS, Button, Input, Icon, Spinner, convertWeight, convertWeightBack, formatVolume } from '../components/UI';
 
-// ── Rest Timer Popup ──
+// ── Rest Timer Popup with audio notification ──
 function RestTimer({ seconds, onDismiss }) {
   const [remaining, setRemaining] = useState(seconds);
   useEffect(() => {
-    if (remaining <= 0) { onDismiss(); return; }
+    if (remaining <= 0) {
+      // Play beep sound when timer ends
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.value = 0.3;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+        setTimeout(() => {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.frequency.value = 1100;
+          gain2.gain.value = 0.3;
+          osc2.start();
+          osc2.stop(ctx.currentTime + 0.2);
+        }, 200);
+      } catch (e) {}
+      // Vibrate if supported
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      onDismiss();
+      return;
+    }
     const t = setTimeout(() => setRemaining(r => r - 1), 1000);
     return () => clearTimeout(t);
   }, [remaining]);
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
+  const pct = remaining / seconds;
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: COLORS.card, borderTop: `2px solid ${COLORS.accent}`, padding: '12px 20px', zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <div>
-        <div style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 600 }}>REST TIMER</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: COLORS.accent, fontVariantNumeric: 'tabular-nums' }}>
-          {mins}:{secs.toString().padStart(2, '0')}
-        </div>
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: COLORS.card, borderTop: `2px solid ${COLORS.accent}`, zIndex: 40 }}>
+      {/* Progress bar */}
+      <div style={{ height: 3, background: COLORS.border }}>
+        <div style={{ height: 3, background: COLORS.accent, width: `${pct * 100}%`, transition: 'width 1s linear' }} />
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => setRemaining(r => r + 30)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', color: COLORS.text, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>+30s</button>
-        <button onClick={onDismiss} style={{ background: COLORS.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: COLORS.bg, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Skip</button>
+      <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 600 }}>REST TIMER</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: remaining <= 10 ? COLORS.red : COLORS.accent, fontVariantNumeric: 'tabular-nums' }}>
+            {mins}:{secs.toString().padStart(2, '0')}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setRemaining(r => Math.max(0, r - 30))} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', color: COLORS.text, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>-30s</button>
+          <button onClick={() => setRemaining(r => r + 30)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', color: COLORS.text, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>+30s</button>
+          <button onClick={onDismiss} style={{ background: COLORS.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: COLORS.bg, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Skip</button>
+        </div>
       </div>
     </div>
   );
@@ -120,6 +155,8 @@ export default function LogWorkout({ prefill, onDone }) {
   const [templateName, setTemplateName] = useState('');
   const [previousData, setPreviousData] = useState({}); // exerciseId -> previous sets
   const [isPublic, setIsPublic] = useState(true);
+  const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false);
+  const [showUpdateTemplate, setShowUpdateTemplate] = useState(false);
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
@@ -238,7 +275,16 @@ export default function LogWorkout({ prefill, onDone }) {
 
   const handleFinish = async () => {
     const hasCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
-    if (!hasCompleted) return;
+    if (!hasCompleted && workoutExercises.length === 0) return;
+
+    // Check for incomplete (unchecked) sets
+    const incompleteCount = workoutExercises.reduce((t, ex) => t + ex.sets.filter(s => !s.completed).length, 0);
+    if (incompleteCount > 0 && !showIncompleteConfirm) {
+      setShowIncompleteConfirm(true);
+      return;
+    }
+    setShowIncompleteConfirm(false);
+
     if (!title.trim()) { setTitle('Workout'); }
     setSaving(true);
     const durationMins = Math.round((Date.now() - startTime) / 60000);
@@ -261,8 +307,51 @@ export default function LogWorkout({ prefill, onDone }) {
     setSaving(false);
     if (saved) {
       setCompletedWorkout({ ...workout, duration_mins: durationMins });
-      setPhase('complete');
+      // If started from a template and exercises changed, prompt to update
+      if (templateId && hasTemplateChanged()) {
+        setShowUpdateTemplate(true);
+      } else {
+        setPhase('complete');
+      }
     }
+  };
+
+  const hasTemplateChanged = () => {
+    if (!templateId) return false;
+    const tmpl = templates.find(t => t.id === templateId);
+    if (!tmpl) return false;
+    const tmplExercises = (tmpl.template_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+    if (tmplExercises.length !== workoutExercises.length) return true;
+    for (let i = 0; i < tmplExercises.length; i++) {
+      if (tmplExercises[i].exercise_id !== workoutExercises[i].exercise_id) return true;
+      if ((tmplExercises[i].default_sets || 3) !== workoutExercises[i].sets.length) return true;
+    }
+    return false;
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (templateId) {
+      // Delete old template exercises and re-insert
+      const { supabase } = await import('../lib/supabase');
+      await supabase.from('template_exercises').delete().eq('template_id', templateId);
+      const rows = workoutExercises.map((ex, i) => ({
+        template_id: templateId,
+        exercise_id: ex.exercise_id,
+        sort_order: i,
+        default_sets: ex.sets.length,
+        default_reps: ex.sets[0]?.reps || 10,
+        default_weight: convertWeightBack(ex.sets[0]?.weight || 0, unit),
+      }));
+      await supabase.from('template_exercises').insert(rows);
+      await fetchTemplates();
+    }
+    setShowUpdateTemplate(false);
+    setPhase('complete');
+  };
+
+  const handleSkipUpdateTemplate = () => {
+    setShowUpdateTemplate(false);
+    setPhase('complete');
   };
 
   const handleSaveAsTemplate = async () => {
@@ -294,6 +383,7 @@ export default function LogWorkout({ prefill, onDone }) {
 
   // ── LOGGING PHASE ──
   const hasAnythingCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
+  const hasAnyExercises = workoutExercises.length > 0;
 
   return (
     <div style={{ paddingBottom: restTimer ? 80 : 0 }}>
@@ -302,14 +392,14 @@ export default function LogWorkout({ prefill, onDone }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={onDone} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 13, color: COLORS.textDim, fontFamily: 'inherit' }}>{"<"}</button>
           <div style={{ fontSize: 13, color: COLORS.textDim, fontVariantNumeric: 'tabular-nums' }}>
-            {"⏱"} {elapsedMins}:{elapsedSecs.toString().padStart(2, '0')}
+            <Icon name="clock" size={14} color={COLORS.textDim} /> {elapsedMins}:{elapsedSecs.toString().padStart(2, '0')}
           </div>
         </div>
-        <button onClick={handleFinish} disabled={saving || !hasAnythingCompleted} style={{
-          background: hasAnythingCompleted ? '#22C55E' : COLORS.card,
-          color: hasAnythingCompleted ? '#fff' : COLORS.textDim,
+        <button onClick={handleFinish} disabled={saving || !hasAnyExercises} style={{
+          background: hasAnyExercises ? '#22C55E' : COLORS.card,
+          color: hasAnyExercises ? '#fff' : COLORS.textDim,
           border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 800, fontSize: 14,
-          cursor: hasAnythingCompleted ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+          cursor: hasAnyExercises ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
           opacity: saving ? 0.6 : 1,
         }}>{saving ? 'Saving...' : 'Finish'}</button>
       </div>
@@ -342,6 +432,8 @@ export default function LogWorkout({ prefill, onDone }) {
             {ex.sets.map((set, setIdx) => {
               const prevSet = prev && prev[setIdx];
               const isComplete = set.completed;
+              const weightRef = `weight-${exIdx}-${setIdx}`;
+              const repsRef = `reps-${exIdx}-${setIdx}`;
               return (
                 <div key={setIdx} style={{
                   display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, padding: '4px 2px',
@@ -349,15 +441,52 @@ export default function LogWorkout({ prefill, onDone }) {
                   transition: 'background 0.2s',
                 }}>
                   <span style={{ width: 28, fontSize: 13, color: COLORS.textDim, textAlign: 'center', fontWeight: 700 }}>{setIdx + 1}</span>
-                  <span style={{ flex: 1, fontSize: 12, color: COLORS.textDim }}>
+                  <span
+                    onClick={() => {
+                      if (prevSet && (!set.weight && !set.reps)) {
+                        updateSet(exIdx, setIdx, 'weight', convertWeight(prevSet.weight, unit));
+                        updateSet(exIdx, setIdx, 'reps', prevSet.reps);
+                      }
+                    }}
+                    style={{ flex: 1, fontSize: 12, color: prevSet && !set.weight && !set.reps ? COLORS.accent : COLORS.textDim, cursor: prevSet && !set.weight && !set.reps ? 'pointer' : 'default' }}>
                     {prevSet ? `${convertWeight(prevSet.weight, unit)} ${unit} x ${prevSet.reps}` : '-'}
                   </span>
-                  <input type="number" inputMode="decimal" value={set.weight || ''} placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
+                  <input
+                    id={weightRef}
+                    type="number"
+                    inputMode="decimal"
+                    value={set.weight || ''}
+                    placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
                     onChange={e => updateSet(exIdx, setIdx, 'weight', parseFloat(e.target.value) || 0)}
-                    style={{ width: 64, padding: '8px 6px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
-                  <input type="number" inputMode="numeric" value={set.reps || ''} placeholder={prevSet ? String(prevSet.reps) : '0'}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        document.getElementById(repsRef)?.focus();
+                      }
+                    }}
+                    onFocus={e => e.target.select()}
+                    style={{ width: 64, padding: '8px 6px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                  />
+                  <input
+                    id={repsRef}
+                    type="number"
+                    inputMode="numeric"
+                    value={set.reps || ''}
+                    placeholder={prevSet ? String(prevSet.reps) : '0'}
                     onChange={e => updateSet(exIdx, setIdx, 'reps', parseInt(e.target.value) || 0)}
-                    style={{ width: 56, padding: '8px 6px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        toggleComplete(exIdx, setIdx);
+                        // Auto-advance to next set's weight input
+                        const nextWeight = document.getElementById(`weight-${exIdx}-${setIdx + 1}`);
+                        if (nextWeight) setTimeout(() => nextWeight.focus(), 100);
+                        else e.target.blur();
+                      }
+                    }}
+                    onFocus={e => e.target.select()}
+                    style={{ width: 56, padding: '8px 6px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                  />
                   <button onClick={() => toggleComplete(exIdx, setIdx)} style={{
                     width: 36, height: 36, borderRadius: 8,
                     border: isComplete ? 'none' : `2px solid ${COLORS.border}`,
@@ -437,6 +566,52 @@ export default function LogWorkout({ prefill, onDone }) {
 
       {/* Rest Timer */}
       {restTimer && <RestTimer seconds={restTimer} onDismiss={() => setRestTimer(null)} />}
+
+      {/* Incomplete sets confirmation */}
+      {showIncompleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Incomplete Sets</div>
+            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 20, lineHeight: 1.5 }}>
+              You have {workoutExercises.reduce((t, ex) => t + ex.sets.filter(s => !s.completed).length, 0)} uncompleted set{workoutExercises.reduce((t, ex) => t + ex.sets.filter(s => !s.completed).length, 0) > 1 ? 's' : ''}. Incomplete sets won't be saved. Finish anyway?
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => handleFinish()} style={{
+                flex: 1, padding: 12, borderRadius: 10, border: 'none', background: COLORS.accent,
+                color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}>Finish Anyway</button>
+              <button onClick={() => setShowIncompleteConfirm(false)} style={{
+                flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                background: 'transparent', color: COLORS.text, fontWeight: 600, fontSize: 14,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>Go Back</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template update prompt */}
+      {showUpdateTemplate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Update Template?</div>
+            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 20, lineHeight: 1.5 }}>
+              You changed exercises or sets from the original template. Want to save these changes to the template for next time?
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={handleUpdateTemplate} style={{
+                width: '100%', padding: 12, borderRadius: 10, border: 'none', background: COLORS.accent,
+                color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}>Update Template</button>
+              <button onClick={handleSkipUpdateTemplate} style={{
+                width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                background: 'transparent', color: COLORS.text, fontWeight: 600, fontSize: 14,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>Keep Original</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exercise Picker Modal */}
       {showPicker && (
