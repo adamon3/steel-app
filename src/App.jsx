@@ -21,29 +21,50 @@ const tabs = [
 // Blurred overlay for pages that need sign-up
 function AuthGate({ children, message, onSignUp }) {
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ filter: 'blur(6px)', pointerEvents: 'none', opacity: 0.5 }}>
+    <div style={{ position: 'relative', minHeight: 300 }}>
+      <div style={{ filter: 'blur(6px)', pointerEvents: 'none', opacity: 0.6 }}>
         {children}
       </div>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', padding: 32,
+        background: `${COLORS.bg}88`,
       }}>
-        <Icon name="lock" size={40} color={COLORS.accent} />
-        <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12, textAlign: 'center' }}>
-          {message || 'Sign up to unlock'}
+        <div style={{
+          background: COLORS.card, borderRadius: 20, padding: '32px 28px', textAlign: 'center',
+          border: `1px solid ${COLORS.border}`, boxShadow: `0 8px 32px ${COLORS.bg}44`,
+          maxWidth: 300,
+        }}>
+          <Icon name="lock" size={36} color={COLORS.accent} />
+          <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12 }}>
+            {message || 'Sign up to unlock'}
+          </div>
+          <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 6, lineHeight: 1.4 }}>
+            Create a free account to access this feature
+          </div>
+          <button onClick={onSignUp} style={{
+            marginTop: 16, padding: '12px 32px', borderRadius: 10, border: 'none',
+            background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff',
+            fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+          }}>Sign Up Free</button>
         </div>
-        <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, textAlign: 'center' }}>
-          Create a free account to access this feature
-        </div>
-        <button onClick={onSignUp} style={{
-          marginTop: 16, padding: '12px 32px', borderRadius: 10, border: 'none',
-          background: COLORS.accent, color: COLORS.bg, fontWeight: 700, fontSize: 15,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>Sign Up Free</button>
       </div>
     </div>
   );
+}
+
+// Placeholder cards for blurred gated pages
+function PlaceholderCards({ count = 3, height = 120 }) {
+  return Array.from({ length: count }).map((_, i) => (
+    <div key={i} style={{
+      background: COLORS.isDark ? COLORS.card : '#E8ECF0',
+      borderRadius: 14, padding: 14, marginBottom: 10,
+      border: `1px solid ${COLORS.border}`, height,
+    }}>
+      <div style={{ background: COLORS.isDark ? COLORS.border : '#D1D5DB', borderRadius: 8, height: 14, width: '60%', marginBottom: 8 }} />
+      <div style={{ background: COLORS.isDark ? COLORS.border : '#D1D5DB', borderRadius: 6, height: 10, width: '40%' }} />
+    </div>
+  ));
 }
 
 export default function App() {
@@ -156,10 +177,7 @@ export default function App() {
                 <div style={{ fontSize: 13, color: COLORS.textDim }}>See what athletes at your gym are lifting</div>
               </div>
               <AuthGate message="Sign up to see the community feed" onSignUp={() => promptAuth('Join Steel to see workouts from athletes you follow')}>
-                {/* Fake feed cards for blur effect */}
-                {[1,2,3].map(i => (
-                  <div key={i} style={{ background: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, height: 180 }} />
-                ))}
+                <PlaceholderCards count={3} height={180} />
               </AuthGate>
             </div>
           ) : (
@@ -171,9 +189,7 @@ export default function App() {
         {tab === 'discover' && (
           isGuest ? (
             <AuthGate message="Sign up to discover athletes" onSignUp={() => promptAuth('Create an account to find and follow athletes')}>
-              {[1,2,3].map(i => (
-                <div key={i} style={{ background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}`, height: 120 }} />
-              ))}
+              <PlaceholderCards count={3} height={120} />
             </AuthGate>
           ) : (
             <Discover onViewProfile={handleViewProfile} />
@@ -196,10 +212,7 @@ export default function App() {
         {tab === 'gym' && (
           isGuest ? (
             <AuthGate message="Sign up to join your gym's community" onSignUp={() => promptAuth('Join Steel to connect with your gym and compete on leaderboards')}>
-              <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, height: 60 }} />
-              {[1,2,3,4,5].map(i => (
-                <div key={i} style={{ background: COLORS.card, borderRadius: 14, padding: 12, marginBottom: 8, border: `1px solid ${COLORS.border}`, height: 50 }} />
-              ))}
+              <PlaceholderCards count={4} height={60} />
             </AuthGate>
           ) : (
             <GymCommunity onViewProfile={handleViewProfile} />
