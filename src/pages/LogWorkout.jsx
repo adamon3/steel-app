@@ -806,7 +806,7 @@ function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCre
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: COLORS.bg, flex: 1, marginTop: 20, borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: COLORS.bg, flex: 1, marginTop: 20, borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '16px 16px 0', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -814,7 +814,7 @@ function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCre
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setShowCreate(true)} style={{
                 background: COLORS.accent, border: 'none', borderRadius: 6, padding: '6px 10px',
-                cursor: 'pointer', fontSize: 12, color: COLORS.bg, fontWeight: 700, fontFamily: 'inherit',
+                cursor: 'pointer', fontSize: 12, color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontFamily: 'inherit',
               }}>+ New</button>
               <button onClick={onClose} style={{
                 background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 6,
@@ -832,20 +832,20 @@ function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCre
             }} />
 
           {/* Muscle group filter */}
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 10, WebkitOverflowScrolling: 'touch' }}>
             {MUSCLE_GROUPS.map(g => (
               <button key={g} onClick={() => setMuscleFilter(g)} style={{
                 padding: '5px 10px', borderRadius: 16, border: 'none', cursor: 'pointer',
                 fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
                 background: muscleFilter === g ? COLORS.accent : COLORS.card,
-                color: muscleFilter === g ? COLORS.bg : COLORS.textDim,
+                color: muscleFilter === g ? (COLORS.isDark ? COLORS.bg : '#fff') : COLORS.textDim,
               }}>{g}</button>
             ))}
           </div>
         </div>
 
-        {/* Exercise list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
+        {/* Exercise list - scrollable */}
+        <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 20px', minHeight: 0 }}>
           {Object.keys(grouped).length === 0 && (
             <div style={{ textAlign: 'center', padding: 30, color: COLORS.textDim }}>
               <div style={{ fontSize: 14, marginBottom: 8 }}>No exercises found</div>
