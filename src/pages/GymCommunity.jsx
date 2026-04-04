@@ -10,8 +10,9 @@ export default function GymCommunity({ onViewProfile }) {
   const [gymFeed, setGymFeed] = useState([]);
   const [gymMembers, setGymMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [joinGymName, setJoinGymName] = useState('');
-  const [showJoin, setShowJoin] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const [subTab, setSubTab] = useState('feed');
   const unit = profile?.unit_pref || 'kg';
 
@@ -19,7 +20,7 @@ export default function GymCommunity({ onViewProfile }) {
 
   const loadData = async () => {
     setLoading(true);
-    // Get all gyms with member counts
+    // Get all gyms with member counts from existing users
     const { data: profiles } = await supabase.from('profiles').select('gym').neq('gym', '').not('gym', 'is', null);
     if (profiles) {
       const gymCounts = {};
@@ -27,15 +28,12 @@ export default function GymCommunity({ onViewProfile }) {
       setGyms(Object.entries(gymCounts).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })));
     }
 
-    // If user has a gym, load gym data
     if (profile?.gym) {
-      // Gym members
       const { data: members } = await supabase.from('profiles')
         .select('id, display_name, username, sport, avatar_url')
         .eq('gym', profile.gym).neq('id', user?.id || '');
       if (members) setGymMembers(members);
 
-      // Gym feed (recent workouts from gym members)
       const { data: memberProfiles } = await supabase.from('profiles').select('id').eq('gym', profile.gym);
       if (memberProfiles) {
         const memberIds = memberProfiles.map(m => m.id);
@@ -45,16 +43,41 @@ export default function GymCommunity({ onViewProfile }) {
           .order('created_at', { ascending: false }).limit(15);
         if (workouts) setGymFeed(workouts);
       }
-
       setMyGymData({ name: profile.gym, members: (members?.length || 0) + 1 });
     }
     setLoading(false);
   };
 
+  // Search for gyms — searches both existing Steel gyms and uses the input as a direct name
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    if (query.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+
+    // Search existing Steel gyms first
+    const matchingGyms = gyms.filter(g =>
+      g.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    // Also suggest the typed name as a new gym
+    const exactMatch = gyms.find(g => g.name.toLowerCase() === query.toLowerCase());
+    const results = [
+      ...matchingGyms.map(g => ({ name: g.name, members: g.count, source: 'steel' })),
+    ];
+
+    // If no exact match, offer to create it
+    if (!exactMatch && query.length >= 3) {
+      results.push({ name: query, members: 0, source: 'new' });
+    }
+
+    setSearchResults(results);
+    setSearching(false);
+  };
+
   const handleJoinGym = async (gymName) => {
     await updateProfile({ gym: gymName });
-    setShowJoin(false);
-    setJoinGymName('');
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   const handleLeaveGym = async () => {
@@ -66,61 +89,104 @@ export default function GymCommunity({ onViewProfile }) {
 
   if (loading) return <Spinner />;
 
-  // User has no gym — show gym browser
+  // ── NO GYM — Show gym finder ──
   if (!profile?.gym) {
     return (
       <div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, marginBottom: 4 }}>Gym Communities</div>
-        <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 16 }}>Join your gym to see what others are lifting and compete on leaderboards</div>
-
-        {/* Join a gym */}
-        <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Join a Gym</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input value={joinGymName} onChange={e => setJoinGymName(e.target.value)}
-              placeholder="Enter gym name (e.g. Nuffield Health Barbican)"
-              style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
-            <button onClick={() => handleJoinGym(joinGymName)} disabled={!joinGymName.trim()} style={{
-              padding: '10px 16px', borderRadius: 8, border: 'none', background: COLORS.accent,
-              color: COLORS.bg, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-              opacity: joinGymName.trim() ? 1 : 0.5,
-            }}>Join</button>
-          </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, marginBottom: 4 }}>Gym Communities</div>
+        <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 16, lineHeight: 1.5 }}>
+          Join your gym to see what others are lifting and compete on leaderboards
         </div>
 
-        {/* Existing gyms */}
-        {gyms.length > 0 && (
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: 16 }}>
+          <div style={{ position: 'absolute', left: 12, top: 12 }}>
+            <Icon name="search" size={18} color={COLORS.textDim} />
+          </div>
+          <input value={searchQuery} onChange={e => handleSearch(e.target.value)}
+            placeholder="Search for your gym..."
+            style={{
+              width: '100%', padding: '12px 14px 12px 38px', borderRadius: 12,
+              border: `1px solid ${COLORS.border}`, background: COLORS.card,
+              color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+            }} />
+        </div>
+
+        {/* Search results */}
+        {searchResults.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            {searchResults.map((r, i) => (
+              <div key={i} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 6,
+                border: `1px solid ${r.source === 'new' ? `${COLORS.accent}33` : COLORS.border}`,
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{r.name}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
+                    {r.source === 'new' ? (
+                      <span style={{ color: COLORS.accent }}>Create new gym community</span>
+                    ) : (
+                      <span><Icon name="users" size={11} color={COLORS.textDim} /> {r.members} member{r.members !== 1 ? 's' : ''} on Steel</span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => handleJoinGym(r.name)} style={{
+                  padding: '8px 16px', borderRadius: 8, border: 'none',
+                  background: r.source === 'new' ? `${COLORS.accent}20` : COLORS.accent,
+                  color: r.source === 'new' ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
+                  fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                }}>{r.source === 'new' ? 'Create & Join' : 'Join'}</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Popular gyms */}
+        {!searchQuery && gyms.length > 0 && (
           <>
-            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Popular Gyms</div>
-            {gyms.map(g => (
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Popular Gyms on Steel</div>
+            {gyms.slice(0, 10).map(g => (
               <div key={g.name} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+                background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 6,
                 border: `1px solid ${COLORS.border}`,
               }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{g.name}</div>
                   <div style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <Icon name="users" size={12} color={COLORS.textDim} /> {g.count} member{g.count !== 1 ? 's' : ''}
+                    <Icon name="users" size={11} color={COLORS.textDim} /> {g.count} member{g.count !== 1 ? 's' : ''}
                   </div>
                 </div>
                 <button onClick={() => handleJoinGym(g.name)} style={{
-                  padding: '7px 14px', borderRadius: 8, border: 'none', background: COLORS.accent,
-                  color: COLORS.bg, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                  padding: '8px 16px', borderRadius: 8, border: 'none', background: COLORS.accent,
+                  color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
                 }}>Join</button>
               </div>
             ))}
           </>
         )}
+
+        {/* Tip */}
+        {!searchQuery && gyms.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <Icon name="pin" size={32} color={COLORS.textDim} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginTop: 8 }}>Be the first!</div>
+            <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4 }}>Type your gym name above to create the first community</div>
+          </div>
+        )}
       </div>
     );
   }
 
-  // User has a gym — show gym community
+  // ── HAS GYM — Show gym community ──
   return (
     <div>
       {/* Gym header */}
-      <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14, border: `1px solid ${COLORS.border}` }}>
+      <div style={{
+        background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14,
+        border: `1px solid ${COLORS.border}`,
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -145,8 +211,8 @@ export default function GymCommunity({ onViewProfile }) {
             flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
             fontFamily: 'inherit', background: 'transparent',
             color: subTab === t ? COLORS.accent : COLORS.textDim,
-            borderBottom: subTab === t ? `2px solid ${COLORS.accent}` : '2px solid transparent', marginBottom: -1,
-            textTransform: 'capitalize',
+            borderBottom: subTab === t ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+            marginBottom: -1, textTransform: 'capitalize',
           }}>{t === 'feed' ? `Gym Feed (${gymFeed.length})` : `Members (${gymMembers.length})`}</button>
         ))}
       </div>

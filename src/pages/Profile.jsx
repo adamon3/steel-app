@@ -107,26 +107,31 @@ function StatsView({ workouts, unit }) {
             const isToday = dateKey === today;
             const isSelected = dateKey === selectedDay;
             const isFuture = new Date(dateKey) > new Date();
+            const count = dayWorkouts.length;
 
             return (
               <button key={day} onClick={() => hasWorkout ? setSelectedDay(isSelected ? null : dateKey) : null}
                 style={{
-                  width: '100%', aspectRatio: '1', borderRadius: 8, border: 'none',
+                  width: '100%', aspectRatio: '1', borderRadius: 10, border: isSelected ? `2px solid ${COLORS.accent}` : isToday && !hasWorkout ? `1px solid ${COLORS.accent}` : 'none',
                   cursor: hasWorkout ? 'pointer' : 'default',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: 1, padding: 2,
-                  background: isSelected ? `${COLORS.accent}25` : isToday ? `${COLORS.accent}10` : 'transparent',
-                  opacity: isFuture ? 0.3 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 0, position: 'relative',
+                  background: hasWorkout
+                    ? hasPr ? COLORS.pro : COLORS.accent
+                    : isToday ? `${COLORS.accent}10` : 'transparent',
+                  opacity: isFuture ? 0.25 : 1,
+                  transition: 'all 0.15s',
                 }}>
                 <span style={{
-                  fontSize: 12, fontWeight: isToday ? 800 : 500,
-                  color: isSelected ? COLORS.accent : isToday ? COLORS.accent : hasWorkout ? COLORS.text : COLORS.textDim,
+                  fontSize: 12, fontWeight: hasWorkout || isToday ? 800 : 500,
+                  color: hasWorkout ? (COLORS.isDark ? COLORS.bg : '#fff') : isToday ? COLORS.accent : COLORS.textDim,
                 }}>{day}</span>
-                {hasWorkout && (
-                  <div style={{ display: 'flex', gap: 2 }}>
-                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: hasPr ? COLORS.pro : COLORS.accent }} />
-                    {dayWorkouts.length > 1 && <div style={{ width: 5, height: 5, borderRadius: '50%', background: COLORS.accent, opacity: 0.5 }} />}
-                  </div>
+                {count > 1 && (
+                  <span style={{
+                    position: 'absolute', top: 2, right: 3, fontSize: 8, fontWeight: 800,
+                    color: COLORS.isDark ? COLORS.bg : '#fff', background: COLORS.orange,
+                    width: 14, height: 14, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{count}</span>
                 )}
               </button>
             );
