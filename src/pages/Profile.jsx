@@ -82,7 +82,7 @@ function StatsView({ workouts, unit }) {
             <div style={{ fontSize: 11, color: COLORS.textDim, textAlign: 'center' }}>{monthWorkouts.length} workout{monthWorkouts.length !== 1 ? 's' : ''}</div>
           </div>
           <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', opacity: (year === new Date().getFullYear() && month >= new Date().getMonth()) ? 0.3 : 1 }}>
-            <Icon name="back" size={18} color={COLORS.textDim} style={{ transform: 'rotate(180deg)' }} />
+            <span style={{ display: 'inline-block', transform: 'rotate(180deg)' }}><Icon name="back" size={18} color={COLORS.textDim} /></span>
           </button>
         </div>
 

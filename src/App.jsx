@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from './lib/store';
-import { COLORS, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
+import { useTheme, getColors, refreshColors, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
 import Auth from './pages/Auth';
 import Feed from './pages/Feed';
 import Discover from './pages/Discover';
 import LogWorkout from './pages/LogWorkout';
 import Leaderboard from './pages/Leaderboard';
 import UserProfile from './pages/UserProfile';
+import GymCommunity from './pages/GymCommunity';
 import Profile from './pages/Profile';
 
 const tabs = [
   { id: 'feed', label: 'Home', icon: 'home' },
   { id: 'discover', label: 'Discover', icon: 'search' },
   { id: 'log', label: '', icon: 'plus', center: true },
-  { id: 'leaderboard', label: 'Ranks', icon: 'trophy' },
+  { id: 'gym', label: 'Gym', icon: 'users' },
   { id: 'profile', label: 'You', icon: 'user' },
 ];
 
@@ -46,8 +47,11 @@ function AuthGate({ children, message, onSignUp }) {
 }
 
 export default function App() {
-  const { user, profile, loading, init, isGuest, fetchFeed, fetchTemplates } = useStore();
-  const [tab, setTab] = useState('log'); // Default to workout tab for guests
+  const { user, profile, loading, init, isGuest, offline, fetchFeed, fetchTemplates } = useStore();
+  const { colors: COLORS, theme, toggle: toggleTheme } = useTheme();
+  refreshColors(); // keep static COLORS in sync with theme
+
+  const [tab, setTab] = useState('log');
   const [toast, setToast] = useState(null);
   const [steelPrefill, setSteelPrefill] = useState(null);
   const [viewUserId, setViewUserId] = useState(null);
@@ -165,17 +169,17 @@ export default function App() {
           />
         )}
 
-        {/* LEADERBOARD */}
-        {tab === 'leaderboard' && (
+        {/* GYM COMMUNITY */}
+        {tab === 'gym' && (
           isGuest ? (
-            <AuthGate message="Sign up to see gym leaderboards" onSignUp={() => promptAuth('Join Steel to compete on your gym\'s leaderboard')}>
+            <AuthGate message="Sign up to join your gym's community" onSignUp={() => promptAuth('Join Steel to connect with your gym and compete on leaderboards')}>
               <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, height: 60 }} />
               {[1,2,3,4,5].map(i => (
                 <div key={i} style={{ background: COLORS.card, borderRadius: 14, padding: 12, marginBottom: 8, border: `1px solid ${COLORS.border}`, height: 50 }} />
               ))}
             </AuthGate>
           ) : (
-            <Leaderboard onViewProfile={handleViewProfile} />
+            <GymCommunity onViewProfile={handleViewProfile} />
           )
         )}
 
@@ -227,24 +231,42 @@ export default function App() {
   };
 
   return (
-    <div style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
+    <div key={theme} style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
+      {/* Offline banner */}
+      {offline && (
+        <div style={{
+          background: COLORS.orange, color: '#fff', padding: '6px 16px', fontSize: 12,
+          fontWeight: 600, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        }}>
+          <Icon name="wifiOff" size={14} color="#fff" /> You're offline — workouts will sync when you're back
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ padding: '16px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
             <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
           </span>
-          {isGuest ? (
-            <button onClick={() => promptAuth('')} style={{
-              background: COLORS.accent, border: 'none', borderRadius: 8,
-              padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-              color: COLORS.bg, fontFamily: 'inherit',
-            }}>Sign Up</button>
-          ) : profile && (
-            <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
-              <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} />
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Theme toggle */}
+            <button onClick={toggleTheme} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+            }}>
+              <Icon name={theme === 'light' ? 'moon' : 'sun'} size={20} color={COLORS.textDim} />
+            </button>
+            {isGuest ? (
+              <button onClick={() => promptAuth('')} style={{
+                background: COLORS.accent, border: 'none', borderRadius: 8,
+                padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                color: COLORS.isDark ? COLORS.bg : '#fff', fontFamily: 'inherit',
+              }}>Sign Up</button>
+            ) : profile && (
+              <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
+                <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

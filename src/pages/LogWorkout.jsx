@@ -411,13 +411,71 @@ export default function LogWorkout({ prefill, onDone }) {
       {/* Exercises */}
       {workoutExercises.map((ex, exIdx) => {
         const prev = previousData[ex.exercise_id];
+        const isSuperset = ex.supersetWith != null;
+        const nextIsSuperset = workoutExercises[exIdx + 1]?.supersetWith === exIdx || ex.supersetWith === exIdx - 1;
+        const showSupersetBadge = ex.supersetWith != null || workoutExercises.some(e => e.supersetWith === exIdx);
         return (
-          <div key={exIdx} style={{ background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 12, border: `1px solid ${COLORS.border}` }}>
+          <div key={exIdx}>
+            {/* Superset connector line */}
+            {ex.supersetWith != null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-8px 0 -4px 20px' }}>
+                <div style={{ width: 2, height: 16, background: COLORS.orange }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.orange, textTransform: 'uppercase', letterSpacing: 1 }}>Superset</span>
+              </div>
+            )}
+            <div style={{
+              background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: isSuperset && !nextIsSuperset ? 12 : ex.supersetWith != null ? 0 : 12,
+              border: `1px solid ${showSupersetBadge ? `${COLORS.orange}44` : COLORS.border}`,
+              borderBottomLeftRadius: workoutExercises[exIdx + 1]?.supersetWith === exIdx ? 0 : 14,
+              borderBottomRightRadius: workoutExercises[exIdx + 1]?.supersetWith === exIdx ? 0 : 14,
+              borderTopLeftRadius: ex.supersetWith != null ? 0 : 14,
+              borderTopRightRadius: ex.supersetWith != null ? 0 : 14,
+            }}>
             {/* Exercise header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.accent }}>{ex.name}</span>
-              <button onClick={() => removeExercise(exIdx)} style={{ background: 'none', border: 'none', color: COLORS.textDim, cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', padding: '4px 8px' }}>{"..."}</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.accent }}>{ex.name}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {/* Info button */}
+                <button onClick={() => {
+                  setWorkoutExercises(prev => {
+                    const next = JSON.parse(JSON.stringify(prev));
+                    next[exIdx].showInfo = !next[exIdx].showInfo;
+                    return next;
+                  });
+                }} style={{ background: 'none', border: 'none', color: COLORS.textDim, cursor: 'pointer', padding: '4px', fontSize: 13 }}>
+                  <Icon name="search" size={14} color={COLORS.textDim} />
+                </button>
+                {/* Superset button */}
+                {exIdx > 0 && ex.supersetWith == null && (
+                  <button onClick={() => {
+                    setWorkoutExercises(prev => {
+                      const next = JSON.parse(JSON.stringify(prev));
+                      next[exIdx].supersetWith = exIdx - 1;
+                      return next;
+                    });
+                  }} style={{ background: 'none', border: 'none', color: COLORS.orange, cursor: 'pointer', padding: '4px', fontSize: 11, fontWeight: 700, fontFamily: 'inherit' }}>SS</button>
+                )}
+                {ex.supersetWith != null && (
+                  <button onClick={() => {
+                    setWorkoutExercises(prev => {
+                      const next = JSON.parse(JSON.stringify(prev));
+                      delete next[exIdx].supersetWith;
+                      return next;
+                    });
+                  }} style={{ background: `${COLORS.orange}20`, border: 'none', borderRadius: 4, color: COLORS.orange, cursor: 'pointer', padding: '2px 6px', fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}>Unlink</button>
+                )}
+                <button onClick={() => removeExercise(exIdx)} style={{ background: 'none', border: 'none', color: COLORS.textDim, cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', padding: '4px 8px' }}>x</button>
+              </div>
             </div>
+
+            {/* Exercise info panel */}
+            {ex.showInfo && (
+              <div style={{ background: `${COLORS.accent}08`, borderRadius: 8, padding: '8px 10px', marginBottom: 10, fontSize: 13, color: COLORS.textDim, lineHeight: 1.5, border: `1px solid ${COLORS.accent}22` }}>
+                {(() => { try { const { EXERCISE_INFO } = require('../components/Tools'); return EXERCISE_INFO[ex.name] || 'No instructions available yet. Check YouTube for form guides.'; } catch { return 'No instructions available.'; } })()}
+              </div>
+            )}
 
             {/* Column headers */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 6, padding: '0 2px' }}>
@@ -505,6 +563,7 @@ export default function LogWorkout({ prefill, onDone }) {
               background: 'transparent', color: COLORS.textDim, cursor: 'pointer', fontSize: 13,
               fontWeight: 600, fontFamily: 'inherit', marginTop: 6,
             }}>+ Add Set</button>
+          </div>
           </div>
         );
       })}

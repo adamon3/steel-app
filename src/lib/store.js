@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
-import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, getGuestPreviousSets, getGuestPrefs, clearGuestData } from './localStorage';
+import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, getGuestPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
 
 export const useStore = create((set, get) => ({
   user: null,
@@ -9,20 +9,39 @@ export const useStore = create((set, get) => ({
   feed: [],
   templates: [],
   loading: true,
-  isGuest: true, // true until logged in
+  isGuest: true,
+  offline: false,
 
   setUser: (user) => set({ user, isGuest: !user }),
   setProfile: (profile) => set({ profile }),
 
   init: async () => {
-    // Always fetch exercises (public, no auth needed)
-    get().fetchExercises();
+    // Check online status
+    const online = isOnline();
+    set({ offline: !online });
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      set({ user: session.user, isGuest: false });
-      await get().fetchProfile(session.user.id);
-      await get().syncGuestWorkouts(); // sync any local workouts
+    // Listen for online/offline changes
+    window.addEventListener('online', () => {
+      set({ offline: false });
+      get().syncOfflineQueue();
+    });
+    window.addEventListener('offline', () => set({ offline: true }));
+
+    // Fetch exercises (try network, fall back to cache)
+    await get().fetchExercises();
+
+    if (online) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          set({ user: session.user, isGuest: false });
+          await get().fetchProfile(session.user.id);
+          await get().syncGuestWorkouts();
+          await get().syncOfflineQueue();
+        }
+      } catch (e) {
+        console.log('Auth check failed (offline?):', e);
+      }
     }
     set({ loading: false });
 
@@ -31,6 +50,7 @@ export const useStore = create((set, get) => ({
         set({ user: session.user, isGuest: false });
         await get().fetchProfile(session.user.id);
         await get().syncGuestWorkouts();
+        await get().syncOfflineQueue();
         await get().fetchTemplates();
         await get().fetchFeed();
       } else {
@@ -39,65 +59,43 @@ export const useStore = create((set, get) => ({
     });
   },
 
-  // Sync local guest workouts to Supabase after login
+  // Sync offline queue when back online
+  syncOfflineQueue: async () => {
+    const { user } = get();
+    if (!user || !isOnline()) return;
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+    console.log(`Syncing ${queue.length} offline workouts...`);
+
+    for (const workout of queue) {
+      try {
+        await get()._saveWorkoutToSupabase(workout);
+      } catch (e) { console.error('Failed to sync offline workout:', e); }
+    }
+    clearOfflineQueue();
+    await get().fetchFeed();
+  },
+
   syncGuestWorkouts: async () => {
     const { user } = get();
-    if (!user) return;
+    if (!user || !isOnline()) return;
     const localWorkouts = getGuestWorkouts();
     if (localWorkouts.length === 0) return;
-
     for (const lw of localWorkouts) {
-      try {
-        let totalVolume = 0, totalSets = 0, hasPr = false;
-        (lw.exercises || []).forEach(ex => {
-          (ex.sets || []).forEach(s => {
-            if (s.completed !== false) {
-              totalVolume += (s.weight || 0) * (s.reps || 0);
-              totalSets += 1;
-              if (s.is_pr) hasPr = true;
-            }
-          });
-        });
-
-        const { data: w } = await supabase.from('workouts').insert({
-          user_id: user.id, title: lw.title || 'Workout', notes: lw.notes || '',
-          duration_mins: lw.duration_mins || 0, total_volume: totalVolume,
-          total_sets: totalSets, has_pr: hasPr, is_public: lw.is_public !== false,
-          created_at: lw.created_at,
-        }).select().single();
-
-        if (w) {
-          for (let i = 0; i < (lw.exercises || []).length; i++) {
-            const ex = lw.exercises[i];
-            const done = (ex.sets || []).filter(s => s.completed !== false);
-            if (done.length === 0) continue;
-            const { data: we } = await supabase.from('workout_exercises').insert({
-              workout_id: w.id, exercise_id: ex.exercise_id, sort_order: i,
-            }).select().single();
-            if (we) {
-              await supabase.from('sets').insert(done.map((s, j) => ({
-                workout_exercise_id: we.id, set_number: j + 1,
-                weight: s.weight || 0, reps: s.reps || 0,
-                is_pr: s.is_pr || false, set_type: s.set_type || 'normal',
-              })));
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Failed to sync workout:', e);
-      }
+      try { await get()._saveWorkoutToSupabase(lw); } catch (e) { console.error('Sync guest workout fail:', e); }
     }
     clearGuestData();
   },
 
   fetchProfile: async (userId) => {
+    if (!isOnline()) return;
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (data) set({ profile: data });
   },
 
   updateProfile: async (updates) => {
     const { user } = get();
-    if (!user) return;
+    if (!user || !isOnline()) return;
     const { data } = await supabase.from('profiles')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', user.id).select().single();
@@ -105,18 +103,25 @@ export const useStore = create((set, get) => ({
   },
 
   fetchExercises: async () => {
-    const { data } = await supabase.from('exercises').select('*').order('name');
-    if (data) set({ exercises: data });
+    if (isOnline()) {
+      try {
+        const { data } = await supabase.from('exercises').select('*').order('name');
+        if (data && data.length > 0) {
+          set({ exercises: data });
+          setCachedExercises(data); // cache for offline
+          return;
+        }
+      } catch (e) { console.log('Exercise fetch failed, using cache'); }
+    }
+    // Fallback to cached exercises
+    const cached = getCachedExercises();
+    if (cached.length > 0) set({ exercises: cached });
   },
 
   fetchTemplates: async () => {
     const { user, isGuest } = get();
-    if (isGuest) {
-      // Load from local storage
-      set({ templates: getGuestTemplates() });
-      return;
-    }
-    if (!user) return;
+    if (isGuest) { set({ templates: getGuestTemplates() }); return; }
+    if (!user || !isOnline()) return;
     const { data } = await supabase
       .from('templates')
       .select('*, template_exercises (id, sort_order, exercise_id, default_sets, default_reps, default_weight, exercises:exercise_id (id, name, muscle_group))')
@@ -127,12 +132,8 @@ export const useStore = create((set, get) => ({
 
   saveTemplate: async (name, exercises) => {
     const { user, isGuest } = get();
-    if (isGuest) {
-      saveGuestTemplate(name, exercises);
-      set({ templates: getGuestTemplates() });
-      return;
-    }
-    if (!user) return;
+    if (isGuest) { saveGuestTemplate(name, exercises); set({ templates: getGuestTemplates() }); return; }
+    if (!user || !isOnline()) return;
     const { data: tmpl } = await supabase.from('templates').insert({ user_id: user.id, name }).select().single();
     if (!tmpl) return;
     const rows = exercises.map((ex, i) => ({
@@ -144,6 +145,7 @@ export const useStore = create((set, get) => ({
   },
 
   deleteTemplate: async (templateId) => {
+    if (!isOnline()) return;
     await supabase.from('template_exercises').delete().eq('template_id', templateId);
     await supabase.from('templates').delete().eq('id', templateId);
     await get().fetchTemplates();
@@ -151,10 +153,8 @@ export const useStore = create((set, get) => ({
 
   getPreviousSets: async (exerciseId) => {
     const { user, isGuest } = get();
-    if (isGuest) {
-      return getGuestPreviousSets(exerciseId);
-    }
-    if (!user) return null;
+    if (isGuest) return getGuestPreviousSets(exerciseId);
+    if (!user || !isOnline()) return getGuestPreviousSets(exerciseId); // fallback to local
     const { data: workouts } = await supabase
       .from('workouts').select('id').eq('user_id', user.id)
       .order('created_at', { ascending: false }).limit(20);
@@ -172,6 +172,7 @@ export const useStore = create((set, get) => ({
   },
 
   fetchFeed: async () => {
+    if (!isOnline()) return;
     const { data } = await supabase
       .from('workouts')
       .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
@@ -183,15 +184,30 @@ export const useStore = create((set, get) => ({
   saveWorkout: async (workout) => {
     const { user, isGuest } = get();
 
-    // Guest mode: save locally
+    // Guest mode: always save locally
     if (isGuest || !user) {
       return saveGuestWorkout(workout);
     }
 
-    // Logged in: save to Supabase
+    // Logged in but offline: queue for later sync
+    if (!isOnline()) {
+      addToOfflineQueue(workout);
+      // Also save locally so it shows in history
+      saveGuestWorkout(workout);
+      return { id: `offline_${Date.now()}`, offline: true };
+    }
+
+    // Logged in and online: save to Supabase
+    return get()._saveWorkoutToSupabase(workout);
+  },
+
+  // Internal: save workout to Supabase
+  _saveWorkoutToSupabase: async (workout) => {
+    const { user } = get();
+    if (!user) return null;
     let totalVolume = 0, totalSets = 0, hasPr = false;
-    workout.exercises.forEach(ex => {
-      ex.sets.forEach(s => {
+    (workout.exercises || []).forEach(ex => {
+      (ex.sets || []).forEach(s => {
         if (s.completed !== false) {
           totalVolume += (s.weight || 0) * (s.reps || 0);
           totalSets += 1;
@@ -200,16 +216,17 @@ export const useStore = create((set, get) => ({
       });
     });
     const { data: w, error } = await supabase.from('workouts').insert({
-      user_id: user.id, title: workout.title, notes: workout.notes || '',
+      user_id: user.id, title: workout.title || 'Workout', notes: workout.notes || '',
       duration_mins: workout.duration_mins || 0, total_volume: totalVolume,
       total_sets: totalSets, has_pr: hasPr, steeled_from: workout.steeled_from || null,
       is_public: workout.is_public !== false,
+      created_at: workout.created_at || new Date().toISOString(),
     }).select().single();
     if (error || !w) return null;
 
-    for (let i = 0; i < workout.exercises.length; i++) {
+    for (let i = 0; i < (workout.exercises || []).length; i++) {
       const ex = workout.exercises[i];
-      const done = ex.sets.filter(s => s.completed !== false);
+      const done = (ex.sets || []).filter(s => s.completed !== false);
       if (done.length === 0) continue;
       const { data: we } = await supabase.from('workout_exercises').insert({
         workout_id: w.id, exercise_id: ex.exercise_id, sort_order: i, notes: ex.notes || '',
@@ -225,11 +242,11 @@ export const useStore = create((set, get) => ({
     if (workout.template_id) {
       await supabase.from('templates').update({ last_used: new Date().toISOString() }).eq('id', workout.template_id);
     }
-    await get().fetchFeed();
     return w;
   },
 
   steelWorkout: async (workoutId) => {
+    if (!isOnline()) return null;
     const { data: original } = await supabase.from('workouts')
       .select('*, workout_exercises (sort_order, notes, exercises:exercise_id (id, name), sets (set_number, weight, reps, set_type))')
       .eq('id', workoutId).single();
@@ -247,7 +264,7 @@ export const useStore = create((set, get) => ({
 
   toggleLike: async (workoutId) => {
     const { user } = get();
-    if (!user) return;
+    if (!user || !isOnline()) return;
     const { data: existing } = await supabase.from('likes').select()
       .eq('user_id', user.id).eq('workout_id', workoutId).single();
     if (existing) {
@@ -260,7 +277,7 @@ export const useStore = create((set, get) => ({
 
   toggleFollow: async (targetId) => {
     const { user } = get();
-    if (!user) return;
+    if (!user || !isOnline()) return;
     const { data: existing } = await supabase.from('follows').select()
       .eq('follower_id', user.id).eq('following_id', targetId).single();
     if (existing) {
