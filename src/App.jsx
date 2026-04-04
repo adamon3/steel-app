@@ -57,6 +57,8 @@ export default function App() {
   const [viewUserId, setViewUserId] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
+  const [showSteelPopup, setShowSteelPopup] = useState(false);
+  const [steelData, setSteelData] = useState(null);
 
   useEffect(() => { init(); }, []);
 
@@ -83,11 +85,32 @@ export default function App() {
     const template = await useStore.getState().steelWorkout(workout.id);
     if (template) {
       template.steeled_from = workout.id;
-      setSteelPrefill(template);
+      setSteelData({ template, title: workout.title, from: workout.profiles?.display_name });
+      setShowSteelPopup(true);
+    }
+  };
+
+  const handleSteelStart = () => {
+    if (steelData) {
+      setSteelPrefill(steelData.template);
       setViewUserId(null);
       setTab('log');
-      showToast(`Steeled "${workout.title}" from ${workout.profiles?.display_name}!`);
+      showToast(`Starting "${steelData.title}" from ${steelData.from}!`);
     }
+    setShowSteelPopup(false);
+    setSteelData(null);
+  };
+
+  const handleSteelSave = async () => {
+    if (steelData) {
+      await useStore.getState().saveTemplate(
+        `${steelData.title} (from ${steelData.from})`,
+        steelData.template.exercises
+      );
+      showToast(`Saved "${steelData.title}" as a template!`);
+    }
+    setShowSteelPopup(false);
+    setSteelData(null);
   };
 
   const handleSteelFromProfile = (template, title, athleteName) => {
@@ -276,6 +299,40 @@ export default function App() {
 
       {/* Auth modal */}
       {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} />}
+
+      {/* Steel It popup */}
+      {showSteelPopup && steelData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Icon name="copy" size={20} color={COLORS.accent} />
+              <span style={{ fontSize: 18, fontWeight: 700, color: COLORS.text }}>Steel It</span>
+            </div>
+            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 6 }}>
+              {steelData.title}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 20 }}>
+              from {steelData.from}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={handleSteelStart} style={{
+                width: '100%', padding: 14, borderRadius: 10, border: 'none', background: COLORS.accent,
+                color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 15,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>Start Workout Now</button>
+              <button onClick={handleSteelSave} style={{
+                width: '100%', padding: 14, borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                background: COLORS.bg, color: COLORS.text, fontWeight: 600, fontSize: 14,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>Save for Later</button>
+              <button onClick={() => { setShowSteelPopup(false); setSteelData(null); }} style={{
+                width: '100%', padding: 10, borderRadius: 10, border: 'none', background: 'transparent',
+                color: COLORS.textDim, fontWeight: 500, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast message={toast} />
 

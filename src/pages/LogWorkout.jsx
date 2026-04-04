@@ -63,36 +63,84 @@ function RestTimer({ seconds, onDismiss }) {
   );
 }
 
-// ── Completion Screen ──
+// ── Completion Screen with feeling score ──
 function CompletionScreen({ workout, onDone, unit }) {
+  const [feeling, setFeeling] = useState(null);
+  const [note, setNote] = useState('');
+
   const totalVol = workout.exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
   const totalSets = workout.exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).length, 0);
   const prCount = workout.exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed && s.is_pr).length, 0);
+
+  const feelings = [
+    { emoji: '😫', label: 'Exhausted', value: 1 },
+    { emoji: '😓', label: 'Tough', value: 2 },
+    { emoji: '😊', label: 'Good', value: 3 },
+    { emoji: '💪', label: 'Strong', value: 4 },
+    { emoji: '🔥', label: 'Amazing', value: 5 },
+  ];
+
   return (
-    <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-      <div style={{ fontSize: 60, marginBottom: 8 }}>{"🎉"}</div>
+    <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+      <div style={{ fontSize: 48, marginBottom: 8 }}>
+        {prCount > 0 ? '🏆' : '🎉'}
+      </div>
       <div style={{ fontSize: 24, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>Workout Complete!</div>
-      <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 32 }}>{workout.title}</div>
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 32 }}>
+      <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 24 }}>{workout.title}</div>
+
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 24 }}>
         {[
-          { v: `${workout.duration_mins}m`, l: 'Duration', e: '⏱' },
-          { v: formatVolume(convertWeight(totalVol, unit)), l: unit, e: '🏋️' },
-          { v: totalSets, l: 'Sets', e: '💪' },
-          ...(prCount > 0 ? [{ v: prCount, l: 'PRs', e: '🏆' }] : []),
+          { v: `${workout.duration_mins}m`, l: 'Duration' },
+          { v: formatVolume(convertWeight(totalVol, unit)), l: unit },
+          { v: totalSets, l: 'Sets' },
+          ...(prCount > 0 ? [{ v: prCount, l: 'PRs' }] : []),
         ].map((s, i) => (
-          <div key={i} style={{ background: COLORS.card, borderRadius: 12, padding: '14px 16px', border: `1px solid ${COLORS.border}`, minWidth: 70 }}>
-            <div style={{ fontSize: 12, marginBottom: 4 }}>{s.e}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{s.v}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>{s.l}</div>
+          <div key={i} style={{ background: COLORS.card, borderRadius: 12, padding: '12px 14px', border: `1px solid ${COLORS.border}`, minWidth: 65 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{s.v}</div>
+            <div style={{ fontSize: 10, color: COLORS.textDim }}>{s.l}</div>
           </div>
         ))}
       </div>
+
       {prCount > 0 && (
-        <div style={{ background: `${COLORS.pro}15`, border: `1px solid ${COLORS.pro}33`, borderRadius: 12, padding: 16, marginBottom: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.pro }}>{"🏆"} {prCount} Personal Record{prCount > 1 ? 's' : ''}!</div>
+        <div style={{ background: `${COLORS.pro}15`, border: `1px solid ${COLORS.pro}33`, borderRadius: 12, padding: 14, marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.pro }}>{prCount} Personal Record{prCount > 1 ? 's' : ''}!</div>
         </div>
       )}
-      <Button onClick={onDone} style={{ width: '100%', padding: 16, fontSize: 16, borderRadius: 14 }}>Done</Button>
+
+      {/* Feeling score */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 10 }}>How did it feel?</div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          {feelings.map(f => (
+            <button key={f.value} onClick={() => setFeeling(f.value)} style={{
+              width: 52, height: 52, borderRadius: 12, border: feeling === f.value ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+              background: feeling === f.value ? `${COLORS.accent}15` : COLORS.card,
+              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+              transition: 'all 0.15s',
+            }}>
+              <span style={{ fontSize: 20 }}>{f.emoji}</span>
+              <span style={{ fontSize: 8, color: feeling === f.value ? COLORS.accent : COLORS.textDim, fontWeight: 600 }}>{f.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Workout note */}
+      <div style={{ marginBottom: 20, textAlign: 'left' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textDim, marginBottom: 6 }}>Add a note (optional)</div>
+        <textarea value={note} onChange={e => setNote(e.target.value)}
+          placeholder="How was the session? Anything to remember for next time?"
+          rows={3}
+          style={{
+            width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            background: COLORS.card, color: COLORS.text, fontSize: 14, fontFamily: 'inherit',
+            outline: 'none', resize: 'none', boxSizing: 'border-box',
+          }} />
+      </div>
+
+      <Button onClick={() => onDone({ feeling, note })} style={{ width: '100%', padding: 16, fontSize: 16, borderRadius: 14 }}>Done</Button>
     </div>
   );
 }
@@ -157,6 +205,7 @@ export default function LogWorkout({ prefill, onDone }) {
   const [isPublic, setIsPublic] = useState(true);
   const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false);
   const [showUpdateTemplate, setShowUpdateTemplate] = useState(false);
+  const [workoutNotes, setWorkoutNotes] = useState('');
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
@@ -290,6 +339,7 @@ export default function LogWorkout({ prefill, onDone }) {
     const durationMins = Math.round((Date.now() - startTime) / 60000);
     const workout = {
       title: title.trim() || 'Workout',
+      notes: workoutNotes,
       duration_mins: durationMins,
       steeled_from: prefill?.steeled_from || null,
       template_id: templateId,
@@ -378,7 +428,11 @@ export default function LogWorkout({ prefill, onDone }) {
 
   // ── COMPLETION PHASE ──
   if (phase === 'complete' && completedWorkout) {
-    return <CompletionScreen workout={completedWorkout} unit={unit} onDone={onDone} />;
+    return <CompletionScreen workout={completedWorkout} unit={unit} onDone={(extra) => {
+      // Could save feeling/note to the workout here in future
+      // For now just pass through to parent
+      onDone();
+    }} />;
   }
 
   // ── LOGGING PHASE ──
@@ -406,7 +460,17 @@ export default function LogWorkout({ prefill, onDone }) {
 
       {/* Title */}
       <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Workout Name"
-        style={{ width: '100%', fontSize: 22, fontWeight: 800, color: COLORS.text, background: 'transparent', border: 'none', outline: 'none', marginBottom: 16, fontFamily: 'inherit', padding: 0, boxSizing: 'border-box' }} />
+        style={{ width: '100%', fontSize: 22, fontWeight: 800, color: COLORS.text, background: 'transparent', border: 'none', outline: 'none', marginBottom: 8, fontFamily: 'inherit', padding: 0, boxSizing: 'border-box' }} />
+
+      {/* Workout notes */}
+      <textarea value={workoutNotes} onChange={e => setWorkoutNotes(e.target.value)}
+        placeholder="Add workout notes..."
+        rows={1}
+        style={{
+          width: '100%', padding: '6px 0', borderRadius: 0, border: 'none',
+          background: 'transparent', color: COLORS.textDim, fontSize: 13, fontFamily: 'inherit',
+          outline: 'none', resize: 'none', boxSizing: 'border-box', marginBottom: 12,
+        }} />
 
       {/* Exercises */}
       {workoutExercises.map((ex, exIdx) => {
@@ -476,6 +540,20 @@ export default function LogWorkout({ prefill, onDone }) {
                 {(() => { try { const { EXERCISE_INFO } = require('../components/Tools'); return EXERCISE_INFO[ex.name] || 'No instructions available yet. Check YouTube for form guides.'; } catch { return 'No instructions available.'; } })()}
               </div>
             )}
+
+            {/* Exercise notes */}
+            <input value={ex.notes || ''} onChange={e => {
+              setWorkoutExercises(prev => {
+                const next = JSON.parse(JSON.stringify(prev));
+                next[exIdx].notes = e.target.value;
+                return next;
+              });
+            }} placeholder="Exercise notes..."
+              style={{
+                width: '100%', padding: '5px 4px', border: 'none', borderBottom: `1px solid ${COLORS.border}`,
+                background: 'transparent', color: COLORS.textDim, fontSize: 12, fontFamily: 'inherit',
+                outline: 'none', marginBottom: 8, boxSizing: 'border-box',
+              }} />
 
             {/* Column headers */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 6, padding: '0 2px' }}>
