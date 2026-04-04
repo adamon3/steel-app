@@ -520,6 +520,8 @@ export default function Profile({ onViewProfile }) {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { if (user) loadData(); }, [user]);
@@ -537,6 +539,45 @@ export default function Profile({ onViewProfile }) {
     setLoading(false);
   };
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      // Upload to Supabase Storage
+      const ext = file.name.split('.').pop();
+      const path = `avatars/${user.id}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (uploadErr) { console.error(uploadErr); setUploading(false); return; }
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      if (urlData?.publicUrl) {
+        await updateProfile({ avatar_url: urlData.publicUrl + '?t=' + Date.now() });
+      }
+    } catch (err) {
+      // Fallback: convert to base64 and store in profile
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target.result;
+        // Store a small version
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        img.onload = async () => {
+          canvas.width = 200;
+          canvas.height = 200;
+          const ctx = canvas.getContext('2d');
+          const size = Math.min(img.width, img.height);
+          const sx = (img.width - size) / 2, sy = (img.height - size) / 2;
+          ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+          const small = canvas.toDataURL('image/jpeg', 0.7);
+          await updateProfile({ avatar_url: small });
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    }
+    setUploading(false);
+  };
+
   if (!profile) return <Spinner />;
   if (editing) return <EditProfile profile={profile} onSave={async (form) => { await updateProfile(form); setEditing(false); }} onCancel={() => setEditing(false)} />;
 
@@ -544,9 +585,27 @@ export default function Profile({ onViewProfile }) {
 
   return (
     <div>
+      {/* Profile header */}
       <div style={{ background: COLORS.card, borderRadius: 16, padding: 20, marginBottom: 14, border: `1px solid ${COLORS.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Avatar initials={getInitials(profile.display_name)} size={68} colorIndex={profile.id?.charCodeAt(0) || 0} />
+          {/* Avatar with photo upload */}
+          <div style={{ position: 'relative' }}>
+            <Avatar
+              initials={getInitials(profile.display_name)}
+              size={68}
+              colorIndex={profile.id?.charCodeAt(0) || 0}
+              src={profile.avatar_url || null}
+            />
+            <label style={{
+              position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: 12,
+              background: COLORS.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', border: `2px solid ${COLORS.card}`,
+            }}>
+              <Icon name="plus" size={14} color={COLORS.isDark ? COLORS.bg : '#fff'} />
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+            </label>
+            {uploading && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>}
+          </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text }}>{profile.display_name}</div>
             <div style={{ fontSize: 13, color: COLORS.textDim }}>@{profile.username}</div>
@@ -555,7 +614,12 @@ export default function Profile({ onViewProfile }) {
               {profile.gym && <Badge><Icon name="pin" size={10} color={COLORS.orange} /> {profile.gym}</Badge>}
             </div>
           </div>
-          <button onClick={() => setEditing(true)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: COLORS.textDim, fontFamily: 'inherit', fontWeight: 600 }}>Edit</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button onClick={() => setEditing(true)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: COLORS.textDim, fontFamily: 'inherit', fontWeight: 600 }}>Edit</button>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              <Icon name="settings" size={20} color={COLORS.textDim} />
+            </button>
+          </div>
         </div>
         {profile.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 12, lineHeight: 1.4 }}>{profile.bio}</div>}
         <div style={{ display: 'flex', gap: 20, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${COLORS.border}` }}>
@@ -564,6 +628,34 @@ export default function Profile({ onViewProfile }) {
           <div><span style={{ fontWeight: 700, color: COLORS.accent }}><Icon name="fire" size={14} color={COLORS.accent} /> {streak}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Weeks</span></div>
         </div>
       </div>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14, border: `1px solid ${COLORS.border}` }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>Settings</div>
+
+          <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 10 }}>
+            Weights in: <strong style={{ color: COLORS.text }}>{unit === 'lbs' ? 'Pounds' : 'Kilograms'}</strong>
+          </div>
+
+          {workouts.length > 0 && (
+            <button onClick={() => exportWorkoutsCSV(workouts, unit)} style={{
+              width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
+              background: COLORS.bg, color: COLORS.text, cursor: 'pointer', fontSize: 13,
+              fontWeight: 600, fontFamily: 'inherit', marginBottom: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <Icon name="settings" size={16} color={COLORS.textDim} />
+              Download My Data (CSV)
+            </button>
+          )}
+
+          <button onClick={async () => { await supabase.auth.signOut(); }} style={{
+            width: '100%', padding: 12, borderRadius: 10, border: `1px solid #FF525233`,
+            background: '#FF525210', color: '#FF5252', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+          }}>Log Out</button>
+        </div>
+      )}
 
       <SubTab tabs={TABS} active={subTab} onChange={setSubTab} />
 
@@ -588,27 +680,6 @@ export default function Profile({ onViewProfile }) {
           {subTab === 'Following' && <FollowingView userId={user.id} onViewProfile={onViewProfile || (() => {})} />}
         </>
       )}
-
-      {/* Settings section */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
-        {/* Data export */}
-        {workouts.length > 0 && (
-          <button onClick={() => exportWorkoutsCSV(workouts, unit)} style={{
-            width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
-            background: COLORS.card, color: COLORS.text, cursor: 'pointer', fontSize: 13,
-            fontWeight: 600, fontFamily: 'inherit', marginBottom: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}>
-            <Icon name="settings" size={16} color={COLORS.textDim} />
-            Download My Data (CSV)
-          </button>
-        )}
-
-        <button onClick={async () => { await supabase.auth.signOut(); }} style={{
-          width: '100%', padding: 12, borderRadius: 10, border: `1px solid #FF525233`,
-          background: '#FF525210', color: '#FF5252', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-        }}>Log Out</button>
-      </div>
     </div>
   );
 }

@@ -299,7 +299,7 @@ export default function App() {
               }}>Sign Up</button>
             ) : profile && (
               <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
-                <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} />
+                <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} src={profile.avatar_url || null} />
               </div>
             )}
           </div>

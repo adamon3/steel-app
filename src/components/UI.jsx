@@ -115,8 +115,17 @@ export function Icon({ name, size = 20, color }) {
   return icons[name] || null;
 }
 
-export function Avatar({ initials, size = 40, colorIndex = 0, onClick }) {
+export function Avatar({ initials, size = 40, colorIndex = 0, onClick, src }) {
   const color = avatarColors[colorIndex % avatarColors.length];
+  if (src) {
+    return (
+      <img onClick={onClick} src={src} alt="" style={{
+        width: size, height: size, borderRadius: '50%', objectFit: 'cover',
+        border: `2px solid ${color}44`, flexShrink: 0,
+        cursor: onClick ? 'pointer' : 'default',
+      }} />
+    );
+  }
   return (
     <div onClick={onClick} style={{
       width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
