@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from './lib/store';
-import { useTheme, getColors, refreshColors, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
+import { useTheme, getColors, refreshColors, COLORS, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
 import Auth from './pages/Auth';
 import Feed from './pages/Feed';
 import Discover from './pages/Discover';
