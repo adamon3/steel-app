@@ -16,9 +16,19 @@ export default function Auth({ onClose, message }) {
     setLoading(true);
     if (mode === 'signup') {
       if (!username.trim() || !displayName.trim()) { setError('All fields are required'); setLoading(false); return; }
+
+      // Validate username format
+      const cleanUsername = username.trim().toLowerCase().replace(/\s/g, '_');
+      if (cleanUsername.length < 3) { setError('Username must be at least 3 characters'); setLoading(false); return; }
+      if (!/^[a-z0-9_]+$/.test(cleanUsername)) { setError('Username can only contain letters, numbers, and underscores'); setLoading(false); return; }
+
+      // Check if username is taken
+      const { data: existing } = await supabase.from('profiles').select('id').eq('username', cleanUsername).single();
+      if (existing) { setError('Username is already taken — try another'); setLoading(false); return; }
+
       const { error: err } = await supabase.auth.signUp({
         email, password,
-        options: { data: { username: username.trim(), display_name: displayName.trim() } },
+        options: { data: { username: cleanUsername, display_name: displayName.trim() } },
       });
       if (err) setError(err.message);
     } else {
