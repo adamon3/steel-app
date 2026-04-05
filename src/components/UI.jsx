@@ -81,7 +81,7 @@ export const SPORTS = [
   'Tennis', 'Rowing', 'Cycling', 'General Fitness', 'Other'
 ];
 
-const avatarColors = ["#00C853","#E65100","#448AFF","#EF4444","#AB47BC","#26C6DA","#EC407A"];
+const avatarColors = ["#6366F1","#F97316","#3B82F6","#EF4444","#A855F7","#14B8A6","#EC4899"];
 
 export function Icon({ name, size = 20, color }) {
   const c = color || getColors().textDim;

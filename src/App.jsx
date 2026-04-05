@@ -85,6 +85,8 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [showSteelPopup, setShowSteelPopup] = useState(false);
   const [steelData, setSteelData] = useState(null);
+  const [workoutMinimized, setWorkoutMinimized] = useState(false);
+  const [minimizedInfo, setMinimizedInfo] = useState(null);
 
   useEffect(() => { init(); }, []);
 
@@ -201,16 +203,25 @@ export default function App() {
           )
         )}
 
-        {/* LOG WORKOUT — always available, even for guests */}
-        {tab === 'log' && (
-          <LogWorkout
-            prefill={steelPrefill}
-            onDone={() => {
-              setSteelPrefill(null);
-              showToast('Workout saved!');
-              if (!isGuest) setTab('feed');
-            }}
-          />
+        {/* LOG WORKOUT — always mounted when active, hidden when minimized */}
+        {(tab === 'log' || workoutMinimized) && (
+          <div style={{ display: tab === 'log' ? 'block' : 'none' }}>
+            <LogWorkout
+              prefill={steelPrefill}
+              onMinimize={(info) => {
+                setMinimizedInfo(info);
+                setWorkoutMinimized(true);
+                setTab('feed');
+              }}
+              onDone={() => {
+                setSteelPrefill(null);
+                setWorkoutMinimized(false);
+                setMinimizedInfo(null);
+                showToast('Workout saved!');
+                if (!isGuest) setTab('feed');
+              }}
+            />
+          </div>
         )}
 
         {/* GYM COMMUNITY */}
@@ -313,6 +324,29 @@ export default function App() {
 
       {renderContent()}
 
+      {/* Minimized workout bar */}
+      {workoutMinimized && minimizedInfo && tab !== 'log' && (
+        <div onClick={() => setTab('log')} style={{
+          position: 'fixed', bottom: 64, left: 8, right: 8, zIndex: 25,
+          background: COLORS.accent, borderRadius: 14, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          cursor: 'pointer', boxShadow: `0 4px 20px ${COLORS.accent}44`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 4, background: '#fff', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{minimizedInfo.title}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                {minimizedInfo.exerciseCount} exercise{minimizedInfo.exerciseCount !== 1 ? 's' : ''} · {minimizedInfo.setCount} sets done
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: 8 }}>
+            Resume
+          </div>
+        </div>
+      )}
+
       <BottomTabBar tabs={tabs} active={tab} onChange={(t) => { setViewUserId(null); setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
 
       {/* Auth modal */}
@@ -357,6 +391,7 @@ export default function App() {
       <style>{`
         @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         * { box-sizing: border-box; } ::-webkit-scrollbar { display: none; }
         body { margin: 0; background: ${COLORS.bg}; }
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

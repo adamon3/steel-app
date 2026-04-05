@@ -185,7 +185,7 @@ function TemplateSelector({ onSelect, onEmpty, templates }) {
 }
 
 // ── Main Logger ──
-export default function LogWorkout({ prefill, onDone }) {
+export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, saveTemplate, getPreviousSets } = useStore();
   const [phase, setPhase] = useState(prefill ? 'logging' : 'select'); // select | logging | complete
   const [title, setTitle] = useState(prefill?.title || '');
@@ -444,13 +444,21 @@ export default function LogWorkout({ prefill, onDone }) {
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={onDone} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 13, color: COLORS.textDim, fontFamily: 'inherit' }}>{"<"}</button>
+          <button onClick={() => {
+            if (phase === 'logging' && workoutExercises.length > 0 && onMinimize) {
+              onMinimize({ title: title || 'Workout', elapsed, exerciseCount: workoutExercises.length, setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0) });
+            } else {
+              onDone();
+            }
+          }} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 13, color: COLORS.textDim, fontFamily: 'inherit' }}>
+            <Icon name="back" size={16} color={COLORS.textDim} />
+          </button>
           <div style={{ fontSize: 13, color: COLORS.textDim, fontVariantNumeric: 'tabular-nums' }}>
             <Icon name="clock" size={14} color={COLORS.textDim} /> {elapsedMins}:{elapsedSecs.toString().padStart(2, '0')}
           </div>
         </div>
         <button onClick={handleFinish} disabled={saving || !hasAnyExercises} style={{
-          background: hasAnyExercises ? '#22C55E' : COLORS.card,
+          background: hasAnyExercises ? COLORS.accent : COLORS.card,
           color: hasAnyExercises ? '#fff' : COLORS.textDim,
           border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 800, fontSize: 14,
           cursor: hasAnyExercises ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
