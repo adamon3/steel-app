@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../lib/store';
+import { supabase } from '../lib/supabase';
 import { COLORS, Button, Input, Icon, Spinner, convertWeight, convertWeightBack, formatVolume } from '../components/UI';
+import { EXERCISE_INFO } from '../components/Tools';
 
 // ── Rest Timer Popup with audio notification ──
 function RestTimer({ seconds, onDismiss }) {
@@ -381,8 +383,6 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
 
   const handleUpdateTemplate = async () => {
     if (templateId) {
-      // Delete old template exercises and re-insert
-      const { supabase } = await import('../lib/supabase');
       await supabase.from('template_exercises').delete().eq('template_id', templateId);
       const rows = workoutExercises.map((ex, i) => ({
         template_id: templateId,
@@ -545,7 +545,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             {/* Exercise info panel */}
             {ex.showInfo && (
               <div style={{ background: `${COLORS.accent}08`, borderRadius: 8, padding: '8px 10px', marginBottom: 10, fontSize: 13, color: COLORS.textDim, lineHeight: 1.5, border: `1px solid ${COLORS.accent}22` }}>
-                {(() => { try { const { EXERCISE_INFO } = require('../components/Tools'); return EXERCISE_INFO[ex.name] || 'No instructions available yet. Check YouTube for form guides.'; } catch { return 'No instructions available.'; } })()}
+                {EXERCISE_INFO[ex.name] || 'No instructions available yet. Check YouTube for form guides.'}
               </div>
             )}
 
@@ -768,7 +768,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           onClose={() => { setShowPicker(false); setSearch(''); }}
           onCreateCustom={async (name, muscleGroup) => {
             const { user } = useStore.getState();
-            const { data } = await (await import('../lib/supabase')).supabase
+            const { data } = await supabase
               .from('exercises')
               .insert({ name, muscle_group: muscleGroup, is_custom: true, created_by: user?.id })
               .select()
