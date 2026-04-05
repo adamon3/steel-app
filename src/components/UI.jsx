@@ -4,31 +4,31 @@ const THEME_KEY = 'steel_theme';
 
 const THEMES = {
   light: {
-    bg: "#F5F6FA",
+    bg: "#F8F8F8",
     card: "#FFFFFF",
-    card2: "#F0F1F5",
-    accent: "#00C853",
-    accentDim: "#00A844",
-    orange: "#E65100",
-    text: "#1A1A2E",
-    textDim: "#6B7280",
-    border: "#E5E7EB",
-    pro: "#F59E0B",
+    card2: "#F2F2F2",
+    accent: "#4F46E5",      // Indigo — bold, athletic, not corporate
+    accentDim: "#4338CA",
+    orange: "#F97316",      // Warm orange for badges/sport tags
+    text: "#111111",
+    textDim: "#71717A",
+    border: "#E4E4E7",
+    pro: "#EAB308",         // Gold for PRs
     red: "#EF4444",
     isDark: false,
   },
   dark: {
-    bg: "#0A0E17",
-    card: "#141B2D",
-    card2: "#1A2340",
-    accent: "#00E676",
-    accentDim: "#00C853",
-    orange: "#FF6D00",
-    text: "#E8EAF0",
-    textDim: "#7B8CA8",
-    border: "#1E2A45",
-    pro: "#FFD600",
-    red: "#FF5252",
+    bg: "#09090B",
+    card: "#18181B",
+    card2: "#1E1E22",
+    accent: "#818CF8",      // Lighter indigo for dark mode
+    accentDim: "#6366F1",
+    orange: "#FB923C",
+    text: "#FAFAFA",
+    textDim: "#A1A1AA",
+    border: "#27272A",
+    pro: "#FACC15",
+    red: "#F87171",
     isDark: true,
   },
 };
