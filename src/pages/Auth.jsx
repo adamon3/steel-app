@@ -34,8 +34,8 @@ export default function Auth({ onClose, message }) {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 24, fontWeight: 900 }}>
-              <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '3px', fontStyle: 'italic' }}>
+              <span style={{ color: COLORS.text }}>STEEL</span>
             </div>
           </div>
           {onClose && (

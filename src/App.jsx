@@ -286,8 +286,8 @@ export default function App() {
       {/* Header */}
       <div style={{ padding: '16px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px' }}>
-            <span style={{ color: COLORS.text }}>STEEL</span><span style={{ color: COLORS.accent }}>.</span>
+          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '3px', fontStyle: 'italic' }}>
+            <span style={{ color: COLORS.text }}>STEEL</span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* Theme toggle */}
