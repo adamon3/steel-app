@@ -7,8 +7,8 @@ const THEMES = {
     bg: "#F8F8F8",
     card: "#FFFFFF",
     card2: "#F2F2F2",
-    accent: "#818CF8",      // Same indigo as dark mode
-    accentDim: "#6366F1",
+    accent: "#6366F1",      // Mid indigo - punchy on white
+    accentDim: "#4F46E5",
     orange: "#F97316",      // Warm orange for badges/sport tags
     text: "#111111",
     textDim: "#71717A",
