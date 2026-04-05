@@ -21,19 +21,20 @@ const tabs = [
 // Blurred overlay for pages that need sign-up
 function AuthGate({ children, message, onSignUp }) {
   return (
-    <div style={{ position: 'relative', minHeight: 300 }}>
-      <div style={{ filter: 'blur(6px)', pointerEvents: 'none', opacity: 0.6 }}>
+    <div style={{ position: 'relative', minHeight: 320 }}>
+      <div style={{ filter: 'blur(6px)', pointerEvents: 'none', opacity: 0.5 }}>
         {children}
       </div>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', padding: 32,
-        background: `${COLORS.bg}88`,
+        background: COLORS.isDark ? 'rgba(10,14,23,0.6)' : 'rgba(245,246,250,0.6)',
       }}>
         <div style={{
           background: COLORS.card, borderRadius: 20, padding: '32px 28px', textAlign: 'center',
-          border: `1px solid ${COLORS.border}`, boxShadow: `0 8px 32px ${COLORS.bg}44`,
-          maxWidth: 300,
+          border: `1px solid ${COLORS.border}`,
+          boxShadow: COLORS.isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
+          maxWidth: 300, width: '100%',
         }}>
           <Icon name="lock" size={36} color={COLORS.accent} />
           <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12 }}>
@@ -55,16 +56,20 @@ function AuthGate({ children, message, onSignUp }) {
 
 // Placeholder cards for blurred gated pages
 function PlaceholderCards({ count = 3, height = 120 }) {
-  return Array.from({ length: count }).map((_, i) => (
-    <div key={i} style={{
-      background: COLORS.isDark ? COLORS.card : '#E8ECF0',
-      borderRadius: 14, padding: 14, marginBottom: 10,
-      border: `1px solid ${COLORS.border}`, height,
-    }}>
-      <div style={{ background: COLORS.isDark ? COLORS.border : '#D1D5DB', borderRadius: 8, height: 14, width: '60%', marginBottom: 8 }} />
-      <div style={{ background: COLORS.isDark ? COLORS.border : '#D1D5DB', borderRadius: 6, height: 10, width: '40%' }} />
+  return (
+    <div>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} style={{
+          background: COLORS.isDark ? COLORS.card : '#DEE2E8',
+          borderRadius: 14, padding: 14, marginBottom: 10,
+          border: `1px solid ${COLORS.isDark ? COLORS.border : '#C8CDD5'}`, height,
+        }}>
+          <div style={{ background: COLORS.isDark ? COLORS.border : '#C0C5CE', borderRadius: 8, height: 14, width: '60%', marginBottom: 8 }} />
+          <div style={{ background: COLORS.isDark ? COLORS.border : '#C0C5CE', borderRadius: 6, height: 10, width: '40%' }} />
+        </div>
+      ))}
     </div>
-  ));
+  );
 }
 
 export default function App() {
