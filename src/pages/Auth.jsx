@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Button } from '../components/UI';
 
-export default function Auth({ onClose, message }) {
+export default function Auth({ onClose, message, initialMode }) {
   const { user } = useStore();
-  const [mode, setMode] = useState('signup');
+  const [mode, setMode] = useState(initialMode || 'signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');

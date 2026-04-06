@@ -83,6 +83,7 @@ export default function App() {
   const [viewUserId, setViewUserId] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
+  const [authMode, setAuthMode] = useState('signup');
   const [showSteelPopup, setShowSteelPopup] = useState(false);
   const [steelData, setSteelData] = useState(null);
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
@@ -103,8 +104,9 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const promptAuth = (msg) => {
+  const promptAuth = (msg, mode = 'signup') => {
     setAuthMessage(msg || '');
+    setAuthMode(mode);
     setShowAuth(true);
   };
 
@@ -268,8 +270,7 @@ export default function App() {
                 background: COLORS.accent, color: COLORS.bg, fontWeight: 700, fontSize: 16,
                 cursor: 'pointer', fontFamily: 'inherit', width: '100%',
               }}>Create Account</button>
-              <button onClick={() => promptAuth('')} style={{
-                marginTop: 10, padding: '12px 32px', borderRadius: 12, background: COLORS.card,
+              <button onClick={() => promptAuth('', 'login')} style={{
                 border: `1px solid ${COLORS.border}`, color: COLORS.text, fontWeight: 600,
                 fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
               }}>Log In</button>
@@ -350,7 +351,7 @@ export default function App() {
       <BottomTabBar tabs={tabs} active={tab} onChange={(t) => { setViewUserId(null); setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
 
       {/* Auth modal */}
-      {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} />}
+      {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} initialMode={authMode} />}
 
       {/* Steel It popup */}
       {showSteelPopup && steelData && (
