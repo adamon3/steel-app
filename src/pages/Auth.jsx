@@ -96,12 +96,10 @@ export default function Auth({ onClose, message, initialMode }) {
         {mode === 'signup' && (
           <>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 12, color: COLORS.textDim, marginBottom: 5, fontWeight: 600 }}>Display Name</label>
               <input type="text" autoComplete="name" placeholder="Display Name" value={displayName}
                 onChange={e => setDisplayName(e.target.value)} style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 12, color: COLORS.textDim, marginBottom: 5, fontWeight: 600 }}>Username</label>
               <input type="text" autoComplete="username" placeholder="Username" value={username}
                 onChange={e => setUsername(e.target.value)} style={inputStyle} />
             </div>
@@ -109,15 +107,13 @@ export default function Auth({ onClose, message, initialMode }) {
         )}
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ display: 'block', fontSize: 12, color: COLORS.textDim, marginBottom: 5, fontWeight: 600 }}>Email</label>
-          <input type="email" autoComplete="email" placeholder="you@email.com" value={email}
+          <input type="email" autoComplete="email" placeholder="Email" value={email}
             onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit()} style={inputStyle} />
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ display: 'block', fontSize: 12, color: COLORS.textDim, marginBottom: 5, fontWeight: 600 }}>Password</label>
           <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            placeholder={mode === 'signup' ? 'Min 6 characters' : 'Your password'} value={password}
+            placeholder="Password" value={password}
             onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSubmit()} style={inputStyle} />
         </div>
 
