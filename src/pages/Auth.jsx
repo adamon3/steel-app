@@ -97,12 +97,12 @@ export default function Auth({ onClose, message, initialMode }) {
           <>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 12, color: COLORS.textDim, marginBottom: 5, fontWeight: 600 }}>Display Name</label>
-              <input type="text" autoComplete="name" placeholder="e.g. Adam M." value={displayName}
+              <input type="text" autoComplete="name" placeholder="Display Name" value={displayName}
                 onChange={e => setDisplayName(e.target.value)} style={inputStyle} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 12, color: COLORS.textDim, marginBottom: 5, fontWeight: 600 }}>Username</label>
-              <input type="text" autoComplete="username" placeholder="e.g. adam_lifts" value={username}
+              <input type="text" autoComplete="username" placeholder="Username" value={username}
                 onChange={e => setUsername(e.target.value)} style={inputStyle} />
             </div>
           </>
