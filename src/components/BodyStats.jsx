@@ -52,7 +52,7 @@ export default function BodyStats({ unit }) {
         <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>Body Stats</div>
         <button onClick={() => setShowAdd(!showAdd)} style={{
           background: COLORS.accent, border: 'none', borderRadius: 8, padding: '7px 14px',
-          cursor: 'pointer', fontSize: 12, fontWeight: 700, color: COLORS.bg, fontFamily: 'inherit',
+          cursor: 'pointer', fontSize: 12, fontWeight: 700, color: COLORS.isDark ? COLORS.bg : '#fff', fontFamily: 'inherit',
         }}>{showAdd ? 'Cancel' : '+ Log'}</button>
       </div>
 
@@ -79,7 +79,7 @@ export default function BodyStats({ unit }) {
           </div>
           <button onClick={handleSave} style={{
             width: '100%', padding: 12, borderRadius: 10, border: 'none', background: COLORS.accent,
-            color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', marginTop: 12,
+            color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', marginTop: 12,
           }}>Save Entry</button>
         </div>
       )}

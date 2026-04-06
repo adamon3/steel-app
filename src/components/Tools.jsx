@@ -75,7 +75,7 @@ export function PlateCalculator() {
                   background: p >= 20 ? COLORS.accent : p >= 10 ? COLORS.orange : p >= 5 ? '#448AFF' : '#AB47BC',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 7, fontWeight: 700, color: COLORS.bg, writingMode: 'vertical-rl' }}>{p}</span>
+                  <span style={{ fontSize: 7, fontWeight: 700, color: COLORS.isDark ? COLORS.bg : '#fff', writingMode: 'vertical-rl' }}>{p}</span>
                 </div>
               );
             })}
@@ -90,7 +90,7 @@ export function PlateCalculator() {
                   background: p >= 20 ? COLORS.accent : p >= 10 ? COLORS.orange : p >= 5 ? '#448AFF' : '#AB47BC',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 7, fontWeight: 700, color: COLORS.bg, writingMode: 'vertical-rl' }}>{p}</span>
+                  <span style={{ fontSize: 7, fontWeight: 700, color: COLORS.isDark ? COLORS.bg : '#fff', writingMode: 'vertical-rl' }}>{p}</span>
                 </div>
               );
             })}

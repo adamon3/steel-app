@@ -58,7 +58,7 @@ function RestTimer({ seconds, onDismiss }) {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setRemaining(r => Math.max(0, r - 30))} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', color: COLORS.text, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>-30s</button>
           <button onClick={() => setRemaining(r => r + 30)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', color: COLORS.text, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>+30s</button>
-          <button onClick={onDismiss} style={{ background: COLORS.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: COLORS.bg, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Skip</button>
+          <button onClick={onDismiss} style={{ background: COLORS.accent, border: 'none', borderRadius: 8, padding: '8px 16px', color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Skip</button>
         </div>
       </div>
     </div>
@@ -156,7 +156,7 @@ function TemplateSelector({ onSelect, onEmpty, templates }) {
       <button onClick={onEmpty} style={{
         width: '100%', padding: 16, borderRadius: 12, border: 'none', fontSize: 15, fontWeight: 700,
         fontFamily: 'inherit', cursor: 'pointer', marginBottom: 20,
-        background: COLORS.accent, color: COLORS.bg,
+        background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff',
       }}>Start a New Workout</button>
 
       {templates.length > 0 && (
@@ -667,7 +667,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Template name..."
               style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.card, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
-            <button onClick={handleSaveAsTemplate} style={{ background: COLORS.accent, color: COLORS.bg, border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+            <button onClick={handleSaveAsTemplate} style={{ background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
             <button onClick={() => setShowSaveTemplate(false)} style={{ background: COLORS.card, color: COLORS.textDim, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>x</button>
           </div>
         ) : (
@@ -723,7 +723,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => handleFinish()} style={{
                 flex: 1, padding: 12, borderRadius: 10, border: 'none', background: COLORS.accent,
-                color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
               }}>Finish Anyway</button>
               <button onClick={() => setShowIncompleteConfirm(false)} style={{
                 flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
@@ -746,7 +746,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button onClick={handleUpdateTemplate} style={{
                 width: '100%', padding: 12, borderRadius: 10, border: 'none', background: COLORS.accent,
-                color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
               }}>Update Template</button>
               <button onClick={handleSkipUpdateTemplate} style={{
                 width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
@@ -859,7 +859,7 @@ function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCre
               <div style={{ fontSize: 14, marginBottom: 8 }}>No exercises found</div>
               <button onClick={() => setShowCreate(true)} style={{
                 background: COLORS.accent, border: 'none', borderRadius: 8, padding: '10px 20px',
-                cursor: 'pointer', fontSize: 13, color: COLORS.bg, fontWeight: 700, fontFamily: 'inherit',
+                cursor: 'pointer', fontSize: 13, color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontFamily: 'inherit',
               }}>Create Custom Exercise</button>
             </div>
           )}
@@ -913,7 +913,7 @@ function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCre
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleCreate} disabled={!newName.trim()} style={{
                 flex: 1, padding: 12, borderRadius: 8, border: 'none', background: COLORS.accent,
-                color: COLORS.bg, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
                 opacity: newName.trim() ? 1 : 0.5,
               }}>Create & Add</button>
               <button onClick={() => setShowCreate(false)} style={{

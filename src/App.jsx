@@ -267,7 +267,7 @@ export default function App() {
               })()}
               <button onClick={() => promptAuth('Create your account to save your workouts')} style={{
                 padding: '14px 32px', borderRadius: 12, border: 'none',
-                background: COLORS.accent, color: COLORS.bg, fontWeight: 700, fontSize: 16,
+                background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 16,
                 cursor: 'pointer', fontFamily: 'inherit', width: '100%',
               }}>Create Account</button>
               <button onClick={() => promptAuth('', 'login')} style={{

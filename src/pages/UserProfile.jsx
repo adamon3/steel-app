@@ -19,34 +19,34 @@ export default function UserProfile({ userId, onBack, onSteel }) {
 
   const loadProfile = async () => {
     setLoading(true);
+    try {
+      // Fetch profile
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (p) setAthlete(p);
 
-    // Fetch profile
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (p) setAthlete(p);
+      // Fetch workouts with exercises and sets
+      const { data: wks } = await supabase
+        .from('workouts')
+        .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, set_number, weight, reps, is_pr))')
+        .eq('user_id', userId)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (wks) setWorkouts(wks);
 
-    // Fetch workouts with exercises and sets
-    const { data: wks } = await supabase
-      .from('workouts')
-      .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, set_number, weight, reps, is_pr))')
-      .eq('user_id', userId)
-      .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (wks) setWorkouts(wks);
+      // Check if following
+      if (user) {
+        const { data: f } = await supabase.from('follows').select('*')
+          .eq('follower_id', user.id).eq('following_id', userId).maybeSingle();
+        setIsFollowing(!!f);
+      }
 
-    // Check if following
-    if (user) {
-      const { data: f } = await supabase.from('follows').select('*')
-        .eq('follower_id', user.id).eq('following_id', userId).single();
-      setIsFollowing(!!f);
-    }
-
-    // Counts
-    const { count: fc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId);
-    const { count: fgc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId);
-    setFollowerCount(fc || 0);
-    setFollowingCount(fgc || 0);
-
+      // Counts
+      const { count: fc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId);
+      const { count: fgc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId);
+      setFollowerCount(fc || 0);
+      setFollowingCount(fgc || 0);
+    } catch (e) { console.error('UserProfile load error:', e); }
     setLoading(false);
   };
 
@@ -192,7 +192,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
                 <button onClick={() => handleSteel(w.id, w.title)} style={{
                   width: '100%', padding: '9px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13,
                   cursor: 'pointer', fontFamily: 'inherit', background: COLORS.accent,
-                  color: COLORS.bg, border: 'none', transition: 'all 0.15s',
+                  color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', transition: 'all 0.15s',
                 }}>{"📋"} Steel this workout</button>
               )}
             </div>
