@@ -94,6 +94,18 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
           </div>
         </div>
         <div style={{ fontWeight: 800, fontSize: 18, color: COLORS.text, marginBottom: 10 }}>{workout.title}</div>
+        {/* Workout photo */}
+        {workout.image_url && (
+          <div style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden' }}>
+            <img src={workout.image_url} alt="" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
+          </div>
+        )}
+        {/* Workout note */}
+        {workout.notes && workout.notes.trim() && (
+          <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 10, lineHeight: 1.4, fontStyle: 'italic' }}>
+            "{workout.notes}"
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
           {[
             ...(workout.duration_mins > 0 ? [{ label: 'Duration', value: `${workout.duration_mins}m` }] : []),
@@ -163,14 +175,12 @@ export default function Feed({ onSteel, onProfile }) {
     if (!user) return;
     setLoadingFollowing(true);
     try {
-      const { supabase } = await import('../lib/supabase');
       // Get who I follow
       const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id);
       const followIds = (follows || []).map(f => f.following_id);
-      // Include own workouts
       followIds.push(user.id);
 
-      if (followIds.length > 0) {
+      if (followIds.length > 1) { // more than just self
         const { data } = await supabase.from('workouts')
           .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
           .in('user_id', followIds).eq('is_public', true)
@@ -183,7 +193,27 @@ export default function Feed({ onSteel, onProfile }) {
     setLoadingFollowing(false);
   };
 
-  const activeFeed = feedTab === 'following' ? followingFeed : feed;
+  // Sort For You feed — prioritise same sport, same gym, PRs, and recent
+  const sortedForYou = [...feed].sort((a, b) => {
+    let scoreA = 0, scoreB = 0;
+    // Same sport as me
+    if (profile?.sport && a.profiles?.sport === profile.sport) scoreA += 3;
+    if (profile?.sport && b.profiles?.sport === profile.sport) scoreB += 3;
+    // Same gym as me
+    if (profile?.gym && a.profiles?.gym === profile.gym) scoreA += 5;
+    if (profile?.gym && b.profiles?.gym === profile.gym) scoreB += 5;
+    // Has PRs
+    if (a.has_pr) scoreA += 2;
+    if (b.has_pr) scoreB += 2;
+    // More likes
+    scoreA += (a.likes?.length || 0) * 0.5;
+    scoreB += (b.likes?.length || 0) * 0.5;
+    // Recency tiebreaker
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  const activeFeed = feedTab === 'following' ? followingFeed : sortedForYou;
   const isLoading = feedTab === 'following' ? loadingFollowing : loading;
 
   return (

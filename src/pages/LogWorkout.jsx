@@ -65,10 +65,12 @@ function RestTimer({ seconds, onDismiss }) {
   );
 }
 
-// ── Completion Screen with feeling score ──
+// ── Completion Screen with feeling score and photo ──
 function CompletionScreen({ workout, onDone, unit }) {
   const [feeling, setFeeling] = useState(null);
   const [note, setNote] = useState('');
+  const [photo, setPhoto] = useState(null); // { preview, file }
+  const [uploading, setUploading] = useState(false);
 
   const totalVol = workout.exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
   const totalSets = workout.exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).length, 0);
@@ -81,6 +83,39 @@ function CompletionScreen({ workout, onDone, unit }) {
     { emoji: '💪', label: 'Strong', value: 4 },
     { emoji: '🔥', label: 'Amazing', value: 5 },
   ];
+
+  const handlePhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setPhoto({ preview, file });
+  };
+
+  const handleDone = async () => {
+    let imageUrl = null;
+    if (photo?.file) {
+      setUploading(true);
+      try {
+        const ext = photo.file.name.split('.').pop();
+        const path = `workouts/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from('avatars').upload(path, photo.file, { upsert: true });
+        if (!error) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          imageUrl = urlData?.publicUrl || null;
+        }
+      } catch (err) {
+        // Fallback: convert to base64 for small images
+        try {
+          const reader = new FileReader();
+          const dataUrl = await new Promise((res) => { reader.onload = (e) => res(e.target.result); reader.readAsDataURL(photo.file); });
+          // Only use if small enough
+          if (dataUrl.length < 500000) imageUrl = dataUrl;
+        } catch {}
+      }
+      setUploading(false);
+    }
+    onDone({ feeling, note, imageUrl });
+  };
 
   return (
     <div style={{ textAlign: 'center', padding: '32px 20px' }}>
@@ -111,6 +146,29 @@ function CompletionScreen({ workout, onDone, unit }) {
         </div>
       )}
 
+      {/* Photo upload */}
+      <div style={{ marginBottom: 20 }}>
+        {photo ? (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <img src={photo.preview} alt="" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 12, border: `1px solid ${COLORS.border}` }} />
+            <button onClick={() => setPhoto(null)} style={{
+              position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14,
+              background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', fontSize: 14, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>×</button>
+          </div>
+        ) : (
+          <label style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '14px 20px', borderRadius: 12, border: `1px dashed ${COLORS.border}`,
+            background: COLORS.card, cursor: 'pointer', color: COLORS.textDim, fontSize: 14, fontWeight: 500,
+          }}>
+            <Icon name="plus" size={18} color={COLORS.textDim} /> Add a photo
+            <input type="file" accept="image/*" onChange={handlePhoto} style={{ display: 'none' }} />
+          </label>
+        )}
+      </div>
+
       {/* Feeling score */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 10 }}>How did it feel?</div>
@@ -134,7 +192,7 @@ function CompletionScreen({ workout, onDone, unit }) {
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textDim, marginBottom: 6 }}>Add a note (optional)</div>
         <textarea value={note} onChange={e => setNote(e.target.value)}
           placeholder="How was the session? Anything to remember for next time?"
-          rows={3}
+          rows={2}
           style={{
             width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${COLORS.border}`,
             background: COLORS.card, color: COLORS.text, fontSize: 14, fontFamily: 'inherit',
@@ -142,7 +200,140 @@ function CompletionScreen({ workout, onDone, unit }) {
           }} />
       </div>
 
-      <Button onClick={() => onDone({ feeling, note })} style={{ width: '100%', padding: 16, fontSize: 16, borderRadius: 14 }}>Done</Button>
+      <Button onClick={handleDone} disabled={uploading} style={{ width: '100%', padding: 16, fontSize: 16, borderRadius: 14 }}>
+        {uploading ? 'Uploading photo...' : 'Done'}
+      </Button>
+
+      {/* Share card */}
+      <button onClick={async () => {
+        // Generate share card using canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = 1080;
+        canvas.height = 1920;
+        const ctx = canvas.getContext('2d');
+
+        // Background gradient
+        const grad = ctx.createLinearGradient(0, 0, 0, 1920);
+        grad.addColorStop(0, '#09090B');
+        grad.addColorStop(1, '#18181B');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1920);
+
+        // Accent bar at top
+        ctx.fillStyle = '#6366F1';
+        ctx.fillRect(0, 0, 1080, 6);
+
+        // Logo
+        ctx.font = 'italic 900 48px -apple-system, sans-serif';
+        ctx.fillStyle = '#FAFAFA';
+        ctx.letterSpacing = '6px';
+        ctx.fillText('STEEL', 80, 120);
+
+        // Title
+        ctx.font = '800 64px -apple-system, sans-serif';
+        ctx.letterSpacing = '0px';
+        ctx.fillStyle = '#FAFAFA';
+        ctx.fillText(workout.title || 'Workout', 80, 280);
+
+        // Date
+        ctx.font = '400 32px -apple-system, sans-serif';
+        ctx.fillStyle = '#A1A1AA';
+        ctx.fillText(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), 80, 340);
+
+        // Stats boxes
+        const stats = [
+          { v: `${workout.duration_mins}m`, l: 'Duration' },
+          { v: String(formatVolume(convertWeight(totalVol, unit))), l: `Volume (${unit})` },
+          { v: String(totalSets), l: 'Sets' },
+        ];
+        if (prCount > 0) stats.push({ v: String(prCount), l: 'PRs' });
+
+        const boxW = (1080 - 160 - (stats.length - 1) * 24) / stats.length;
+        stats.forEach((s, i) => {
+          const x = 80 + i * (boxW + 24);
+          const y = 420;
+          ctx.fillStyle = '#27272A';
+          ctx.beginPath();
+          ctx.roundRect(x, y, boxW, 160, 20);
+          ctx.fill();
+          ctx.font = '800 56px -apple-system, sans-serif';
+          ctx.fillStyle = i === stats.length - 1 && prCount > 0 ? '#FACC15' : '#FAFAFA';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.v, x + boxW / 2, y + 80);
+          ctx.font = '500 24px -apple-system, sans-serif';
+          ctx.fillStyle = '#A1A1AA';
+          ctx.fillText(s.l, x + boxW / 2, y + 120);
+        });
+        ctx.textAlign = 'left';
+
+        // Exercises
+        const exList = workout.exercises.slice(0, 6);
+        exList.forEach((ex, i) => {
+          const y = 660 + i * 80;
+          const completedSets = ex.sets.filter(s => s.completed);
+          const bestWeight = Math.max(...completedSets.map(s => s.weight || 0), 0);
+          const bestSet = completedSets.find(s => s.weight === bestWeight);
+
+          ctx.font = '600 34px -apple-system, sans-serif';
+          ctx.fillStyle = '#FAFAFA';
+          ctx.fillText(ex.name || 'Exercise', 80, y);
+
+          ctx.font = '400 28px -apple-system, sans-serif';
+          ctx.fillStyle = '#A1A1AA';
+          const detail = `${completedSets.length} sets · ${convertWeight(bestWeight, unit)}${unit} x${bestSet?.reps || 0}`;
+          ctx.fillText(detail, 80, y + 40);
+
+          if (completedSets.some(s => s.is_pr)) {
+            ctx.font = '700 24px -apple-system, sans-serif';
+            ctx.fillStyle = '#FACC15';
+            ctx.fillText('PR', 950, y);
+          }
+        });
+        if (workout.exercises.length > 6) {
+          ctx.font = '400 28px -apple-system, sans-serif';
+          ctx.fillStyle = '#A1A1AA';
+          ctx.fillText(`+${workout.exercises.length - 6} more exercises`, 80, 660 + 6 * 80);
+        }
+
+        // PR celebration
+        if (prCount > 0) {
+          ctx.font = '700 40px -apple-system, sans-serif';
+          ctx.fillStyle = '#FACC15';
+          ctx.textAlign = 'center';
+          ctx.fillText(`🏆 ${prCount} Personal Record${prCount > 1 ? 's' : ''}!`, 540, 1600);
+          ctx.textAlign = 'left';
+        }
+
+        // Footer
+        ctx.font = 'italic 700 28px -apple-system, sans-serif';
+        ctx.fillStyle = '#6366F1';
+        ctx.textAlign = 'center';
+        ctx.fillText('STEEL', 540, 1820);
+        ctx.font = '400 22px -apple-system, sans-serif';
+        ctx.fillStyle = '#71717A';
+        ctx.fillText('Steel workouts from athletes you admire', 540, 1860);
+
+        // Export
+        try {
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+          if (navigator.share && blob) {
+            const file = new File([blob], 'steel-workout.png', { type: 'image/png' });
+            await navigator.share({ files: [file], title: workout.title });
+          } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'steel-workout.png'; a.click();
+            URL.revokeObjectURL(url);
+          }
+        } catch (e) { console.log('Share cancelled or failed:', e); }
+      }} style={{
+        width: '100%', padding: 14, fontSize: 14, borderRadius: 14, marginTop: 10,
+        background: COLORS.card, border: `1px solid ${COLORS.border}`,
+        color: COLORS.text, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}>
+        <Icon name="copy" size={18} color={COLORS.textDim} /> Share to Stories
+      </button>
     </div>
   );
 }
@@ -358,7 +549,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
     const saved = await saveWorkout(workout);
     setSaving(false);
     if (saved) {
-      setCompletedWorkout({ ...workout, duration_mins: durationMins });
+      setCompletedWorkout({ ...workout, id: saved.id, duration_mins: durationMins });
       // If started from a template and exercises changed, prompt to update
       if (templateId && hasTemplateChanged()) {
         setShowUpdateTemplate(true);
@@ -428,9 +619,18 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
 
   // ── COMPLETION PHASE ──
   if (phase === 'complete' && completedWorkout) {
-    return <CompletionScreen workout={completedWorkout} unit={unit} onDone={(extra) => {
-      // Could save feeling/note to the workout here in future
-      // For now just pass through to parent
+    return <CompletionScreen workout={completedWorkout} unit={unit} onDone={async (extra) => {
+      // Save feeling, note, and photo to the workout
+      if (extra && completedWorkout.id) {
+        const updates = {};
+        if (extra.note) updates.notes = extra.note;
+        if (extra.imageUrl) updates.image_url = extra.imageUrl;
+        if (Object.keys(updates).length > 0) {
+          try {
+            await supabase.from('workouts').update(updates).eq('id', completedWorkout.id);
+          } catch (e) { console.error('Failed to update workout extras:', e); }
+        }
+      }
       onDone();
     }} />;
   }
@@ -564,13 +764,29 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
               }} />
 
             {/* Column headers */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 6, padding: '0 2px' }}>
-              <span style={{ width: 28, fontSize: 11, color: COLORS.textDim, fontWeight: 600 }}>SET</span>
-              <span style={{ flex: 1, fontSize: 11, color: COLORS.textDim, fontWeight: 600 }}>PREVIOUS</span>
-              <span style={{ width: 64, fontSize: 11, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>{unit.toUpperCase()}</span>
-              <span style={{ width: 56, fontSize: 11, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>REPS</span>
-              <span style={{ width: 36, fontSize: 11, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>{"✓"}</span>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 6, padding: '0 2px' }}>
+              <span style={{ width: 32, fontSize: 10, color: COLORS.textDim, fontWeight: 600 }}>SET</span>
+              <span style={{ flex: 1, fontSize: 10, color: COLORS.textDim, fontWeight: 600 }}>PREV</span>
+              <span style={{ width: 58, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>{unit.toUpperCase()}</span>
+              <span style={{ width: 48, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>REPS</span>
+              <span style={{ width: 36, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>RPE</span>
+              <span style={{ width: 34, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>{"✓"}</span>
             </div>
+
+            {/* Progressive overload suggestion */}
+            {prev && prev.length > 0 && (() => {
+              const lastBest = Math.max(...prev.map(s => s.weight || 0));
+              const lastBestSet = prev.find(s => s.weight === lastBest);
+              if (lastBest > 0 && lastBestSet) {
+                const suggestWeight = Math.round((lastBest * 1.025) * 2) / 2; // round to 0.5
+                return (
+                  <div style={{ fontSize: 11, color: COLORS.accent, marginBottom: 6, padding: '4px 8px', background: `${COLORS.accent}08`, borderRadius: 6 }}>
+                    Last: {convertWeight(lastBest, unit)}{unit} x{lastBestSet.reps} → Try {convertWeight(suggestWeight, unit)}{unit} or +1 rep
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* Sets */}
             {ex.sets.map((set, setIdx) => {
@@ -578,13 +794,32 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
               const isComplete = set.completed;
               const weightRef = `weight-${exIdx}-${setIdx}`;
               const repsRef = `reps-${exIdx}-${setIdx}`;
+              const setTypes = ['normal', 'warmup', 'dropset', 'failure'];
+              const typeLabels = { normal: setIdx + 1, warmup: 'W', dropset: 'D', failure: 'F' };
+              const typeColors = { normal: COLORS.textDim, warmup: COLORS.orange, dropset: '#A855F7', failure: COLORS.red };
               return (
                 <div key={setIdx} style={{
-                  display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, padding: '4px 2px',
-                  borderRadius: 8, background: isComplete ? `${COLORS.accent}12` : 'transparent',
+                  display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4, padding: '4px 2px',
+                  borderRadius: 8,
+                  background: isComplete
+                    ? set.set_type === 'warmup' ? `${COLORS.orange}12`
+                    : set.set_type === 'dropset' ? '#A855F712'
+                    : set.set_type === 'failure' ? `${COLORS.red}12`
+                    : `${COLORS.accent}12`
+                    : 'transparent',
                   transition: 'background 0.2s',
                 }}>
-                  <span style={{ width: 28, fontSize: 13, color: COLORS.textDim, textAlign: 'center', fontWeight: 700 }}>{setIdx + 1}</span>
+                  <button onClick={() => {
+                    const currentIdx = setTypes.indexOf(set.set_type || 'normal');
+                    const nextType = setTypes[(currentIdx + 1) % setTypes.length];
+                    updateSet(exIdx, setIdx, 'set_type', nextType);
+                  }} style={{
+                    width: 32, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+                    background: set.set_type && set.set_type !== 'normal' ? `${typeColors[set.set_type]}20` : 'transparent',
+                    color: typeColors[set.set_type || 'normal'],
+                    fontSize: 12, fontWeight: 800, fontFamily: 'inherit', padding: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{typeLabels[set.set_type || 'normal']}</button>
                   <span
                     onClick={() => {
                       if (prevSet && (!set.weight && !set.reps)) {
@@ -592,8 +827,8 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                         updateSet(exIdx, setIdx, 'reps', prevSet.reps);
                       }
                     }}
-                    style={{ flex: 1, fontSize: 12, color: prevSet && !set.weight && !set.reps ? COLORS.accent : COLORS.textDim, cursor: prevSet && !set.weight && !set.reps ? 'pointer' : 'default' }}>
-                    {prevSet ? `${convertWeight(prevSet.weight, unit)} ${unit} x ${prevSet.reps}` : '-'}
+                    style={{ flex: 1, fontSize: 11, color: prevSet && !set.weight && !set.reps ? COLORS.accent : COLORS.textDim, cursor: prevSet && !set.weight && !set.reps ? 'pointer' : 'default' }}>
+                    {prevSet ? `${convertWeight(prevSet.weight, unit)}x${prevSet.reps}` : '-'}
                   </span>
                   <input
                     id={weightRef}
@@ -609,7 +844,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                       }
                     }}
                     onFocus={e => e.target.select()}
-                    style={{ width: 64, padding: '8px 6px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                    style={{ width: 58, padding: '7px 4px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
                   />
                   <input
                     id={repsRef}
@@ -622,21 +857,32 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         toggleComplete(exIdx, setIdx);
-                        // Auto-advance to next set's weight input
                         const nextWeight = document.getElementById(`weight-${exIdx}-${setIdx + 1}`);
                         if (nextWeight) setTimeout(() => nextWeight.focus(), 100);
                         else e.target.blur();
                       }
                     }}
                     onFocus={e => e.target.select()}
-                    style={{ width: 56, padding: '8px 6px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                    style={{ width: 48, padding: '7px 4px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
                   />
+                  {/* RPE selector */}
+                  <button onClick={() => {
+                    const current = set.rpe || 0;
+                    const next = current >= 10 ? 0 : current < 6 ? 6 : current + 0.5;
+                    updateSet(exIdx, setIdx, 'rpe', next);
+                  }} style={{
+                    width: 36, height: 28, borderRadius: 6, border: `1px solid ${COLORS.border}`,
+                    background: set.rpe ? `${COLORS.orange}15` : 'transparent', cursor: 'pointer',
+                    color: set.rpe ? COLORS.orange : COLORS.textDim,
+                    fontSize: set.rpe ? 11 : 10, fontWeight: 700, fontFamily: 'inherit', padding: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{set.rpe || '-'}</button>
                   <button onClick={() => toggleComplete(exIdx, setIdx)} style={{
-                    width: 36, height: 36, borderRadius: 8,
+                    width: 34, height: 34, borderRadius: 8,
                     border: isComplete ? 'none' : `2px solid ${COLORS.border}`,
                     background: isComplete ? COLORS.accent : 'transparent',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, color: isComplete ? COLORS.bg : COLORS.textDim,
+                    fontSize: 16, color: isComplete ? (COLORS.isDark ? COLORS.bg : '#fff') : COLORS.textDim,
                     transition: 'all 0.15s', flexShrink: 0,
                   }}>{isComplete ? '✓' : ''}</button>
                 </div>
@@ -649,6 +895,17 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
               background: 'transparent', color: COLORS.textDim, cursor: 'pointer', fontSize: 13,
               fontWeight: 600, fontFamily: 'inherit', marginTop: 6,
             }}>+ Add Set</button>
+            {/* Set type legend */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 6, justifyContent: 'center' }}>
+              {[
+                { label: '1', desc: 'Normal', color: COLORS.textDim },
+                { label: 'W', desc: 'Warmup', color: COLORS.orange },
+                { label: 'D', desc: 'Drop', color: '#A855F7' },
+                { label: 'F', desc: 'Failure', color: COLORS.red },
+              ].map(t => (
+                <span key={t.label} style={{ fontSize: 10, color: t.color, fontWeight: 600 }}>{t.label} {t.desc}</span>
+              ))}
+            </div>
           </div>
           </div>
         );
@@ -823,7 +1080,7 @@ function ExercisePicker({ exercises, search, setSearch, onSelect, onClose, onCre
               <button onClick={() => setShowCreate(true)} style={{
                 background: COLORS.accent, border: 'none', borderRadius: 6, padding: '6px 10px',
                 cursor: 'pointer', fontSize: 12, color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontFamily: 'inherit',
-              }}>+ New</button>
+              }}>+ Custom</button>
               <button onClick={onClose} style={{
                 background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 6,
                 padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: COLORS.textDim, fontFamily: 'inherit',

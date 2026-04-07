@@ -94,7 +94,7 @@ export default function Discover({ onViewProfile }) {
             padding: '7px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
             fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
             background: sportFilter === s ? COLORS.accent : COLORS.card,
-            color: sportFilter === s ? COLORS.bg : COLORS.textDim,
+            color: sportFilter === s ? (COLORS.isDark ? COLORS.bg : '#fff') : COLORS.textDim,
           }}>{s}</button>
         ))}
       </div>

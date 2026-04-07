@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Button, Icon, Input, Select, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight, calcWeekStreak } from '../components/UI';
+import { COLORS, Avatar, Badge, Button, Icon, Input, Select, Spinner, EmptyState, SPORTS, getInitials, formatVolume, timeAgo, convertWeight, calcWeekStreak } from '../components/UI';
 import BodyStatsComponent from '../components/BodyStats';
 import { PlateCalculator as PlateCalcComponent } from '../components/Tools';
 
@@ -112,25 +112,42 @@ function StatsView({ workouts, unit }) {
             return (
               <button key={day} onClick={() => hasWorkout ? setSelectedDay(isSelected ? null : dateKey) : null}
                 style={{
-                  width: '100%', aspectRatio: '1', borderRadius: 10, border: isSelected ? `2px solid ${COLORS.accent}` : isToday && !hasWorkout ? `1px solid ${COLORS.accent}` : 'none',
+                  width: '100%', aspectRatio: '1', borderRadius: '50%',
+                  border: isSelected ? `2px solid ${COLORS.accent}` : isToday && !hasWorkout ? `1.5px solid ${COLORS.accent}` : 'none',
                   cursor: hasWorkout ? 'pointer' : 'default',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: 0, position: 'relative',
                   background: hasWorkout
-                    ? hasPr ? COLORS.pro : COLORS.accent
-                    : isToday ? `${COLORS.accent}10` : 'transparent',
+                    ? hasPr ? `${COLORS.pro}25` : `${COLORS.accent}20`
+                    : isToday ? `${COLORS.accent}08` : 'transparent',
                   opacity: isFuture ? 0.25 : 1,
                   transition: 'all 0.15s',
                 }}>
                 <span style={{
                   fontSize: 12, fontWeight: hasWorkout || isToday ? 800 : 500,
-                  color: hasWorkout ? (COLORS.isDark ? COLORS.bg : '#fff') : isToday ? COLORS.accent : COLORS.textDim,
+                  color: hasWorkout
+                    ? hasPr ? COLORS.pro : COLORS.accent
+                    : isToday ? COLORS.accent : COLORS.textDim,
                 }}>{day}</span>
+                {/* Green tick for workout days */}
+                {hasWorkout && !hasPr && (
+                  <span style={{
+                    position: 'absolute', top: 0, right: 0, fontSize: 9, lineHeight: 1,
+                    color: COLORS.accent,
+                  }}>✓</span>
+                )}
+                {/* Gold trophy for PR days */}
+                {hasPr && (
+                  <span style={{
+                    position: 'absolute', top: -1, right: -1, fontSize: 10, lineHeight: 1,
+                  }}>🏆</span>
+                )}
+                {/* Multi-workout badge */}
                 {count > 1 && (
                   <span style={{
-                    position: 'absolute', top: 2, right: 3, fontSize: 8, fontWeight: 800,
-                    color: COLORS.isDark ? COLORS.bg : '#fff', background: COLORS.orange,
-                    width: 14, height: 14, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'absolute', bottom: 0, right: 0, fontSize: 7, fontWeight: 800,
+                    color: COLORS.isDark ? COLORS.bg : '#fff', background: COLORS.accent,
+                    width: 12, height: 12, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>{count}</span>
                 )}
               </button>
@@ -363,28 +380,55 @@ function exportWorkoutsCSV(workouts, unit) {
   URL.revokeObjectURL(url);
 }
 
-function WorkoutsView({ workouts, unit, onTogglePrivacy }) {
+function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle }) {
+  const [menuOpen, setMenuOpen] = useState(null); // workout id
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
   if (workouts.length === 0) return <EmptyState icon="weight" title="No workouts yet" subtitle="Log your first workout to see it here" />;
   return (
     <div>
       {workouts.map(w => {
         const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+        const isMenuOpen = menuOpen === w.id;
         return (
           <div key={w.id} style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}`, opacity: w.is_public === false ? 0.7 : 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</span>
-                  {w.is_public === false && <Icon name="lock" size={13} color={COLORS.textDim} />}
-                </div>
-                <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(w.created_at)}</div>
+              <div style={{ flex: 1 }}>
+                {editingId === w.id ? (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus
+                      onKeyDown={e => { if (e.key === 'Enter') { onEditTitle(w.id, editTitle); setEditingId(null); } }}
+                      style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${COLORS.accent}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
+                    <button onClick={() => { onEditTitle(w.id, editTitle); setEditingId(null); }} style={{ background: COLORS.accent, border: 'none', borderRadius: 6, padding: '4px 10px', color: COLORS.isDark ? COLORS.bg : '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+                    <button onClick={() => setEditingId(null)} style={{ background: 'none', border: 'none', color: COLORS.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</span>
+                      {w.is_public === false && <Icon name="lock" size={13} color={COLORS.textDim} />}
+                      {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
+                    </div>
+                    <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(w.created_at)}</div>
+                  </>
+                )}
               </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
-                {onTogglePrivacy && (
-                  <button onClick={() => onTogglePrivacy(w.id, w.is_public)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
-                    <Icon name={w.is_public !== false ? 'globe' : 'lock'} size={16} color={COLORS.textDim} />
-                  </button>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setMenuOpen(isMenuOpen ? null : w.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 18, color: COLORS.textDim, fontFamily: 'inherit' }}>···</button>
+                {isMenuOpen && (
+                  <div style={{ position: 'absolute', right: 0, top: 28, background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 10, minWidth: 150, overflow: 'hidden' }}>
+                    <button onClick={() => { setEditTitle(w.title); setEditingId(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name="settings" size={14} color={COLORS.textDim} /> Edit Title
+                    </button>
+                    <button onClick={() => { onTogglePrivacy(w.id, w.is_public); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name={w.is_public !== false ? 'lock' : 'globe'} size={14} color={COLORS.textDim} /> {w.is_public !== false ? 'Make Private' : 'Make Public'}
+                    </button>
+                    <button onClick={() => { setConfirmDelete(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.red, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${COLORS.border}` }}>
+                      <Icon name="lock" size={14} color={COLORS.red} /> Delete Workout
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -399,6 +443,29 @@ function WorkoutsView({ workouts, unit, onTogglePrivacy }) {
           </div>
         );
       })}
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Delete Workout?</div>
+            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 20, lineHeight: 1.5 }}>
+              This can't be undone. The workout and all its data will be permanently removed.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { onDelete(confirmDelete); setConfirmDelete(null); }} style={{
+                flex: 1, padding: 12, borderRadius: 10, border: 'none', background: COLORS.red,
+                color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+              }}>Delete</button>
+              <button onClick={() => setConfirmDelete(null)} style={{
+                flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                background: 'transparent', color: COLORS.text, fontWeight: 600, fontSize: 14,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -488,7 +555,8 @@ function EditProfile({ profile, onSave, onCancel }) {
       <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, marginBottom: 16 }}>Edit Profile</div>
       <Input label="Display Name" value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} />
       <Input label="Bio" value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder="Tell people about yourself" />
-      <Input label="Sport" value={form.sport} onChange={e => setForm({ ...form, sport: e.target.value })} placeholder="e.g. Rugby, CrossFit, Powerlifting" />
+      <Select label="Sport" value={form.sport} onChange={e => setForm({ ...form, sport: e.target.value })}
+        options={[{ value: '', label: 'Select sport...' }, ...SPORTS.map(s => ({ value: s, label: s }))]} />
       <Input label="Gym" value={form.gym} onChange={e => setForm({ ...form, gym: e.target.value })} placeholder="e.g. Nuffield Health Barbican" />
       <Select label="Weight Unit" value={form.unit_pref} onChange={e => setForm({ ...form, unit_pref: e.target.value })}
         options={[{ value: 'kg', label: 'Kilograms (kg)' }, { value: 'lbs', label: 'Pounds (lbs)' }]} />
@@ -662,11 +730,23 @@ export default function Profile({ onViewProfile }) {
       {loading ? <Spinner /> : (
         <>
           {subTab === 'Stats' && <StatsView workouts={workouts} unit={unit} />}
-          {subTab === 'Workouts' && <WorkoutsView workouts={workouts} unit={unit} onTogglePrivacy={async (workoutId, currentPublic) => {
-            const newVal = currentPublic === false ? true : false;
-            await supabase.from('workouts').update({ is_public: newVal }).eq('id', workoutId);
-            setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, is_public: newVal } : w));
-          }} />}
+          {subTab === 'Workouts' && <WorkoutsView workouts={workouts} unit={unit}
+            onTogglePrivacy={async (workoutId, currentPublic) => {
+              const newVal = currentPublic === false ? true : false;
+              await supabase.from('workouts').update({ is_public: newVal }).eq('id', workoutId);
+              setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, is_public: newVal } : w));
+            }}
+            onEditTitle={async (workoutId, newTitle) => {
+              if (!newTitle.trim()) return;
+              await supabase.from('workouts').update({ title: newTitle.trim() }).eq('id', workoutId);
+              setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, title: newTitle.trim() } : w));
+            }}
+            onDelete={async (workoutId) => {
+              // Delete sets, workout_exercises, then workout (cascade should handle it but be safe)
+              await supabase.from('workouts').delete().eq('id', workoutId);
+              setWorkouts(prev => prev.filter(w => w.id !== workoutId));
+            }}
+          />}
           {subTab === 'Progress' && <ProgressView workouts={workouts} unit={unit} />}
           {subTab === 'PRs' && <PRsView workouts={workouts} unit={unit} />}
           {subTab === 'Body' && (
