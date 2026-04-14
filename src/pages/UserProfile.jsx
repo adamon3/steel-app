@@ -72,7 +72,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
   };
 
   if (loading) return <Spinner />;
-  if (!athlete) return <EmptyState emoji="😕" title="User not found" subtitle="This profile doesn't exist" />;
+  if (!athlete) return <EmptyState icon="search" title="User not found" subtitle="This profile doesn't exist" />;
 
   const isMe = user?.id === userId;
   const totalWorkouts = workouts.length;
@@ -98,7 +98,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
 
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
           {athlete.sport && <Badge color={COLORS.orange}>{athlete.sport}</Badge>}
-          {athlete.gym && <Badge>{"📍"} {athlete.gym}</Badge>}
+          {athlete.gym && <Badge>{athlete.gym}</Badge>}
         </div>
 
         {athlete.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 10, lineHeight: 1.4 }}>{athlete.bio}</div>}
@@ -139,7 +139,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
       <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Recent Workouts</div>
 
       {workouts.length === 0 ? (
-        <EmptyState emoji="🏋️" title="No workouts yet" subtitle={`${athlete.display_name} hasn't logged any workouts`} />
+        <EmptyState icon="weight" title="No workouts yet" subtitle={`${athlete.display_name} hasn't logged any workouts`} />
       ) : (
         workouts.map(w => {
           const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
@@ -154,14 +154,14 @@ export default function UserProfile({ userId, onBack, onSteel }) {
                   <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</div>
                   <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(w.created_at)}</div>
                 </div>
-                {w.has_pr && <Badge color={COLORS.pro}>{"🏆"} PR</Badge>}
+                {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
               </div>
 
               {/* Stats */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{"⏱"} {w.duration_mins} min</span>}
-                <span style={{ fontSize: 12, color: COLORS.textDim }}>{"🏋️"} {formatVolume(convertWeight(w.total_volume, unit))} {unit}</span>
-                <span style={{ fontSize: 12, color: COLORS.textDim }}>{"💪"} {w.total_sets} sets</span>
+                {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.duration_mins} min</span>}
+                <span style={{ fontSize: 12, color: COLORS.textDim }}>{formatVolume(convertWeight(w.total_volume, unit))} {unit}</span>
+                <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.total_sets} sets</span>
               </div>
 
               {/* Exercise list */}
@@ -193,7 +193,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
                   width: '100%', padding: '9px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13,
                   cursor: 'pointer', fontFamily: 'inherit', background: COLORS.accent,
                   color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', transition: 'all 0.15s',
-                }}>{"📋"} Steel this workout</button>
+                }}>Steel this workout</button>
               )}
             </div>
           );

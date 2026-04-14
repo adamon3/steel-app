@@ -7,6 +7,12 @@ import { EXERCISE_INFO } from '../components/Tools';
 // ── Rest Timer Popup with audio notification ──
 function RestTimer({ seconds, onDismiss }) {
   const [remaining, setRemaining] = useState(seconds);
+  const [totalDuration, setTotalDuration] = useState(seconds);
+  // Reset when seconds prop changes (new set completed)
+  useEffect(() => {
+    setRemaining(seconds);
+    setTotalDuration(seconds);
+  }, [seconds]);
   useEffect(() => {
     if (remaining <= 0) {
       // Play beep sound when timer ends
@@ -41,7 +47,7 @@ function RestTimer({ seconds, onDismiss }) {
   }, [remaining]);
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
-  const pct = remaining / seconds;
+  const pct = remaining / totalDuration;
   return (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: COLORS.card, borderTop: `2px solid ${COLORS.accent}`, zIndex: 40 }}>
       {/* Progress bar */}
@@ -77,11 +83,11 @@ function CompletionScreen({ workout, onDone, unit }) {
   const prCount = workout.exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed && s.is_pr).length, 0);
 
   const feelings = [
-    { emoji: '😫', label: 'Exhausted', value: 1 },
-    { emoji: '😓', label: 'Tough', value: 2 },
-    { emoji: '😊', label: 'Good', value: 3 },
-    { emoji: '💪', label: 'Strong', value: 4 },
-    { emoji: '🔥', label: 'Amazing', value: 5 },
+    { icon: '1', label: 'Exhausted', value: 1, color: '#EF4444' },
+    { icon: '2', label: 'Tough', value: 2, color: '#F97316' },
+    { icon: '3', label: 'Good', value: 3, color: '#EAB308' },
+    { icon: '4', label: 'Strong', value: 4, color: '#22C55E' },
+    { icon: '5', label: 'Amazing', value: 5, color: '#6366F1' },
   ];
 
   const handlePhoto = (e) => {
@@ -120,7 +126,11 @@ function CompletionScreen({ workout, onDone, unit }) {
   return (
     <div style={{ textAlign: 'center', padding: '32px 20px' }}>
       <div style={{ fontSize: 48, marginBottom: 8 }}>
-        {prCount > 0 ? '🏆' : '🎉'}
+        {prCount > 0 ? (
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FACC15" strokeWidth="2"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+        ) : (
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        )}
       </div>
       <div style={{ fontSize: 24, fontWeight: 900, color: COLORS.text, marginBottom: 4 }}>Workout Complete!</div>
       <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 24 }}>{workout.title}</div>
@@ -145,6 +155,37 @@ function CompletionScreen({ workout, onDone, unit }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.pro }}>{prCount} Personal Record{prCount > 1 ? 's' : ''}!</div>
         </div>
       )}
+
+      {/* Estimated 1RMs for key exercises */}
+      {(() => {
+        const e1rms = workout.exercises
+          .map(ex => {
+            const completed = ex.sets.filter(s => s.completed);
+            if (completed.length === 0) return null;
+            const best = completed.reduce((top, s) => {
+              const est = s.weight * (1 + s.reps / 30);
+              return est > top.est ? { est, weight: s.weight, reps: s.reps } : top;
+            }, { est: 0, weight: 0, reps: 0 });
+            if (best.weight <= 0) return null;
+            return { name: ex.name, est1rm: Math.round(best.est * 10) / 10, weight: best.weight, reps: best.reps };
+          })
+          .filter(Boolean);
+        if (e1rms.length === 0) return null;
+        return (
+          <div style={{ marginBottom: 20, textAlign: 'left' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 8, textAlign: 'center' }}>Estimated 1RMs</div>
+            {e1rms.map((e, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: COLORS.card, borderRadius: 8, marginBottom: 4, border: `1px solid ${COLORS.border}` }}>
+                <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{e.name}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: COLORS.accent }}>{convertWeight(e.est1rm, unit)} {unit}</span>
+                  <div style={{ fontSize: 10, color: COLORS.textDim }}>from {convertWeight(e.weight, unit)}×{e.reps}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Photo upload */}
       <div style={{ marginBottom: 20 }}>
@@ -175,13 +216,13 @@ function CompletionScreen({ workout, onDone, unit }) {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
           {feelings.map(f => (
             <button key={f.value} onClick={() => setFeeling(f.value)} style={{
-              width: 52, height: 52, borderRadius: 12, border: feeling === f.value ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
-              background: feeling === f.value ? `${COLORS.accent}15` : COLORS.card,
+              width: 52, height: 52, borderRadius: 12, border: feeling === f.value ? `2px solid ${f.color}` : `1px solid ${COLORS.border}`,
+              background: feeling === f.value ? `${f.color}15` : COLORS.card,
               cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
               transition: 'all 0.15s',
             }}>
-              <span style={{ fontSize: 20 }}>{f.emoji}</span>
-              <span style={{ fontSize: 8, color: feeling === f.value ? COLORS.accent : COLORS.textDim, fontWeight: 600 }}>{f.label}</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: feeling === f.value ? f.color : COLORS.textDim }}>{f.value}</span>
+              <span style={{ fontSize: 7, color: feeling === f.value ? f.color : COLORS.textDim, fontWeight: 600 }}>{f.label}</span>
             </button>
           ))}
         </div>
@@ -364,8 +405,13 @@ function TemplateSelector({ onSelect, onEmpty, templates }) {
                   {(t.template_exercises || []).sort((a, b) => a.sort_order - b.sort_order).map(te => te.exercises?.name).filter(Boolean).join(', ')}
                 </div>
                 {t.last_used && (
-                  <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 6 }}>
-                    <Icon name="clock" size={12} color={COLORS.textDim} /> {new Date(t.last_used).toLocaleDateString()}
+                  <div style={{ fontSize: 11, color: COLORS.accent, marginTop: 6, fontWeight: 600 }}>
+                    <Icon name="clock" size={12} color={COLORS.accent} /> {(() => {
+                      const days = Math.floor((Date.now() - new Date(t.last_used)) / 86400000);
+                      if (days === 0) return 'Today';
+                      if (days === 1) return 'Yesterday';
+                      return `${days} days ago`;
+                    })()}
                   </div>
                 )}
               </button>
@@ -390,6 +436,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const [elapsed, setElapsed] = useState(0);
   const [restTimer, setRestTimer] = useState(null); // seconds or null
   const [restDuration, setRestDuration] = useState(120); // default 2min
+  const [lastCompletedSet, setLastCompletedSet] = useState(null); // { exIdx, setIdx }
   const [completedWorkout, setCompletedWorkout] = useState(null);
   const [templateId, setTemplateId] = useState(null);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
@@ -501,13 +548,23 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
     setWorkoutExercises(prev => {
       const next = JSON.parse(JSON.stringify(prev));
       const wasCompleted = next[exIdx].sets[setIdx].completed;
+      // Auto-fill from previous set in current workout if empty
+      if (!wasCompleted && !next[exIdx].sets[setIdx].weight && !next[exIdx].sets[setIdx].reps) {
+        // Try previous set in same exercise first
+        if (setIdx > 0) {
+          const prevSetInExercise = next[exIdx].sets[setIdx - 1];
+          if (prevSetInExercise.weight) next[exIdx].sets[setIdx].weight = prevSetInExercise.weight;
+          if (prevSetInExercise.reps) next[exIdx].sets[setIdx].reps = prevSetInExercise.reps;
+        }
+      }
       next[exIdx].sets[setIdx].completed = !wasCompleted;
       return next;
     });
-    // Start rest timer when completing a set
+    // Start/reset rest timer when completing a set
     const set = workoutExercises[exIdx].sets[setIdx];
     if (!set.completed) {
       setRestTimer(restDuration);
+      setLastCompletedSet({ exIdx, setIdx });
     }
   };
 
@@ -639,10 +696,28 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const hasAnythingCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
   const hasAnyExercises = workoutExercises.length > 0;
 
+  // Swipe down to minimize
+  const touchStartY = useRef(null);
+  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    // If swiped down more than 80px from the top area, minimize
+    if (deltaY > 80 && touchStartY.current < 100 && workoutExercises.length > 0 && onMinimize) {
+      onMinimize({ title: title || 'Workout', elapsed, exerciseCount: workoutExercises.length, setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0) });
+    }
+    touchStartY.current = null;
+  };
+
   return (
-    <div style={{ paddingBottom: restTimer ? 80 : 0 }}>
-      {/* Top bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+    <div style={{ paddingBottom: restTimer ? 80 : 0, paddingTop: 64 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {/* Sticky top bar with pull handle */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30, background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}` }}>
+        {/* Pull handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0 2px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: COLORS.border }} />
+        </div>
+        <div style={{ padding: '4px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => {
             if (phase === 'logging' && workoutExercises.length > 0 && onMinimize) {
@@ -653,8 +728,8 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           }} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 13, color: COLORS.textDim, fontFamily: 'inherit' }}>
             <Icon name="back" size={16} color={COLORS.textDim} />
           </button>
-          <div style={{ fontSize: 13, color: COLORS.textDim, fontVariantNumeric: 'tabular-nums' }}>
-            <Icon name="clock" size={14} color={COLORS.textDim} /> {elapsedMins}:{elapsedSecs.toString().padStart(2, '0')}
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+            {elapsedMins}:{elapsedSecs.toString().padStart(2, '0')}
           </div>
         </div>
         <button onClick={handleFinish} disabled={saving || !hasAnyExercises} style={{
@@ -664,6 +739,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           cursor: hasAnyExercises ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
           opacity: saving ? 0.6 : 1,
         }}>{saving ? 'Saving...' : 'Finish'}</button>
+        </div>
       </div>
 
       {/* Title */}
@@ -797,8 +873,28 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
               const setTypes = ['normal', 'warmup', 'dropset', 'failure'];
               const typeLabels = { normal: setIdx + 1, warmup: 'W', dropset: 'D', failure: 'F' };
               const typeColors = { normal: COLORS.textDim, warmup: COLORS.orange, dropset: '#A855F7', failure: COLORS.red };
+              // Show inline timer after the last completed set
+              const showInlineTimer = restTimer && lastCompletedSet && lastCompletedSet.exIdx === exIdx && lastCompletedSet.setIdx === setIdx - 1 && !isComplete;
               return (
-                <div key={setIdx} style={{
+                <React.Fragment key={setIdx}>
+                  {/* Inline rest timer between sets */}
+                  {showInlineTimer && (
+                    <div style={{ margin: '4px 0', padding: '6px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ position: 'relative', width: '100%', height: 24, borderRadius: 12, background: `${COLORS.accent}15`, overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, background: COLORS.accent, borderRadius: 12, transition: 'width 1s linear', width: `${(restTimer / restDuration) * 100}%` }} />
+                        <div style={{ position: 'relative', textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#fff', lineHeight: '24px', zIndex: 1 }}>
+                          {Math.floor(restTimer / 60)}:{(restTimer % 60).toString().padStart(2, '0')}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Previous rest duration (static, for completed sets) */}
+                  {setIdx > 0 && ex.sets[setIdx - 1]?.completed && isComplete && (
+                    <div style={{ textAlign: 'center', fontSize: 11, color: COLORS.accent, padding: '2px 0', opacity: 0.6 }}>
+                      {Math.floor(restDuration / 60)}:{(restDuration % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
+                <div style={{
                   display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4, padding: '4px 2px',
                   borderRadius: 8,
                   background: isComplete
@@ -834,6 +930,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                     id={weightRef}
                     type="number"
                     inputMode="decimal"
+                    enterKeyHint="next"
                     value={set.weight || ''}
                     placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
                     onChange={e => updateSet(exIdx, setIdx, 'weight', parseFloat(e.target.value) || 0)}
@@ -844,12 +941,13 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                       }
                     }}
                     onFocus={e => e.target.select()}
-                    style={{ width: 58, padding: '7px 4px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                    style={{ width: 58, padding: '8px 4px', borderRadius: 8, border: isComplete ? `1.5px solid ${COLORS.accent}44` : `1.5px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.card, color: COLORS.text, fontSize: 15, fontWeight: 700, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
                   />
                   <input
                     id={repsRef}
                     type="number"
                     inputMode="numeric"
+                    enterKeyHint="done"
                     value={set.reps || ''}
                     placeholder={prevSet ? String(prevSet.reps) : '0'}
                     onChange={e => updateSet(exIdx, setIdx, 'reps', parseInt(e.target.value) || 0)}
@@ -863,20 +961,27 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                       }
                     }}
                     onFocus={e => e.target.select()}
-                    style={{ width: 48, padding: '7px 4px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                    style={{ width: 48, padding: '8px 4px', borderRadius: 8, border: isComplete ? `1.5px solid ${COLORS.accent}44` : `1.5px solid ${COLORS.border}`, background: isComplete ? `${COLORS.accent}08` : COLORS.card, color: COLORS.text, fontSize: 15, fontWeight: 700, fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
                   />
-                  {/* RPE selector */}
-                  <button onClick={() => {
-                    const current = set.rpe || 0;
-                    const next = current >= 10 ? 0 : current < 6 ? 6 : current + 0.5;
-                    updateSet(exIdx, setIdx, 'rpe', next);
-                  }} style={{
-                    width: 36, height: 28, borderRadius: 6, border: `1px solid ${COLORS.border}`,
-                    background: set.rpe ? `${COLORS.orange}15` : 'transparent', cursor: 'pointer',
-                    color: set.rpe ? COLORS.orange : COLORS.textDim,
-                    fontSize: set.rpe ? 11 : 10, fontWeight: 700, fontFamily: 'inherit', padding: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{set.rpe || '-'}</button>
+                  {/* RPE input */}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={set.rpe || ''}
+                    placeholder="-"
+                    onChange={e => {
+                      const v = parseFloat(e.target.value);
+                      updateSet(exIdx, setIdx, 'rpe', (v >= 1 && v <= 10) ? v : 0);
+                    }}
+                    onFocus={e => e.target.select()}
+                    style={{
+                      width: 36, padding: '7px 2px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                      background: set.rpe ? `${COLORS.orange}10` : isComplete ? `${COLORS.accent}08` : COLORS.bg,
+                      color: set.rpe ? COLORS.orange : COLORS.textDim,
+                      fontSize: 13, fontWeight: 700, fontFamily: 'inherit', outline: 'none',
+                      textAlign: 'center', boxSizing: 'border-box',
+                    }}
+                  />
                   <button onClick={() => toggleComplete(exIdx, setIdx)} style={{
                     width: 34, height: 34, borderRadius: 8,
                     border: isComplete ? 'none' : `2px solid ${COLORS.border}`,
@@ -886,6 +991,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                     transition: 'all 0.15s', flexShrink: 0,
                   }}>{isComplete ? '✓' : ''}</button>
                 </div>
+                </React.Fragment>
               );
             })}
 
@@ -932,7 +1038,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
             background: COLORS.card, color: COLORS.textDim, cursor: 'pointer', fontSize: 13,
             fontWeight: 600, fontFamily: 'inherit', marginBottom: 12,
-          }}>{"💾"} Save as Template</button>
+          }}>Save as Template</button>
         )
       )}
 
@@ -1025,15 +1131,19 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           onClose={() => { setShowPicker(false); setSearch(''); }}
           onCreateCustom={async (name, muscleGroup) => {
             const { user } = useStore.getState();
-            const { data } = await supabase
-              .from('exercises')
-              .insert({ name, muscle_group: muscleGroup, is_custom: true, created_by: user?.id })
-              .select()
-              .single();
-            if (data) {
-              await fetchExercises();
-              addExercise(data);
-            }
+            try {
+              const { data } = await supabase
+                .from('exercises')
+                .insert({ name, muscle_group: muscleGroup, is_custom: true, created_by: user?.id })
+                .select()
+                .single();
+              if (data) {
+                await fetchExercises();
+                addExercise(data);
+                setShowPicker(false);
+                setSearch('');
+              }
+            } catch (e) { console.error('Create custom exercise error:', e); }
           }}
         />
       )}

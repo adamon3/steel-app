@@ -127,32 +127,34 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
           const topSet = sets.find(s => s.weight === topW);
           const hasPr = sets.some(s => s.is_pr);
           return (
-            <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{we.exercises?.name}</span>
-                {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>PR</span>}
+            <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', marginBottom: 4, background: `${COLORS.bg}60`, borderRadius: 8, border: hasPr ? `1px solid ${COLORS.pro}33` : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600 }}>{we.exercises?.name}</span>
+                {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>PR</span>}
               </div>
-              <span style={{ fontSize: 12, color: COLORS.textDim }}>{sets.length} sets · {convertWeight(topW, unit)}{unit} x{topSet?.reps || 0}</span>
+              <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{sets.length}×{convertWeight(topW, unit)}{unit}</span>
             </div>
           );
         })}
-        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6 }}>+{exercises.length - 4} more</div>}
+        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6, textAlign: 'center' }}>+{exercises.length - 4} more exercises</div>}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: `1px solid ${COLORS.border}`, background: `${COLORS.bg}40` }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <button onClick={handleLike} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
-            <Icon name={liked ? 'heartFill' : 'heart'} size={18} color={liked ? COLORS.red : COLORS.textDim} />
-            <span style={{ fontSize: 13, color: liked ? COLORS.red : COLORS.textDim, fontWeight: liked ? 600 : 400 }}>{likeCount}</span>
+      <div style={{ padding: '10px 16px', borderTop: `1px solid ${COLORS.border}`, background: `${COLORS.bg}40` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <button onClick={handleLike} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+              <Icon name={liked ? 'heartFill' : 'heart'} size={18} color={liked ? COLORS.red : COLORS.textDim} />
+              <span style={{ fontSize: 13, color: liked ? COLORS.red : COLORS.textDim, fontWeight: liked ? 600 : 400 }}>{likeCount}</span>
+            </button>
+            <CommentSection workoutId={workout.id} initialCount={workout.comments?.length || 0} />
+          </div>
+          <button onClick={handleSteel} style={{
+            background: steeled ? `${COLORS.accent}22` : COLORS.accent, color: steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
+            border: steeled ? `1px solid ${COLORS.accent}44` : 'none', borderRadius: 8, padding: '7px 14px',
+            fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+          }}>
+            <Icon name="copy" size={14} color={steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff')} />{steeled ? 'Steeled!' : 'Steel it'}
           </button>
-          <CommentSection workoutId={workout.id} initialCount={workout.comments?.length || 0} />
         </div>
-        <button onClick={handleSteel} style={{
-          background: steeled ? `${COLORS.accent}22` : COLORS.accent, color: steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
-          border: steeled ? `1px solid ${COLORS.accent}44` : 'none', borderRadius: 8, padding: '7px 14px',
-          fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
-        }}>
-          <Icon name="copy" size={14} color={steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff')} />{steeled ? 'Steeled!' : 'Steel it'}
-        </button>
       </div>
     </div>
   );

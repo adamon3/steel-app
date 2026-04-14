@@ -139,8 +139,10 @@ function StatsView({ workouts, unit }) {
                 {/* Gold trophy for PR days */}
                 {hasPr && (
                   <span style={{
-                    position: 'absolute', top: -1, right: -1, fontSize: 10, lineHeight: 1,
-                  }}>🏆</span>
+                    position: 'absolute', top: -1, right: -1, lineHeight: 1,
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#FACC15" stroke="#FACC15" strokeWidth="1"><path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+                  </span>
                 )}
                 {/* Multi-workout badge */}
                 {count > 1 && (
@@ -614,34 +616,32 @@ export default function Profile({ onViewProfile }) {
     try {
       // Upload to Supabase Storage
       const ext = file.name.split('.').pop();
-      const path = `avatars/${user.id}.${ext}`;
+      const path = `avatars/${user.id}_${Date.now()}.${ext}`;
       const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-      if (uploadErr) { console.error(uploadErr); setUploading(false); return; }
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-      if (urlData?.publicUrl) {
-        await updateProfile({ avatar_url: urlData.publicUrl + '?t=' + Date.now() });
+      if (!uploadErr) {
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+        if (urlData?.publicUrl) {
+          await updateProfile({ avatar_url: urlData.publicUrl + '?t=' + Date.now() });
+          setUploading(false);
+          return;
+        }
       }
-    } catch (err) {
-      // Fallback: convert to base64 and store in profile
+      // Fallback: convert to base64
       const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const dataUrl = ev.target.result;
-        // Store a small version
-        const canvas = document.createElement('canvas');
-        const img = new Image();
-        img.onload = async () => {
-          canvas.width = 200;
-          canvas.height = 200;
-          const ctx = canvas.getContext('2d');
-          const size = Math.min(img.width, img.height);
-          const sx = (img.width - size) / 2, sy = (img.height - size) / 2;
-          ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
-          const small = canvas.toDataURL('image/jpeg', 0.7);
-          await updateProfile({ avatar_url: small });
-        };
-        img.src = dataUrl;
-      };
-      reader.readAsDataURL(file);
+      const dataUrl = await new Promise((res, rej) => { reader.onload = (ev) => res(ev.target.result); reader.onerror = rej; reader.readAsDataURL(file); });
+      const canvas = document.createElement('canvas');
+      const img = new Image();
+      await new Promise((res) => { img.onload = res; img.src = dataUrl; });
+      canvas.width = 200;
+      canvas.height = 200;
+      const ctx = canvas.getContext('2d');
+      const size = Math.min(img.width, img.height);
+      const sx = (img.width - size) / 2, sy = (img.height - size) / 2;
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+      const small = canvas.toDataURL('image/jpeg', 0.7);
+      await updateProfile({ avatar_url: small });
+    } catch (err) {
+      console.error('Photo upload error:', err);
     }
     setUploading(false);
   };

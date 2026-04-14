@@ -205,9 +205,9 @@ export default function App() {
           )
         )}
 
-        {/* LOG WORKOUT — always mounted when active, hidden when minimized */}
-        {(tab === 'log' || workoutMinimized) && (
-          <div style={{ display: tab === 'log' ? 'block' : 'none' }}>
+        {/* LOG WORKOUT — always mounted once started, hidden when on other tabs */}
+        {(tab === 'log' || workoutMinimized || steelPrefill) && (
+          <div key="workout-logger" style={{ display: tab === 'log' ? 'block' : 'none' }}>
             <LogWorkout
               prefill={steelPrefill}
               onMinimize={(info) => {
