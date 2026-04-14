@@ -448,6 +448,9 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const [workoutNotes, setWorkoutNotes] = useState('');
   const unit = profile?.unit_pref || 'kg';
 
+  // Swipe down to minimize (ref must be before early returns)
+  const touchStartY = useRef(null);
+
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
 
   // Live timer
@@ -696,8 +699,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const hasAnythingCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
   const hasAnyExercises = workoutExercises.length > 0;
 
-  // Swipe down to minimize
-  const touchStartY = useRef(null);
+  // Swipe down handlers
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
   const handleTouchEnd = (e) => {
     if (touchStartY.current === null) return;
