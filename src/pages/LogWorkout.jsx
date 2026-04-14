@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../lib/store';
 import { supabase } from '../lib/supabase';
 import { COLORS, Button, Input, Icon, Spinner, convertWeight, convertWeightBack, formatVolume } from '../components/UI';
@@ -448,8 +448,8 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const [workoutNotes, setWorkoutNotes] = useState('');
   const unit = profile?.unit_pref || 'kg';
 
-  // Swipe down to minimize (ref must be before early returns)
-  const touchStartY = useRef(null);
+  // Swipe down to minimize
+  const [touchStartYPos, setTouchStartYPos] = useState(null);
 
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
 
@@ -700,15 +700,14 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const hasAnyExercises = workoutExercises.length > 0;
 
   // Swipe down handlers
-  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+  const handleTouchStart = (e) => { setTouchStartYPos(e.touches[0].clientY); };
   const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    // If swiped down more than 80px from the top area, minimize
-    if (deltaY > 80 && touchStartY.current < 100 && workoutExercises.length > 0 && onMinimize) {
+    if (touchStartYPos === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartYPos;
+    if (deltaY > 80 && touchStartYPos < 100 && workoutExercises.length > 0 && onMinimize) {
       onMinimize({ title: title || 'Workout', elapsed, exerciseCount: workoutExercises.length, setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0) });
     }
-    touchStartY.current = null;
+    setTouchStartYPos(null);
   };
 
   return (
