@@ -3,6 +3,26 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Avatar, Badge, Button, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
 
+// Local SVG icons for this page (no emojis)
+function PinIcon({ size = 14, color }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+}
+function TrophyIcon({ size = 14, color }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>;
+}
+function ClockIcon({ size = 14, color }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+}
+function WeightIcon({ size = 14, color }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="9" width="4" height="6" rx="1"/><rect x="18" y="9" width="4" height="6" rx="1"/><rect x="6" y="7" width="3" height="10" rx="1"/><rect x="15" y="7" width="3" height="10" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></svg>;
+}
+function ListIcon({ size = 14, color }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+}
+function SearchIcon({ size = 14, color }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+}
+
 export default function UserProfile({ userId, onBack, onSteel }) {
   const { user, profile: myProfile } = useStore();
   const [athlete, setAthlete] = useState(null);
@@ -20,11 +40,9 @@ export default function UserProfile({ userId, onBack, onSteel }) {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      // Fetch profile
       const { data: p } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (p) setAthlete(p);
 
-      // Fetch workouts with exercises and sets
       const { data: wks } = await supabase
         .from('workouts')
         .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, set_number, weight, reps, is_pr))')
@@ -34,14 +52,12 @@ export default function UserProfile({ userId, onBack, onSteel }) {
         .limit(10);
       if (wks) setWorkouts(wks);
 
-      // Check if following
       if (user) {
         const { data: f } = await supabase.from('follows').select('*')
           .eq('follower_id', user.id).eq('following_id', userId).maybeSingle();
         setIsFollowing(!!f);
       }
 
-      // Counts
       const { count: fc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId);
       const { count: fgc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId);
       setFollowerCount(fc || 0);
@@ -80,12 +96,16 @@ export default function UserProfile({ userId, onBack, onSteel }) {
 
   return (
     <div>
-      {/* Back button */}
+      {/* Back button — no emoji, text arrow */}
       <button onClick={onBack} style={{
         background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.textDim,
         cursor: 'pointer', fontSize: 13, padding: '7px 14px', borderRadius: 8,
         fontFamily: 'inherit', fontWeight: 600, marginBottom: 12,
-      }}>{"<"} Back</button>
+        display: 'flex', alignItems: 'center', gap: 4,
+      }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLORS.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back
+      </button>
 
       {/* Profile card */}
       <div style={{
@@ -98,7 +118,13 @@ export default function UserProfile({ userId, onBack, onSteel }) {
 
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
           {athlete.sport && <Badge color={COLORS.orange}>{athlete.sport}</Badge>}
-          {athlete.gym && <Badge>{athlete.gym}</Badge>}
+          {athlete.gym && (
+            <Badge>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <PinIcon size={10} color={COLORS.orange} /> {athlete.gym}
+              </span>
+            </Badge>
+          )}
         </div>
 
         {athlete.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 10, lineHeight: 1.4 }}>{athlete.bio}</div>}
@@ -123,7 +149,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
           </div>
         </div>
 
-        {/* Follow button */}
+        {/* Follow button — text only, no emoji */}
         {!isMe && (
           <button onClick={handleFollow} style={{
             marginTop: 16, padding: '10px 32px', borderRadius: 10, fontWeight: 700,
@@ -131,7 +157,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
             background: isFollowing ? 'transparent' : COLORS.accent,
             color: isFollowing ? COLORS.accent : COLORS.bg,
             border: isFollowing ? `2px solid ${COLORS.accent}` : '2px solid transparent',
-          }}>{isFollowing ? 'Following ✓' : 'Follow'}</button>
+          }}>{isFollowing ? 'Following' : 'Follow'}</button>
         )}
       </div>
 
@@ -148,7 +174,6 @@ export default function UserProfile({ userId, onBack, onSteel }) {
               background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10,
               border: `1px solid ${COLORS.border}`,
             }}>
-              {/* Workout header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</div>
@@ -157,11 +182,19 @@ export default function UserProfile({ userId, onBack, onSteel }) {
                 {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
               </div>
 
-              {/* Stats */}
+              {/* Stats — icons instead of emojis */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.duration_mins} min</span>}
-                <span style={{ fontSize: 12, color: COLORS.textDim }}>{formatVolume(convertWeight(w.total_volume, unit))} {unit}</span>
-                <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.total_sets} sets</span>
+                {w.duration_mins > 0 && (
+                  <span style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <ClockIcon size={12} color={COLORS.textDim} /> {w.duration_mins} min
+                  </span>
+                )}
+                <span style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <WeightIcon size={12} color={COLORS.textDim} /> {formatVolume(convertWeight(w.total_volume, unit))} {unit}
+                </span>
+                <span style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <ListIcon size={12} color={COLORS.textDim} /> {w.total_sets} sets
+                </span>
               </div>
 
               {/* Exercise list */}
@@ -187,7 +220,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
                 )}
               </div>
 
-              {/* Steel it button */}
+              {/* Steel it button — no emoji */}
               {!isMe && (
                 <button onClick={() => handleSteel(w.id, w.title)} style={{
                   width: '100%', padding: '9px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13,

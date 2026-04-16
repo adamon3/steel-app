@@ -18,7 +18,6 @@ const tabs = [
   { id: 'profile', label: 'You', icon: 'user' },
 ];
 
-// Blurred overlay for pages that need sign-up
 function AuthGate({ children, message, onSignUp }) {
   return (
     <div style={{ position: 'relative', minHeight: 320 }}>
@@ -54,7 +53,6 @@ function AuthGate({ children, message, onSignUp }) {
   );
 }
 
-// Placeholder cards for blurred gated pages
 function PlaceholderCards({ count = 3, height = 120 }) {
   return (
     <div>
@@ -74,8 +72,8 @@ function PlaceholderCards({ count = 3, height = 120 }) {
 
 export default function App() {
   const { user, profile, loading, init, isGuest, offline, fetchFeed, fetchTemplates } = useStore();
-  const { colors: COLORS, theme, toggle: toggleTheme } = useTheme();
-  refreshColors(); // keep static COLORS in sync with theme
+  const { colors: themeColors, theme, toggle: toggleTheme } = useTheme();
+  refreshColors();
 
   const [tab, setTab] = useState('log');
   const [toast, setToast] = useState(null);
@@ -88,10 +86,10 @@ export default function App() {
   const [steelData, setSteelData] = useState(null);
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(null);
+  const [workoutActive, setWorkoutActive] = useState(false);
 
   useEffect(() => { init(); }, []);
 
-  // Once logged in, fetch social data
   useEffect(() => {
     if (!isGuest) {
       fetchFeed();
@@ -125,6 +123,7 @@ export default function App() {
       setSteelPrefill(steelData.template);
       setViewUserId(null);
       setTab('log');
+      setWorkoutActive(true);
       showToast(`Starting "${steelData.title}" from ${steelData.from}!`);
     }
     setShowSteelPopup(false);
@@ -147,6 +146,7 @@ export default function App() {
     setSteelPrefill(template);
     setViewUserId(null);
     setTab('log');
+    setWorkoutActive(true);
     showToast(`Steeled "${title}" from ${athleteName}!`);
   };
 
@@ -163,9 +163,7 @@ export default function App() {
     );
   }
 
-  // Main app shell — works for both guests and logged-in users
   const renderContent = () => {
-    // Viewing another user's profile (logged in only)
     if (viewUserId && !isGuest) {
       return (
         <div style={{ padding: '8px 16px 90px' }}>
@@ -180,7 +178,6 @@ export default function App() {
         {tab === 'feed' && (
           isGuest ? (
             <div>
-              {/* Show a peek of the feed then gate */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Activity Feed</div>
                 <div style={{ fontSize: 13, color: COLORS.textDim }}>See what athletes at your gym are lifting</div>
@@ -206,19 +203,21 @@ export default function App() {
         )}
 
         {/* LOG WORKOUT — always mounted once started, hidden when on other tabs */}
-        {(tab === 'log' || workoutMinimized || steelPrefill) && (
+        {(tab === 'log' || workoutMinimized || steelPrefill || workoutActive) && (
           <div key="workout-logger" style={{ display: tab === 'log' ? 'block' : 'none' }}>
             <LogWorkout
               prefill={steelPrefill}
               onMinimize={(info) => {
                 setMinimizedInfo(info);
                 setWorkoutMinimized(true);
+                setWorkoutActive(true);
                 setTab('feed');
               }}
               onDone={() => {
                 setSteelPrefill(null);
                 setWorkoutMinimized(false);
                 setMinimizedInfo(null);
+                setWorkoutActive(false);
                 showToast('Workout saved!');
                 if (!isGuest) setTab('feed');
               }}
@@ -246,7 +245,6 @@ export default function App() {
               <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, marginBottom: 20, lineHeight: 1.5 }}>
                 Sign up to save your workouts to the cloud, access them from any device, and join the community.
               </div>
-              {/* Show guest workout count */}
               {(() => {
                 try {
                   const local = JSON.parse(localStorage.getItem('steel_guest_workouts') || '[]');
@@ -273,6 +271,7 @@ export default function App() {
               <button onClick={() => promptAuth('', 'login')} style={{
                 border: `1px solid ${COLORS.border}`, color: COLORS.text, fontWeight: 600,
                 fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+                marginTop: 8, padding: '12px 32px', borderRadius: 12, background: 'transparent',
               }}>Log In</button>
             </div>
           ) : (
@@ -283,8 +282,9 @@ export default function App() {
     );
   };
 
+  // FIX #17: Removed key={theme} from root div — theme toggle no longer kills active workout
   return (
-    <div key={theme} style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
+    <div style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
       {/* Offline banner */}
       {offline && (
         <div style={{
@@ -302,10 +302,7 @@ export default function App() {
             <span style={{ color: COLORS.text }}>STEEL</span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Theme toggle */}
-            <button onClick={toggleTheme} style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-            }}>
+            <button onClick={toggleTheme} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
               <Icon name={theme === 'light' ? 'moon' : 'sun'} size={20} color={COLORS.textDim} />
             </button>
             {isGuest ? (
@@ -348,9 +345,16 @@ export default function App() {
         </div>
       )}
 
-      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => { setViewUserId(null); setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
+      {/* FIX #18: + tab always navigates to log tab (starts workout) */}
+      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => {
+        setViewUserId(null);
+        setTab(t);
+        if (t === 'log') {
+          setWorkoutActive(true);
+        }
+        if (t !== 'log') setSteelPrefill(null);
+      }} />
 
-      {/* Auth modal */}
       {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} initialMode={authMode} />}
 
       {/* Steel It popup */}
@@ -361,12 +365,8 @@ export default function App() {
               <Icon name="copy" size={20} color={COLORS.accent} />
               <span style={{ fontSize: 18, fontWeight: 700, color: COLORS.text }}>Steel It</span>
             </div>
-            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 6 }}>
-              {steelData.title}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 20 }}>
-              from {steelData.from}
-            </div>
+            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 6 }}>{steelData.title}</div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 20 }}>from {steelData.from}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button onClick={handleSteelStart} style={{
                 width: '100%', padding: 14, borderRadius: 10, border: 'none', background: COLORS.accent,

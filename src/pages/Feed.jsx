@@ -83,6 +83,7 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
   return (
     <div style={{ background: COLORS.card, borderRadius: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
       <div style={{ padding: '14px 16px 0' }}>
+        {/* User header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} onClick={() => onProfile?.(p?.id)} />
           <div style={{ flex: 1 }}>
@@ -93,64 +94,85 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
             <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 1 }}>{timeAgo(workout.created_at)}{p?.gym ? ` · ${p.gym}` : ''}</div>
           </div>
         </div>
+
+        {/* Workout title */}
         <div style={{ fontWeight: 800, fontSize: 18, color: COLORS.text, marginBottom: 10 }}>{workout.title}</div>
-        {/* Workout photo */}
+
+        {/* Photo */}
         {workout.image_url && (
           <div style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden' }}>
             <img src={workout.image_url} alt="" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
           </div>
         )}
-        {/* Workout note */}
+
+        {/* Note */}
         {workout.notes && workout.notes.trim() && (
           <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 10, lineHeight: 1.4, fontStyle: 'italic' }}>
             "{workout.notes}"
           </div>
         )}
+
+        {/* Stats row */}
         <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
           {[
             ...(workout.duration_mins > 0 ? [{ label: 'Duration', value: `${workout.duration_mins}m` }] : []),
             { label: `Volume (${unit})`, value: formatVolume(convertWeight(workout.total_volume, unit)) },
             { label: 'Sets', value: workout.total_sets },
             ...(prCount > 0 ? [{ label: 'PRs', value: prCount, highlight: true }] : []),
-          ].map((s, i) => (
-            <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < 3 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
+          ].map((s, i, arr) => (
+            <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < arr.length - 1 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
               <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>{s.label}</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: s.highlight ? COLORS.pro : COLORS.text }}>{s.value}</div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Exercise list — FIX #20: Redesigned with rounded cards, better hierarchy */}
       <div style={{ padding: '0 16px 12px' }}>
-        {exercises.slice(0, 4).map((we, i) => {
-          const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
-          const topW = Math.max(...sets.map(s => s.weight), 0);
-          const topSet = sets.find(s => s.weight === topW);
-          const hasPr = sets.some(s => s.is_pr);
-          return (
-            <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', marginBottom: 4, background: `${COLORS.bg}60`, borderRadius: 8, border: hasPr ? `1px solid ${COLORS.pro}33` : 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600 }}>{we.exercises?.name}</span>
-                {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>PR</span>}
+        <div style={{ background: `${COLORS.bg}80`, borderRadius: 12, overflow: 'hidden', border: `1px solid ${COLORS.border}44` }}>
+          {exercises.slice(0, 4).map((we, i) => {
+            const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
+            const topW = Math.max(...sets.map(s => s.weight), 0);
+            const hasPr = sets.some(s => s.is_pr);
+            return (
+              <div key={we.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 12px',
+                borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid ${COLORS.border}33` : 'none',
+                background: hasPr ? `${COLORS.pro}08` : 'transparent',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600 }}>{we.exercises?.name}</span>
+                  {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>PR</span>}
+                </div>
+                <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{sets.length} x {convertWeight(topW, unit)}{unit}</span>
               </div>
-              <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{sets.length}×{convertWeight(topW, unit)}{unit}</span>
-            </div>
-          );
-        })}
-        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6, textAlign: 'center' }}>+{exercises.length - 4} more exercises</div>}
+            );
+          })}
+        </div>
+        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 8, textAlign: 'center' }}>+{exercises.length - 4} more exercises</div>}
       </div>
+
+      {/* FIX #19: Footer with proper layout — comment and like on left, Steel It on right, no overlap */}
       <div style={{ padding: '10px 16px', borderTop: `1px solid ${COLORS.border}`, background: `${COLORS.bg}40` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          {/* Left: like + comment */}
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flex: 1, minWidth: 0 }}>
             <button onClick={handleLike} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
               <Icon name={liked ? 'heartFill' : 'heart'} size={18} color={liked ? COLORS.red : COLORS.textDim} />
               <span style={{ fontSize: 13, color: liked ? COLORS.red : COLORS.textDim, fontWeight: liked ? 600 : 400 }}>{likeCount}</span>
             </button>
             <CommentSection workoutId={workout.id} initialCount={workout.comments?.length || 0} />
           </div>
+          {/* Right: Steel It — fixed width, no overlap */}
           <button onClick={handleSteel} style={{
-            background: steeled ? `${COLORS.accent}22` : COLORS.accent, color: steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
-            border: steeled ? `1px solid ${COLORS.accent}44` : 'none', borderRadius: 8, padding: '7px 14px',
-            fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+            background: steeled ? `${COLORS.accent}22` : COLORS.accent,
+            color: steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
+            border: steeled ? `1px solid ${COLORS.accent}44` : 'none',
+            borderRadius: 8, padding: '7px 14px',
+            fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
           }}>
             <Icon name="copy" size={14} color={steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff')} />{steeled ? 'Steeled!' : 'Steel it'}
           </button>
@@ -177,12 +199,11 @@ export default function Feed({ onSteel, onProfile }) {
     if (!user) return;
     setLoadingFollowing(true);
     try {
-      // Get who I follow
       const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id);
       const followIds = (follows || []).map(f => f.following_id);
       followIds.push(user.id);
 
-      if (followIds.length > 1) { // more than just self
+      if (followIds.length > 1) {
         const { data } = await supabase.from('workouts')
           .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
           .in('user_id', followIds).eq('is_public', true)
@@ -195,22 +216,16 @@ export default function Feed({ onSteel, onProfile }) {
     setLoadingFollowing(false);
   };
 
-  // Sort For You feed — prioritise same sport, same gym, PRs, and recent
   const sortedForYou = [...feed].sort((a, b) => {
     let scoreA = 0, scoreB = 0;
-    // Same sport as me
     if (profile?.sport && a.profiles?.sport === profile.sport) scoreA += 3;
     if (profile?.sport && b.profiles?.sport === profile.sport) scoreB += 3;
-    // Same gym as me
     if (profile?.gym && a.profiles?.gym === profile.gym) scoreA += 5;
     if (profile?.gym && b.profiles?.gym === profile.gym) scoreB += 5;
-    // Has PRs
     if (a.has_pr) scoreA += 2;
     if (b.has_pr) scoreB += 2;
-    // More likes
     scoreA += (a.likes?.length || 0) * 0.5;
     scoreB += (b.likes?.length || 0) * 0.5;
-    // Recency tiebreaker
     if (scoreB !== scoreA) return scoreB - scoreA;
     return new Date(b.created_at) - new Date(a.created_at);
   });
