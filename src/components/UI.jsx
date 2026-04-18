@@ -18,13 +18,13 @@ const THEMES = {
     bg: "#FAFAFA",
     card: "#FFFFFF",
     card2: "#F4F4F4",
-    // accent — lime (matches landing)
-    accent: "#65A000",          // darker lime for light mode legibility
-    accentDim: "#4D7A00",
-    accentText: "#FFFFFF",       // text on accent buttons
+    // accent — signature lime (matches landing)
+    accent: "#BFE600",
+    accentDim: "#8FAC00",
+    accentText: "#0A0A0A",       // dark ink on lime buttons
     // semantic
     orange: "#EA580C",
-    pro: "#B45309",              // bronze/gold for PRs in light
+    pro: "#BFE600",
     red: "#DC2626",
     // text
     text: "#0A0A0A",
@@ -39,11 +39,11 @@ const THEMES = {
     bg: "#0A0A0A",
     card: "#141414",
     card2: "#1A1A1A",
-    accent: "#DFFF1C",           // electric lime
-    accentDim: "#B8D613",
+    accent: "#BFE600",           // signature lime — same in both modes
+    accentDim: "#8FAC00",
     accentText: "#0A0A0A",       // dark ink on lime buttons
     orange: "#FB923C",
-    pro: "#DFFF1C",              // lime doubles as PR color in dark
+    pro: "#BFE600",
     red: "#F87171",
     text: "#FAFAFA",
     textDim: "#8B8B8B",

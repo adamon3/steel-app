@@ -945,12 +945,16 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   };
 
   // Input style for weight/reps — better contrast, bolder, thicker borders
-  const inputStyle = (isComplete) => ({
-    padding: '9px 4px', borderRadius: 8,
-    border: isComplete ? `2px solid ${COLORS.accent}55` : `2px solid ${COLORS.border}`,
-    background: isComplete ? `${COLORS.accent}10` : COLORS.card,
-    color: COLORS.text, fontSize: 16, fontWeight: 800,
-    fontFamily: 'inherit', outline: 'none', textAlign: 'center', boxSizing: 'border-box',
+  const inputStyle = (isComplete, hasValue) => ({
+    padding: '10px 4px', borderRadius: 10,
+    border: isComplete ? `1.5px solid ${COLORS.accent}` : `1.5px solid ${COLORS.border}`,
+    background: isComplete ? `${COLORS.accent}18` : COLORS.card,
+    color: hasValue ? COLORS.text : COLORS.textDim,
+    fontSize: 17, fontWeight: 700,
+    fontFamily: 'JetBrains Mono, monospace',
+    letterSpacing: '-0.02em',
+    outline: 'none', textAlign: 'center', boxSizing: 'border-box',
+    transition: 'all 0.15s ease',
   });
 
   return (
@@ -1105,14 +1109,14 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                 }} />
 
               {/* Column headers */}
-              <div style={{ display: 'flex', gap: 4, marginBottom: 6, padding: '0 2px' }}>
-                <span style={{ width: 32, fontSize: 10, color: COLORS.textDim, fontWeight: 600 }}>SET</span>
-                <span style={{ flex: 1, fontSize: 10, color: COLORS.textDim, fontWeight: 600 }}>PREV</span>
-                <span style={{ width: 62, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>{unit.toUpperCase()}</span>
-                <span style={{ width: 52, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>REPS</span>
-                <span style={{ width: 38, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>RPE</span>
-                <span style={{ width: 34, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>
-                  <Icon name="check" size={12} color={COLORS.textDim} />
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8, padding: '0 2px' }}>
+                <span style={{ width: 32, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Set</span>
+                <span style={{ flex: 1, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Previous</span>
+                <span style={{ width: 62, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{unit}</span>
+                <span style={{ width: 52, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Reps</span>
+                <span style={{ width: 38, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>RPE</span>
+                <span style={{ width: 40, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>
+                  <Icon name="check" size={13} color={COLORS.textDim} />
                 </span>
               </div>
 
@@ -1149,15 +1153,15 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                   <React.Fragment key={setIdx}>
                     {/* Set row */}
                     <div style={{
-                      display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4, padding: '4px 2px',
-                      borderRadius: 8,
+                      display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, padding: '6px 4px',
+                      borderRadius: 10,
                       background: isComplete
-                        ? set.set_type === 'warmup' ? `${COLORS.orange}12`
-                        : set.set_type === 'dropset' ? '#A855F712'
-                        : set.set_type === 'failure' ? `${COLORS.red}12`
+                        ? set.set_type === 'warmup' ? `${COLORS.orange}14`
+                        : set.set_type === 'dropset' ? '#A855F714'
+                        : set.set_type === 'failure' ? `${COLORS.red}14`
                         : `${COLORS.accent}12`
                         : 'transparent',
-                      transition: 'background 0.2s',
+                      transition: 'background 0.2s ease',
                     }}>
                       <button onClick={() => {
                         const currentIdx = setTypes.indexOf(set.set_type || 'normal');
@@ -1176,8 +1180,18 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                           updateSet(exIdx, setIdx, 'weight', convertWeight(prevSet.weight, unit));
                           updateSet(exIdx, setIdx, 'reps', prevSet.reps);
                         }
-                      }} style={{ flex: 1, fontSize: 11, color: prevSet && !set.weight && !set.reps ? COLORS.accent : COLORS.textDim, cursor: prevSet && !set.weight && !set.reps ? 'pointer' : 'default' }}>
-                        {prevSet ? `${convertWeight(prevSet.weight, unit)}x${prevSet.reps}` : '-'}
+                      }} style={{
+                        flex: 1, fontSize: 13,
+                        color: prevSet && !set.weight && !set.reps ? COLORS.text : COLORS.textSubtle || COLORS.textDim,
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontWeight: 500,
+                        cursor: prevSet && !set.weight && !set.reps ? 'pointer' : 'default',
+                        padding: '2px 6px',
+                        borderRadius: 6,
+                        background: prevSet && !set.weight && !set.reps ? `${COLORS.accent}10` : 'transparent',
+                        letterSpacing: '-0.02em',
+                      }}>
+                        {prevSet ? `${convertWeight(prevSet.weight, unit)} × ${prevSet.reps}` : '—'}
                       </span>
 
                       <input id={weightRef} type="number" inputMode="decimal" enterKeyHint="next"
@@ -1185,7 +1199,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                         onChange={e => updateSet(exIdx, setIdx, 'weight', parseFloat(e.target.value) || 0)}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); document.getElementById(repsRef)?.focus(); } }}
                         onFocus={e => e.target.select()}
-                        style={{ width: 62, ...inputStyle(isComplete) }}
+                        style={{ width: 62, ...inputStyle(isComplete, !!set.weight) }}
                       />
 
                       <input id={repsRef} type="number" inputMode="numeric" enterKeyHint="done"
@@ -1201,7 +1215,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                           }
                         }}
                         onFocus={e => e.target.select()}
-                        style={{ width: 52, ...inputStyle(isComplete) }}
+                        style={{ width: 52, ...inputStyle(isComplete, !!set.reps) }}
                       />
 
                       {/* RPE — number input field */}
@@ -1222,21 +1236,33 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                         }}
                       />
 
-                      {/* Check / PR toggle */}
-                      <div style={{ width: 34, display: 'flex', justifyContent: 'center', gap: 0 }}>
+                      {/* Check / PR toggle — big tap target */}
+                      <div style={{ width: 40, display: 'flex', justifyContent: 'center' }}>
                         {isComplete ? (
                           <button onClick={() => toggleComplete(exIdx, setIdx)} onDoubleClick={() => updateSet(exIdx, setIdx, 'is_pr', !set.is_pr)} style={{
-                            width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                            width: 36, height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
                             background: set.is_pr ? COLORS.pro : COLORS.accent,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: `0 2px 8px ${COLORS.accent}33`,
                           }}>
-                            {set.is_pr ? <TrophyIcon size={16} color="#fff" /> : <Icon name="check" size={16} color="#fff" />}
+                            {set.is_pr
+                              ? <TrophyIcon size={18} color={COLORS.accentText || '#0A0A0A'} />
+                              : <Icon name="check" size={18} color={COLORS.accentText || '#0A0A0A'} />}
                           </button>
                         ) : (
                           <button onClick={() => toggleComplete(exIdx, setIdx)} style={{
-                            width: 30, height: 30, borderRadius: 8, border: `2px solid ${COLORS.border}`,
+                            width: 36, height: 36, borderRadius: 10,
+                            border: `1.5px solid ${COLORS.border}`,
                             cursor: 'pointer', background: 'transparent',
-                          }} />
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'border-color 0.15s ease',
+                          }}
+                          onMouseDown={e => e.currentTarget.style.borderColor = COLORS.accent}
+                          onMouseUp={e => e.currentTarget.style.borderColor = COLORS.border}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
+                          >
+                            <Icon name="check" size={16} color={COLORS.textSubtle || COLORS.textDim} />
+                          </button>
                         )}
                       </div>
                     </div>
