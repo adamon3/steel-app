@@ -14,18 +14,30 @@ export default function GymCommunity({ onViewProfile }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [subTab, setSubTab] = useState('feed');
+  const [selectedCountry, setSelectedCountry] = useState('all');
+  const [selectedRegion, setSelectedRegion] = useState('all');
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { loadData(); }, [profile?.gym]);
 
   const loadData = async () => {
     setLoading(true);
-    // Get all gyms with member counts from existing users
-    const { data: profiles } = await supabase.from('profiles').select('gym').neq('gym', '').not('gym', 'is', null);
+    // Get all gyms with their location + member counts
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('gym, country, region, city')
+      .neq('gym', '')
+      .not('gym', 'is', null);
     if (profiles) {
-      const gymCounts = {};
-      profiles.forEach(p => { if (p.gym) gymCounts[p.gym] = (gymCounts[p.gym] || 0) + 1; });
-      setGyms(Object.entries(gymCounts).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })));
+      const gymMap = {};
+      profiles.forEach(p => {
+        if (!p.gym) return;
+        if (!gymMap[p.gym]) {
+          gymMap[p.gym] = { name: p.gym, count: 0, country: p.country || 'Unknown', region: p.region || 'Unknown', city: p.city || '' };
+        }
+        gymMap[p.gym].count++;
+      });
+      setGyms(Object.values(gymMap).sort((a, b) => b.count - a.count));
     }
 
     if (profile?.gym) {
@@ -48,24 +60,43 @@ export default function GymCommunity({ onViewProfile }) {
     setLoading(false);
   };
 
+  // Derived: unique countries & regions for filter dropdowns
+  const countries = React.useMemo(() => {
+    const s = new Set(gyms.map(g => g.country).filter(c => c && c !== 'Unknown'));
+    return ['all', ...Array.from(s).sort()];
+  }, [gyms]);
+
+  const regions = React.useMemo(() => {
+    if (selectedCountry === 'all') return ['all'];
+    const s = new Set(gyms.filter(g => g.country === selectedCountry).map(g => g.region).filter(r => r && r !== 'Unknown'));
+    return ['all', ...Array.from(s).sort()];
+  }, [gyms, selectedCountry]);
+
+  // Filtered gym list
+  const filteredGyms = React.useMemo(() => {
+    return gyms.filter(g => {
+      if (selectedCountry !== 'all' && g.country !== selectedCountry) return false;
+      if (selectedRegion !== 'all' && g.region !== selectedRegion) return false;
+      return true;
+    });
+  }, [gyms, selectedCountry, selectedRegion]);
+
   // Search for gyms — searches both existing Steel gyms and uses the input as a direct name
   const handleSearch = async (query) => {
     setSearchQuery(query);
     if (query.length < 2) { setSearchResults([]); return; }
     setSearching(true);
 
-    // Search existing Steel gyms first
-    const matchingGyms = gyms.filter(g =>
+    // Search within currently filtered gyms
+    const matchingGyms = filteredGyms.filter(g =>
       g.name.toLowerCase().includes(query.toLowerCase())
     );
 
-    // Also suggest the typed name as a new gym
-    const exactMatch = gyms.find(g => g.name.toLowerCase() === query.toLowerCase());
+    const exactMatch = filteredGyms.find(g => g.name.toLowerCase() === query.toLowerCase());
     const results = [
-      ...matchingGyms.map(g => ({ name: g.name, members: g.count, source: 'steel' })),
+      ...matchingGyms.map(g => ({ name: g.name, members: g.count, country: g.country, region: g.region, city: g.city, source: 'steel' })),
     ];
 
-    // If no exact match, offer to create it
     if (!exactMatch && query.length >= 3) {
       results.push({ name: query, members: 0, source: 'new' });
     }
@@ -98,6 +129,41 @@ export default function GymCommunity({ onViewProfile }) {
           Join your gym to see what others are lifting and compete on leaderboards
         </div>
 
+        {/* Country / Region filters */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <select
+            value={selectedCountry}
+            onChange={e => { setSelectedCountry(e.target.value); setSelectedRegion('all'); }}
+            style={{
+              flex: 1, padding: '10px 12px', borderRadius: 10,
+              border: `1px solid ${COLORS.border}`, background: COLORS.card,
+              color: COLORS.text, fontSize: 13, fontFamily: 'inherit', outline: 'none',
+              appearance: 'none', cursor: 'pointer',
+            }}
+          >
+            {countries.map(c => (
+              <option key={c} value={c}>{c === 'all' ? 'All countries' : c}</option>
+            ))}
+          </select>
+          <select
+            value={selectedRegion}
+            onChange={e => setSelectedRegion(e.target.value)}
+            disabled={selectedCountry === 'all'}
+            style={{
+              flex: 1, padding: '10px 12px', borderRadius: 10,
+              border: `1px solid ${COLORS.border}`, background: COLORS.card,
+              color: selectedCountry === 'all' ? COLORS.textDim : COLORS.text,
+              fontSize: 13, fontFamily: 'inherit', outline: 'none',
+              appearance: 'none', cursor: selectedCountry === 'all' ? 'not-allowed' : 'pointer',
+              opacity: selectedCountry === 'all' ? 0.5 : 1,
+            }}
+          >
+            {regions.map(r => (
+              <option key={r} value={r}>{r === 'all' ? 'All regions' : r}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
           <div style={{ position: 'absolute', left: 12, top: 12 }}>
@@ -121,13 +187,22 @@ export default function GymCommunity({ onViewProfile }) {
                 background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 6,
                 border: `1px solid ${r.source === 'new' ? `${COLORS.accent}33` : COLORS.border}`,
               }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{r.name}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                   <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
                     {r.source === 'new' ? (
                       <span style={{ color: COLORS.accent }}>Create new gym community</span>
                     ) : (
-                      <span><Icon name="users" size={11} color={COLORS.textDim} /> {r.members} member{r.members !== 1 ? 's' : ''} on Steel</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <Icon name="users" size={11} color={COLORS.textDim} /> {r.members} member{r.members !== 1 ? 's' : ''}
+                        </span>
+                        {r.city && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Icon name="pin" size={11} color={COLORS.textDim} /> {r.city}
+                          </span>
+                        )}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -143,28 +218,47 @@ export default function GymCommunity({ onViewProfile }) {
         )}
 
         {/* Popular gyms */}
-        {!searchQuery && gyms.length > 0 && (
+        {!searchQuery && filteredGyms.length > 0 && (
           <>
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Popular Gyms on Steel</div>
-            {gyms.slice(0, 10).map(g => (
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>
+              {selectedCountry === 'all' ? 'Popular Gyms on Steel' : `Gyms in ${selectedRegion === 'all' ? selectedCountry : selectedRegion}`}
+            </div>
+            {filteredGyms.slice(0, 20).map(g => (
               <div key={g.name} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 6,
                 border: `1px solid ${COLORS.border}`,
               }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{g.name}</div>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                    <Icon name="users" size={11} color={COLORS.textDim} /> {g.count} member{g.count !== 1 ? 's' : ''}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Icon name="users" size={11} color={COLORS.textDim} /> {g.count} member{g.count !== 1 ? 's' : ''}
+                    </span>
+                    {g.city && g.country && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <Icon name="pin" size={11} color={COLORS.textDim} /> {g.city}, {g.country}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button onClick={() => handleJoinGym(g.name)} style={{
                   padding: '8px 16px', borderRadius: 8, border: 'none', background: COLORS.accent,
                   color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                  marginLeft: 8, flexShrink: 0,
                 }}>Join</button>
               </div>
             ))}
           </>
+        )}
+
+        {/* No gyms in selected filter */}
+        {!searchQuery && filteredGyms.length === 0 && gyms.length > 0 && (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <Icon name="pin" size={32} color={COLORS.textDim} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginTop: 8 }}>No gyms in this area yet</div>
+            <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4 }}>Try a different filter or search for your gym</div>
+          </div>
         )}
 
         {/* Tip */}
