@@ -988,9 +988,10 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             </div>
           </div>
           <button onClick={handleFinish} disabled={saving || !hasAnyExercises} style={{
-            background: hasAnyExercises ? COLORS.accent : COLORS.card,
-            color: hasAnyExercises ? '#fff' : COLORS.textDim,
-            border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 800, fontSize: 14,
+            background: hasAnyExercises ? COLORS.text : 'transparent',
+            color: hasAnyExercises ? COLORS.bg : COLORS.textDim,
+            border: `1px solid ${hasAnyExercises ? COLORS.text : COLORS.border}`,
+            borderRadius: 10, padding: '8px 18px', fontWeight: 600, fontSize: 13,
             cursor: hasAnyExercises ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
             opacity: saving ? 0.6 : 1,
           }}>{saving ? 'Saving...' : 'Finish'}</button>
@@ -1007,18 +1008,53 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
         style={{
           width: '100%', padding: '6px 0', border: 'none', background: 'transparent',
           color: COLORS.textDim, fontSize: 13, fontFamily: 'inherit',
-          outline: 'none', resize: 'none', boxSizing: 'border-box', marginBottom: 12,
+          outline: 'none', resize: 'none', boxSizing: 'border-box', marginBottom: 16,
         }} />
+
+      {/* Scoreboard stats */}
+      {workoutExercises.length > 0 && (() => {
+        const allSets = workoutExercises.flatMap(e => e.sets);
+        const completedSets = allSets.filter(s => s.completed);
+        const plannedSets = allSets.length;
+        const volume = completedSets.reduce((t, s) => t + (s.weight || 0) * (s.reps || 0), 0);
+        const prCount = completedSets.filter(s => s.is_pr).length;
+        const volKg = unit === 'lbs' ? convertWeight(volume, unit) : volume;
+        const volDisplay = volKg >= 1000 ? (volKg / 1000).toFixed(1) : String(Math.round(volKg));
+        const volSuffix = volKg >= 1000 ? ' k' : ` ${unit}`;
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 18 }}>
+            <div style={{ textAlign: 'center', padding: '10px 4px', background: COLORS.card, borderRadius: 10, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: '0.12em', fontWeight: 500 }}>SETS</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: COLORS.text, letterSpacing: '-0.03em', marginTop: 2 }}>
+                {completedSets.length}<span style={{ color: COLORS.textDim, fontSize: 13, fontWeight: 500 }}>/{plannedSets}</span>
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '10px 4px', background: COLORS.card, borderRadius: 10, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: '0.12em', fontWeight: 500 }}>VOLUME</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: COLORS.text, letterSpacing: '-0.03em', marginTop: 2 }}>
+                {volDisplay}<span style={{ color: COLORS.textDim, fontSize: 13, fontWeight: 500 }}>{volSuffix}</span>
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', padding: '10px 4px', background: COLORS.card, borderRadius: 10, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: '0.12em', fontWeight: 500 }}>PR</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: COLORS.text, letterSpacing: '-0.03em', marginTop: 2 }}>
+                {prCount}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Rest duration selector */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600 }}>REST:</span>
+        <span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 500, letterSpacing: '0.1em' }}>REST</span>
         {[60, 90, 120, 180, 300].map(s => (
           <button key={s} onClick={() => setRestDuration(s)} style={{
-            padding: '4px 10px', borderRadius: 12, border: 'none', cursor: 'pointer',
+            padding: '4px 10px', borderRadius: 999, border: `1px solid ${restDuration === s ? COLORS.text : COLORS.border}`, cursor: 'pointer',
             fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-            background: restDuration === s ? COLORS.accent : COLORS.card,
-            color: restDuration === s ? (COLORS.isDark ? COLORS.bg : '#fff') : COLORS.textDim,
+            background: restDuration === s ? COLORS.text : 'transparent',
+            color: restDuration === s ? COLORS.bg : COLORS.textDim,
+            fontVariantNumeric: 'tabular-nums',
           }}>{s < 60 ? `${s}s` : `${s / 60}m`}</button>
         ))}
       </div>
@@ -1069,7 +1105,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                   >
                     <GripIcon size={16} color={COLORS.textDim} />
                   </div>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.accent, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.name}</span>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: COLORS.text, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.name}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
                   <button onClick={() => {
@@ -1108,18 +1144,6 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                   outline: 'none', marginBottom: 8, boxSizing: 'border-box',
                 }} />
 
-              {/* Column headers */}
-              <div style={{ display: 'flex', gap: 4, marginBottom: 8, padding: '0 2px' }}>
-                <span style={{ width: 32, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Set</span>
-                <span style={{ flex: 1, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Previous</span>
-                <span style={{ width: 62, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{unit}</span>
-                <span style={{ width: 52, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Reps</span>
-                <span style={{ width: 38, fontSize: 9, color: COLORS.textSubtle || COLORS.textDim, fontWeight: 500, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>RPE</span>
-                <span style={{ width: 40, fontSize: 10, color: COLORS.textDim, fontWeight: 600, textAlign: 'center' }}>
-                  <Icon name="check" size={13} color={COLORS.textDim} />
-                </span>
-              </div>
-
               {/* Progressive overload suggestion */}
               {prev && prev.length > 0 && (() => {
                 const lastBest = Math.max(...prev.map(s => s.weight || 0));
@@ -1127,8 +1151,8 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                 if (lastBest > 0 && lastBestSet) {
                   const suggestWeight = Math.round((lastBest * 1.025) * 2) / 2;
                   return (
-                    <div style={{ fontSize: 11, color: COLORS.accent, marginBottom: 6, padding: '4px 8px', background: `${COLORS.accent}08`, borderRadius: 6 }}>
-                      Last: {convertWeight(lastBest, unit)}{unit} x{lastBestSet.reps} → Try {convertWeight(suggestWeight, unit)}{unit} or +1 rep
+                    <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 10, padding: '6px 10px', background: COLORS.bg, borderRadius: 6, border: `1px solid ${COLORS.border}`, fontVariantNumeric: 'tabular-nums' }}>
+                      Last session · {convertWeight(lastBest, unit)} {unit} × {lastBestSet.reps} · try <span style={{ color: COLORS.text, fontWeight: 600 }}>{convertWeight(suggestWeight, unit)} {unit}</span> or +1 rep
                     </div>
                   );
                 }
@@ -1151,144 +1175,227 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
 
                 return (
                   <React.Fragment key={setIdx}>
-                    {/* Set row */}
-                    <div style={{
-                      display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, padding: '6px 4px',
-                      borderRadius: 10,
-                      background: isComplete
-                        ? set.set_type === 'warmup' ? `${COLORS.orange}14`
-                        : set.set_type === 'dropset' ? '#A855F714'
-                        : set.set_type === 'failure' ? `${COLORS.red}14`
-                        : `${COLORS.accent}12`
-                        : 'transparent',
-                      transition: 'background 0.2s ease',
-                    }}>
-                      <button onClick={() => {
-                        const currentIdx = setTypes.indexOf(set.set_type || 'normal');
-                        const nextType = setTypes[(currentIdx + 1) % setTypes.length];
-                        updateSet(exIdx, setIdx, 'set_type', nextType);
-                      }} style={{
-                        width: 32, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
-                        background: set.set_type && set.set_type !== 'normal' ? `${typeColors[set.set_type]}20` : 'transparent',
-                        color: typeColors[set.set_type || 'normal'],
-                        fontSize: 12, fontWeight: 800, fontFamily: 'inherit', padding: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>{typeLabels[set.set_type || 'normal']}</button>
-
-                      <span onClick={() => {
-                        if (prevSet && (!set.weight && !set.reps)) {
-                          updateSet(exIdx, setIdx, 'weight', convertWeight(prevSet.weight, unit));
-                          updateSet(exIdx, setIdx, 'reps', prevSet.reps);
-                        }
-                      }} style={{
-                        flex: 1, fontSize: 13,
-                        color: prevSet && !set.weight && !set.reps ? COLORS.text : COLORS.textSubtle || COLORS.textDim,
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontWeight: 500,
-                        cursor: prevSet && !set.weight && !set.reps ? 'pointer' : 'default',
-                        padding: '2px 6px',
-                        borderRadius: 6,
-                        background: prevSet && !set.weight && !set.reps ? `${COLORS.accent}10` : 'transparent',
-                        letterSpacing: '-0.02em',
+                    {/* ═══ SET ROW ═══ */}
+                    {isComplete ? (
+                      // ─── Completed: slim scoreline + dark check ───
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
                       }}>
-                        {prevSet ? `${convertWeight(prevSet.weight, unit)} × ${prevSet.reps}` : '—'}
-                      </span>
-
-                      <input id={weightRef} type="number" inputMode="decimal" enterKeyHint="next"
-                        value={set.weight || ''} placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
-                        onChange={e => updateSet(exIdx, setIdx, 'weight', parseFloat(e.target.value) || 0)}
-                        onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); document.getElementById(repsRef)?.focus(); } }}
-                        onFocus={e => e.target.select()}
-                        style={{ width: 62, ...inputStyle(isComplete, !!set.weight) }}
-                      />
-
-                      <input id={repsRef} type="number" inputMode="numeric" enterKeyHint="done"
-                        value={set.reps || ''} placeholder={prevSet ? String(prevSet.reps) : '0'}
-                        onChange={e => updateSet(exIdx, setIdx, 'reps', parseInt(e.target.value) || 0)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            toggleComplete(exIdx, setIdx);
-                            const nextWeight = document.getElementById(`weight-${exIdx}-${setIdx + 1}`);
-                            if (nextWeight) setTimeout(() => nextWeight.focus(), 100);
-                            else e.target.blur();
-                          }
-                        }}
-                        onFocus={e => e.target.select()}
-                        style={{ width: 52, ...inputStyle(isComplete, !!set.reps) }}
-                      />
-
-                      {/* RPE — number input field */}
-                      <input type="number" inputMode="decimal" enterKeyHint="done"
-                        value={set.rpe || ''} placeholder="-"
-                        onChange={e => {
-                          const v = parseFloat(e.target.value);
-                          updateSet(exIdx, setIdx, 'rpe', (v >= 1 && v <= 10) ? v : e.target.value === '' ? 0 : set.rpe);
-                        }}
-                        onFocus={e => e.target.select()}
-                        style={{
-                          width: 38, padding: '7px 2px', borderRadius: 8,
-                          border: `1px solid ${COLORS.border}`,
-                          background: set.rpe ? `${COLORS.orange}10` : isComplete ? `${COLORS.accent}08` : COLORS.bg,
-                          color: set.rpe ? COLORS.orange : COLORS.textDim,
-                          fontSize: 12, fontWeight: 700, fontFamily: 'inherit', outline: 'none', textAlign: 'center',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-
-                      {/* Check / PR toggle — big tap target */}
-                      <div style={{ width: 40, display: 'flex', justifyContent: 'center' }}>
-                        {isComplete ? (
-                          <button onClick={() => toggleComplete(exIdx, setIdx)} onDoubleClick={() => updateSet(exIdx, setIdx, 'is_pr', !set.is_pr)} style={{
-                            width: 36, height: 36, borderRadius: 10, border: 'none', cursor: 'pointer',
-                            background: set.is_pr ? COLORS.pro : COLORS.accent,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: `0 2px 8px ${COLORS.accent}33`,
+                        <button onClick={() => {
+                          const currentIdx = setTypes.indexOf(set.set_type || 'normal');
+                          const nextType = setTypes[(currentIdx + 1) % setTypes.length];
+                          updateSet(exIdx, setIdx, 'set_type', nextType);
+                        }} style={{
+                          width: 16, fontSize: 11, color: set.set_type && set.set_type !== 'normal' ? typeColors[set.set_type] : COLORS.textDim,
+                          fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                          fontFamily: 'inherit', textAlign: 'left',
+                        }}>{typeLabels[set.set_type || 'normal']}</button>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
+                          <span onClick={() => toggleComplete(exIdx, setIdx)} style={{
+                            fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+                            color: COLORS.text, cursor: 'pointer',
                           }}>
-                            {set.is_pr
-                              ? <TrophyIcon size={18} color={COLORS.accentText || '#0A0A0A'} />
-                              : <Icon name="check" size={18} color={COLORS.accentText || '#0A0A0A'} />}
-                          </button>
-                        ) : (
+                            {set.weight}<span style={{ color: COLORS.textDim, fontSize: 10, fontWeight: 500, marginLeft: 6 }}>{unit}</span>
+                          </span>
+                          <span onClick={() => toggleComplete(exIdx, setIdx)} style={{
+                            fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+                            color: COLORS.textDim, cursor: 'pointer',
+                          }}>× {set.reps}</span>
+                        </div>
+                        <button onClick={() => toggleComplete(exIdx, setIdx)} onDoubleClick={() => updateSet(exIdx, setIdx, 'is_pr', !set.is_pr)} style={{
+                          width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                          background: set.is_pr ? COLORS.pro : COLORS.text,
+                          color: COLORS.bg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                        }}>
+                          {set.is_pr
+                            ? <TrophyIcon size={13} color={COLORS.bg} />
+                            : <Icon name="check" size={13} color={COLORS.bg} />}
+                        </button>
+                      </div>
+                    ) : (
+                      // ─── Active / empty: editable card ───
+                      <div style={{
+                        padding: 12,
+                        background: COLORS.card,
+                        border: `1.5px solid ${COLORS.text}`,
+                        borderRadius: 14,
+                        marginTop: 2, marginBottom: 2,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <button onClick={() => {
+                            const currentIdx = setTypes.indexOf(set.set_type || 'normal');
+                            const nextType = setTypes[(currentIdx + 1) % setTypes.length];
+                            updateSet(exIdx, setIdx, 'set_type', nextType);
+                          }} style={{
+                            width: 16, fontSize: 11, color: set.set_type && set.set_type !== 'normal' ? typeColors[set.set_type] : COLORS.text,
+                            fontWeight: 700, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                            fontFamily: 'inherit', textAlign: 'left',
+                          }}>{typeLabels[set.set_type || 'normal']}</button>
+
+                          <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            {/* Weight input */}
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                              <input id={weightRef} type="number" inputMode="decimal" enterKeyHint="next"
+                                value={set.weight || ''} placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
+                                onChange={e => updateSet(exIdx, setIdx, 'weight', parseFloat(e.target.value) || 0)}
+                                onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); document.getElementById(repsRef)?.focus(); } }}
+                                onFocus={e => e.target.select()}
+                                style={{
+                                  width: 64, padding: '2px 0 3px', border: 'none',
+                                  borderBottom: `1.5px dashed ${COLORS.textDim}`,
+                                  background: 'transparent',
+                                  color: set.weight ? COLORS.text : COLORS.textDim,
+                                  fontSize: 26, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+                                  fontFamily: 'inherit', letterSpacing: '-0.03em',
+                                  outline: 'none', textAlign: 'left', boxSizing: 'border-box',
+                                }}
+                              />
+                              <span style={{ color: COLORS.textDim, fontSize: 12, fontWeight: 500 }}>{unit}</span>
+                            </div>
+
+                            {/* Reps input */}
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                              <span style={{ color: COLORS.textDim, fontSize: 15, fontWeight: 500 }}>×</span>
+                              <input id={repsRef} type="number" inputMode="numeric" enterKeyHint="done"
+                                value={set.reps || ''} placeholder={prevSet ? String(prevSet.reps) : '0'}
+                                onChange={e => updateSet(exIdx, setIdx, 'reps', parseInt(e.target.value) || 0)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    toggleComplete(exIdx, setIdx);
+                                    const nextWeight = document.getElementById(`weight-${exIdx}-${setIdx + 1}`);
+                                    if (nextWeight) setTimeout(() => nextWeight.focus(), 100);
+                                    else e.target.blur();
+                                  }
+                                }}
+                                onFocus={e => e.target.select()}
+                                style={{
+                                  width: 50, padding: '2px 0 3px', border: 'none',
+                                  borderBottom: `1.5px dashed ${COLORS.textDim}`,
+                                  background: 'transparent',
+                                  color: set.reps ? COLORS.text : COLORS.textDim,
+                                  fontSize: 26, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+                                  fontFamily: 'inherit', letterSpacing: '-0.03em',
+                                  outline: 'none', textAlign: 'left', boxSizing: 'border-box',
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Complete button */}
                           <button onClick={() => toggleComplete(exIdx, setIdx)} style={{
-                            width: 36, height: 36, borderRadius: 10,
-                            border: `1.5px solid ${COLORS.border}`,
+                            width: 28, height: 28, borderRadius: '50%',
+                            border: `1.5px solid ${COLORS.borderBright || COLORS.border}`,
                             cursor: 'pointer', background: 'transparent',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transition: 'border-color 0.15s ease',
-                          }}
-                          onMouseDown={e => e.currentTarget.style.borderColor = COLORS.accent}
-                          onMouseUp={e => e.currentTarget.style.borderColor = COLORS.border}
-                          onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
-                          >
-                            <Icon name="check" size={16} color={COLORS.textSubtle || COLORS.textDim} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                          }} />
+                        </div>
 
-                    {/* Inline rest timer bar — shows right after the completed set */}
-                    {showInlineTimer && (
-                      <InlineRestBar
-                        totalSeconds={restTimerSeconds}
-                        onDismiss={() => { setRestTimerActive(false); }}
-                        onAdjust={(delta) => {
-                          setRestTimerSeconds(prev => Math.max(0, prev + delta));
-                          setRestDuration(prev => Math.max(30, prev + delta));
-                        }}
-                      />
+                        {/* Steppers + previous + RPE */}
+                        <div style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLORS.border}`,
+                          gap: 10,
+                        }}>
+                          {/* Weight steppers */}
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => updateSet(exIdx, setIdx, 'weight', Math.max(0, (set.weight || (prevSet ? convertWeight(prevSet.weight, unit) : 0)) - 2.5))} style={{
+                              background: COLORS.bg, border: `1px solid ${COLORS.border}`, color: COLORS.text,
+                              fontSize: 11, padding: '4px 10px', borderRadius: 6, fontWeight: 600,
+                              fontFamily: 'inherit', cursor: 'pointer', fontVariantNumeric: 'tabular-nums',
+                            }}>−2.5</button>
+                            <button onClick={() => updateSet(exIdx, setIdx, 'weight', (set.weight || (prevSet ? convertWeight(prevSet.weight, unit) : 0)) + 2.5)} style={{
+                              background: COLORS.bg, border: `1px solid ${COLORS.border}`, color: COLORS.text,
+                              fontSize: 11, padding: '4px 10px', borderRadius: 6, fontWeight: 600,
+                              fontFamily: 'inherit', cursor: 'pointer', fontVariantNumeric: 'tabular-nums',
+                            }}>+2.5</button>
+                          </div>
+
+                          {/* Previous value — tap to fill */}
+                          {prevSet && (
+                            <button onClick={() => {
+                              updateSet(exIdx, setIdx, 'weight', convertWeight(prevSet.weight, unit));
+                              updateSet(exIdx, setIdx, 'reps', prevSet.reps);
+                            }} style={{
+                              background: 'none', border: 'none', color: COLORS.textDim,
+                              fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                              fontVariantNumeric: 'tabular-nums', padding: 0,
+                            }}>
+                              last: {convertWeight(prevSet.weight, unit)} × {prevSet.reps}
+                            </button>
+                          )}
+
+                          {/* Reps steppers */}
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => updateSet(exIdx, setIdx, 'reps', Math.max(0, (set.reps || (prevSet ? prevSet.reps : 0)) - 1))} style={{
+                              background: COLORS.bg, border: `1px solid ${COLORS.border}`, color: COLORS.text,
+                              fontSize: 11, padding: '4px 10px', borderRadius: 6, fontWeight: 600,
+                              fontFamily: 'inherit', cursor: 'pointer', fontVariantNumeric: 'tabular-nums',
+                            }}>−1</button>
+                            <button onClick={() => updateSet(exIdx, setIdx, 'reps', (set.reps || (prevSet ? prevSet.reps : 0)) + 1)} style={{
+                              background: COLORS.bg, border: `1px solid ${COLORS.border}`, color: COLORS.text,
+                              fontSize: 11, padding: '4px 10px', borderRadius: 6, fontWeight: 600,
+                              fontFamily: 'inherit', cursor: 'pointer', fontVariantNumeric: 'tabular-nums',
+                            }}>+1</button>
+                          </div>
+                        </div>
+                      </div>
                     )}
 
-                    {/* Swipe-to-delete hint */}
-                    {!isComplete && ex.sets.length > 1 && (
-                      <div style={{ position: 'relative' }}>
-                        <button onClick={() => removeSet(exIdx, setIdx)} style={{
-                          position: 'absolute', right: 0, top: -26, background: 'none', border: 'none',
-                          color: COLORS.red, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
-                          opacity: 0, padding: 2,
-                        }}>remove</button>
-                      </div>
-                    )}
+                    {/* ═══ INLINE REST BAR between sets ═══ */}
+                    {setIdx < ex.sets.length - 1 && (() => {
+                      const isActiveRest = restTimerActive && lastCompletedSet &&
+                        lastCompletedSet.exIdx === exIdx && lastCompletedSet.setIdx === setIdx && isComplete;
+                      const isPastRest = isComplete && !isActiveRest;
+
+                      if (isActiveRest) {
+                        // Active rest — show progress bar
+                        const pct = Math.max(0, Math.min(100, (restTimerSeconds / restDuration) * 100));
+                        const mm = Math.floor(restTimerSeconds / 60);
+                        const ss = restTimerSeconds % 60;
+                        return (
+                          <div style={{ padding: '8px 12px 10px 28px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ flex: 1, height: 4, background: COLORS.border, borderRadius: 2, overflow: 'hidden' }}>
+                                <div style={{
+                                  width: `${pct}%`, height: '100%', background: COLORS.text,
+                                  borderRadius: 2, transition: 'width 0.5s linear',
+                                }} />
+                              </div>
+                              <span style={{
+                                fontSize: 12, color: COLORS.text, fontVariantNumeric: 'tabular-nums',
+                                fontWeight: 700, minWidth: 40, textAlign: 'right', letterSpacing: '-0.02em',
+                              }}>
+                                {mm}:{ss.toString().padStart(2, '0')}
+                              </span>
+                            </div>
+                            <div style={{
+                              fontSize: 9, color: COLORS.textDim, letterSpacing: '0.1em',
+                              fontWeight: 500, marginTop: 4,
+                            }}>RESTING</div>
+                          </div>
+                        );
+                      }
+
+                      // Past or upcoming rest — thin bar
+                      const mm = Math.floor(restDuration / 60);
+                      const ss = restDuration % 60;
+                      const label = restDuration < 60 ? `${restDuration}s` : `${mm}:${ss.toString().padStart(2, '0')}`;
+                      return (
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '2px 12px 2px 28px', height: 16,
+                          opacity: isPastRest ? 0.7 : 0.35,
+                        }}>
+                          <div style={{ flex: 1, height: 2, background: COLORS.border, borderRadius: 1 }} />
+                          <span style={{
+                            fontSize: 10, color: COLORS.textDim, fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '0.04em', fontWeight: 500, minWidth: 40, textAlign: 'right',
+                          }}>{label}</span>
+                        </div>
+                      );
+                    })()}
                   </React.Fragment>
                 );
               })}
