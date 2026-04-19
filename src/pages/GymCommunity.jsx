@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+import { COLORS, Avatar, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+
+const FONTS = {
+  sans: "'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif",
+  mono: "'JetBrains Mono', 'SF Mono', Menlo, monospace",
+};
 
 export default function GymCommunity({ onViewProfile }) {
   const { user, profile, updateProfile } = useStore();
@@ -12,32 +17,18 @@ export default function GymCommunity({ onViewProfile }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [subTab, setSubTab] = useState('feed');
-  const [selectedCountry, setSelectedCountry] = useState('all');
-  const [selectedRegion, setSelectedRegion] = useState('all');
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { loadData(); }, [profile?.gym]);
 
   const loadData = async () => {
     setLoading(true);
-    // Get all gyms with their location + member counts
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('gym, country, region, city')
-      .neq('gym', '')
-      .not('gym', 'is', null);
+    const { data: profiles } = await supabase.from('profiles').select('gym').neq('gym', '').not('gym', 'is', null);
     if (profiles) {
-      const gymMap = {};
-      profiles.forEach(p => {
-        if (!p.gym) return;
-        if (!gymMap[p.gym]) {
-          gymMap[p.gym] = { name: p.gym, count: 0, country: p.country || 'Unknown', region: p.region || 'Unknown', city: p.city || '' };
-        }
-        gymMap[p.gym].count++;
-      });
-      setGyms(Object.values(gymMap).sort((a, b) => b.count - a.count));
+      const gymCounts = {};
+      profiles.forEach(p => { if (p.gym) gymCounts[p.gym] = (gymCounts[p.gym] || 0) + 1; });
+      setGyms(Object.entries(gymCounts).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })));
     }
 
     if (profile?.gym) {
@@ -60,49 +51,16 @@ export default function GymCommunity({ onViewProfile }) {
     setLoading(false);
   };
 
-  // Derived: unique countries & regions for filter dropdowns
-  const countries = React.useMemo(() => {
-    const s = new Set(gyms.map(g => g.country).filter(c => c && c !== 'Unknown'));
-    return ['all', ...Array.from(s).sort()];
-  }, [gyms]);
-
-  const regions = React.useMemo(() => {
-    if (selectedCountry === 'all') return ['all'];
-    const s = new Set(gyms.filter(g => g.country === selectedCountry).map(g => g.region).filter(r => r && r !== 'Unknown'));
-    return ['all', ...Array.from(s).sort()];
-  }, [gyms, selectedCountry]);
-
-  // Filtered gym list
-  const filteredGyms = React.useMemo(() => {
-    return gyms.filter(g => {
-      if (selectedCountry !== 'all' && g.country !== selectedCountry) return false;
-      if (selectedRegion !== 'all' && g.region !== selectedRegion) return false;
-      return true;
-    });
-  }, [gyms, selectedCountry, selectedRegion]);
-
-  // Search for gyms — searches both existing Steel gyms and uses the input as a direct name
-  const handleSearch = async (query) => {
+  const handleSearch = (query) => {
     setSearchQuery(query);
     if (query.length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-
-    // Search within currently filtered gyms
-    const matchingGyms = filteredGyms.filter(g =>
-      g.name.toLowerCase().includes(query.toLowerCase())
-    );
-
-    const exactMatch = filteredGyms.find(g => g.name.toLowerCase() === query.toLowerCase());
-    const results = [
-      ...matchingGyms.map(g => ({ name: g.name, members: g.count, country: g.country, region: g.region, city: g.city, source: 'steel' })),
-    ];
-
+    const matching = gyms.filter(g => g.name.toLowerCase().includes(query.toLowerCase()));
+    const exactMatch = gyms.find(g => g.name.toLowerCase() === query.toLowerCase());
+    const results = matching.map(g => ({ name: g.name, members: g.count, source: 'steel' }));
     if (!exactMatch && query.length >= 3) {
       results.push({ name: query, members: 0, source: 'new' });
     }
-
     setSearchResults(results);
-    setSearching(false);
   };
 
   const handleJoinGym = async (gymName) => {
@@ -120,243 +78,262 @@ export default function GymCommunity({ onViewProfile }) {
 
   if (loading) return <Spinner />;
 
-  // ── NO GYM — Show gym finder ──
+  // ── No gym: gym finder ──
   if (!profile?.gym) {
     return (
-      <div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, marginBottom: 4 }}>Gym Communities</div>
-        <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 16, lineHeight: 1.5 }}>
-          Join your gym to see what others are lifting and compete on leaderboards
+      <div style={{ fontFamily: FONTS.sans }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', margin: '0 0 4px' }}>
+          Gym community
+        </h1>
+        <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.5 }}>
+          Join your gym to see what others are lifting and compete on leaderboards.
         </div>
 
-        {/* Country / Region filters */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <select
-            value={selectedCountry}
-            onChange={e => { setSelectedCountry(e.target.value); setSelectedRegion('all'); }}
-            style={{
-              flex: 1, padding: '10px 12px', borderRadius: 10,
-              border: `1px solid ${COLORS.border}`, background: COLORS.card,
-              color: COLORS.text, fontSize: 13, fontFamily: 'inherit', outline: 'none',
-              appearance: 'none', cursor: 'pointer',
-            }}
-          >
-            {countries.map(c => (
-              <option key={c} value={c}>{c === 'all' ? 'All countries' : c}</option>
-            ))}
-          </select>
-          <select
-            value={selectedRegion}
-            onChange={e => setSelectedRegion(e.target.value)}
-            disabled={selectedCountry === 'all'}
-            style={{
-              flex: 1, padding: '10px 12px', borderRadius: 10,
-              border: `1px solid ${COLORS.border}`, background: COLORS.card,
-              color: selectedCountry === 'all' ? COLORS.textDim : COLORS.text,
-              fontSize: 13, fontFamily: 'inherit', outline: 'none',
-              appearance: 'none', cursor: selectedCountry === 'all' ? 'not-allowed' : 'pointer',
-              opacity: selectedCountry === 'all' ? 0.5 : 1,
-            }}
-          >
-            {regions.map(r => (
-              <option key={r} value={r}>{r === 'all' ? 'All regions' : r}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Search */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <div style={{ position: 'absolute', left: 12, top: 12 }}>
-            <Icon name="search" size={18} color={COLORS.textDim} />
+          <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }}>
+            <Icon name="search" size={16} color={COLORS.textDim} />
           </div>
-          <input value={searchQuery} onChange={e => handleSearch(e.target.value)}
-            placeholder="Search for your gym..."
+          <input
+            value={searchQuery}
+            onChange={e => handleSearch(e.target.value)}
+            placeholder="Search for your gym…"
             style={{
-              width: '100%', padding: '12px 14px 12px 38px', borderRadius: 12,
+              width: '100%', padding: '12px 14px 12px 40px', borderRadius: 12,
               border: `1px solid ${COLORS.border}`, background: COLORS.card,
-              color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-            }} />
+              color: COLORS.text, fontSize: 14, fontFamily: FONTS.sans,
+              outline: 'none', boxSizing: 'border-box',
+            }}
+          />
         </div>
 
-        {/* Search results */}
         {searchResults.length > 0 && (
           <div style={{ marginBottom: 20 }}>
             {searchResults.map((r, i) => (
               <div key={i} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 6,
-                border: `1px solid ${r.source === 'new' ? `${COLORS.accent}33` : COLORS.border}`,
+                border: `1px solid ${r.source === 'new' ? '#BFE60044' : COLORS.border}`,
               }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>
-                    {r.source === 'new' ? (
-                      <span style={{ color: COLORS.accent }}>Create new gym community</span>
-                    ) : (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <Icon name="users" size={11} color={COLORS.textDim} /> {r.members} member{r.members !== 1 ? 's' : ''}
-                        </span>
-                        {r.city && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Icon name="pin" size={11} color={COLORS.textDim} /> {r.city}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, letterSpacing: '-0.01em' }}>
+                    {r.name}
+                  </div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, marginTop: 3,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500,
+                  }}>
+                    {r.source === 'new'
+                      ? <span style={{ color: '#BFE600' }}>CREATE NEW GYM</span>
+                      : <>{r.members} MEMBER{r.members !== 1 ? 'S' : ''}</>}
                   </div>
                 </div>
                 <button onClick={() => handleJoinGym(r.name)} style={{
-                  padding: '8px 16px', borderRadius: 8, border: 'none',
-                  background: r.source === 'new' ? `${COLORS.accent}20` : COLORS.accent,
-                  color: r.source === 'new' ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
-                  fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
-                }}>{r.source === 'new' ? 'Create & Join' : 'Join'}</button>
+                  padding: '8px 16px', borderRadius: 999, border: 'none',
+                  background: COLORS.text, color: COLORS.bg,
+                  fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                  fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+                }}>{r.source === 'new' ? 'Create' : 'Join'}</button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Popular gyms */}
-        {!searchQuery && filteredGyms.length > 0 && (
+        {!searchQuery && gyms.length > 0 && (
           <>
-            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>
-              {selectedCountry === 'all' ? 'Popular Gyms on Steel' : `Gyms in ${selectedRegion === 'all' ? selectedCountry : selectedRegion}`}
-            </div>
-            {filteredGyms.slice(0, 20).map(g => (
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
+              marginBottom: 10,
+            }}>Popular gyms</div>
+            {gyms.slice(0, 10).map(g => (
               <div key={g.name} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 background: COLORS.card, borderRadius: 12, padding: '12px 14px', marginBottom: 6,
                 border: `1px solid ${COLORS.border}`,
               }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <Icon name="users" size={11} color={COLORS.textDim} /> {g.count} member{g.count !== 1 ? 's' : ''}
-                    </span>
-                    {g.city && g.country && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Icon name="pin" size={11} color={COLORS.textDim} /> {g.city}, {g.country}
-                      </span>
-                    )}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, letterSpacing: '-0.01em' }}>
+                    {g.name}
+                  </div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, marginTop: 3,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500,
+                  }}>
+                    {g.count} MEMBER{g.count !== 1 ? 'S' : ''}
                   </div>
                 </div>
                 <button onClick={() => handleJoinGym(g.name)} style={{
-                  padding: '8px 16px', borderRadius: 8, border: 'none', background: COLORS.accent,
-                  color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
-                  marginLeft: 8, flexShrink: 0,
+                  padding: '8px 16px', borderRadius: 999, border: 'none',
+                  background: COLORS.text, color: COLORS.bg,
+                  fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                  fontFamily: FONTS.sans, letterSpacing: '-0.01em',
                 }}>Join</button>
               </div>
             ))}
           </>
         )}
 
-        {/* No gyms in selected filter */}
-        {!searchQuery && filteredGyms.length === 0 && gyms.length > 0 && (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <Icon name="pin" size={32} color={COLORS.textDim} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginTop: 8 }}>No gyms in this area yet</div>
-            <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4 }}>Try a different filter or search for your gym</div>
-          </div>
-        )}
-
-        {/* Tip */}
         {!searchQuery && gyms.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <Icon name="pin" size={32} color={COLORS.textDim} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginTop: 8 }}>Be the first!</div>
-            <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4 }}>Type your gym name above to create the first community</div>
-          </div>
+          <EmptyState
+            icon="pin"
+            title="Be the first"
+            subtitle="Type your gym name above to create the first community"
+          />
         )}
       </div>
     );
   }
 
-  // ── HAS GYM — Show gym community ──
+  // ── Has gym: show community ──
   return (
-    <div>
+    <div style={{ fontFamily: FONTS.sans }}>
       {/* Gym header */}
       <div style={{
         background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14,
         border: `1px solid ${COLORS.border}`,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Icon name="pin" size={18} color={COLORS.accent} />
-              <span style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{profile.gym}</span>
-            </div>
-            <div style={{ fontSize: 13, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Icon name="users" size={14} color={COLORS.textDim} /> {myGymData?.members || 1} member{(myGymData?.members || 1) !== 1 ? 's' : ''}
-            </div>
+        <div>
+          <div style={{
+            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+            letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
+            marginBottom: 4,
+          }}>Gym</div>
+          <div style={{
+            fontSize: 22, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em',
+          }}>{profile.gym}</div>
+          <div style={{
+            fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim, marginTop: 4,
+            letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500,
+          }}>
+            {myGymData?.members || 1} MEMBER{(myGymData?.members || 1) !== 1 ? 'S' : ''}
           </div>
-          <button onClick={handleLeaveGym} style={{
-            background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8,
-            padding: '6px 10px', cursor: 'pointer', fontSize: 11, color: COLORS.textDim, fontFamily: 'inherit',
-          }}>Leave</button>
         </div>
+        <button onClick={handleLeaveGym} style={{
+          background: 'none', border: `1px solid ${COLORS.border}`, borderRadius: 999,
+          padding: '6px 12px', cursor: 'pointer',
+          fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+          letterSpacing: '0.1em', fontWeight: 500, textTransform: 'uppercase',
+        }}>Leave</button>
       </div>
 
       {/* Sub tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${COLORS.border}`, marginBottom: 14 }}>
+      <div style={{
+        display: 'flex', gap: 0, borderBottom: `0.5px solid ${COLORS.border}`,
+        marginBottom: 14,
+      }}>
         {['feed', 'members'].map(t => (
           <button key={t} onClick={() => setSubTab(t)} style={{
-            flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-            fontFamily: 'inherit', background: 'transparent',
-            color: subTab === t ? COLORS.accent : COLORS.textDim,
-            borderBottom: subTab === t ? `2px solid ${COLORS.accent}` : '2px solid transparent',
-            marginBottom: -1, textTransform: 'capitalize',
-          }}>{t === 'feed' ? `Gym Feed (${gymFeed.length})` : `Members (${gymMembers.length})`}</button>
+            flex: 1, padding: '12px 4px', border: 'none', cursor: 'pointer',
+            fontFamily: FONTS.mono, fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.14em', background: 'transparent',
+            color: subTab === t ? COLORS.text : COLORS.textDim,
+            borderBottom: subTab === t
+              ? `2px solid ${COLORS.text}`
+              : '2px solid transparent',
+            marginBottom: -1,
+          }}>
+            {t === 'feed' ? `FEED · ${gymFeed.length}` : `MEMBERS · ${gymMembers.length}`}
+          </button>
         ))}
       </div>
 
-      {/* Gym Feed */}
       {subTab === 'feed' && (
         gymFeed.length === 0 ? (
-          <EmptyState icon="weight" title="No gym activity yet" subtitle="Be the first to log a workout at your gym!" />
+          <EmptyState icon="weight" title="No gym activity yet" subtitle="Be the first to log a workout here" />
         ) : (
           gymFeed.map(w => {
             const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
             const p = w.profiles;
+            const vol = convertWeight(w.total_volume, unit);
+            const volStr = vol >= 1000 ? `${(vol / 1000).toFixed(1)}k` : String(Math.round(vol));
             return (
-              <div key={w.id} style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <Avatar initials={getInitials(p?.display_name || '??')} size={36} colorIndex={p?.id?.charCodeAt(0) || 0} onClick={() => onViewProfile?.(p?.id)} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text, cursor: 'pointer' }} onClick={() => onViewProfile?.(p?.id)}>{p?.display_name}</div>
-                    <div style={{ fontSize: 12, color: COLORS.textDim }}>{timeAgo(w.created_at)}</div>
+              <div key={w.id} style={{
+                background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10,
+                border: `1px solid ${COLORS.border}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <Avatar
+                    initials={getInitials(p?.display_name || '??')}
+                    size={36}
+                    colorIndex={p?.id?.charCodeAt(0) || 0}
+                    src={p?.avatar_url}
+                    onClick={() => onViewProfile?.(p?.id)}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      onClick={() => onViewProfile?.(p?.id)}
+                      style={{
+                        fontSize: 14, fontWeight: 700, color: COLORS.text, cursor: 'pointer',
+                        letterSpacing: '-0.01em',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}
+                    >{p?.display_name}</div>
+                    <div style={{
+                      fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                      letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500, marginTop: 2,
+                    }}>{timeAgo(w.created_at).toUpperCase()}</div>
                   </div>
-                  {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
+                  {w.has_pr && (
+                    <span style={{
+                      background: '#BFE600', color: '#0A0A0A',
+                      fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                      borderRadius: 4, letterSpacing: '0.05em',
+                    }}>PR</span>
+                  )}
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text, marginBottom: 6 }}>{w.title}</div>
-                <div style={{ display: 'flex', gap: 12, marginBottom: 6 }}>
-                  {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}><Icon name="clock" size={12} color={COLORS.textDim} /> {w.duration_mins}m</span>}
-                  <span style={{ fontSize: 12, color: COLORS.textDim }}>{formatVolume(convertWeight(w.total_volume, unit))} {unit}</span>
-                  <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.total_sets} sets</span>
+
+                <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, letterSpacing: '-0.01em', marginBottom: 6 }}>
+                  {w.title}
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.textDim }}>{exercises.map(we => we.exercises?.name).filter(Boolean).join(', ')}</div>
+
+                <div style={{
+                  fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
+                  letterSpacing: '0.06em', marginBottom: 8,
+                }}>
+                  {w.duration_mins > 0 && `${w.duration_mins}M · `}
+                  {volStr} {unit.toUpperCase()} · {w.total_sets} SETS
+                </div>
+
+                <div style={{ fontSize: 12, color: COLORS.textDim, lineHeight: 1.5 }}>
+                  {exercises.map(we => we.exercises?.name).filter(Boolean).join(' · ')}
+                </div>
               </div>
             );
           })
         )
       )}
 
-      {/* Members */}
       {subTab === 'members' && (
         gymMembers.length === 0 ? (
-          <EmptyState icon="users" title="Just you so far" subtitle="Invite your gym mates to join!" />
+          <EmptyState icon="users" title="Just you so far" subtitle="Invite your gym mates to join" />
         ) : (
           gymMembers.map(m => (
             <div key={m.id} onClick={() => onViewProfile?.(m.id)} style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-              borderBottom: `1px solid ${COLORS.border}`, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 4px',
+              borderBottom: `0.5px solid ${COLORS.border}`,
+              cursor: 'pointer',
             }}>
-              <Avatar initials={getInitials(m.display_name)} size={40} colorIndex={m.id?.charCodeAt(0) || 0} />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{m.display_name}</div>
-                <div style={{ fontSize: 12, color: COLORS.textDim }}>@{m.username}{m.sport ? ` · ${m.sport}` : ''}</div>
+              <Avatar
+                initials={getInitials(m.display_name)}
+                size={40}
+                colorIndex={m.id?.charCodeAt(0) || 0}
+                src={m.avatar_url}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 14, fontWeight: 700, color: COLORS.text, letterSpacing: '-0.01em',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{m.display_name}</div>
+                <div style={{
+                  fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500, marginTop: 2,
+                }}>
+                  @{m.username}{m.sport ? ` · ${m.sport}` : ''}
+                </div>
               </div>
+              <Icon name="back" size={14} color={COLORS.textDim} />
             </div>
           ))
         )

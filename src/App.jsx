@@ -18,6 +18,7 @@ const tabs = [
   { id: 'profile', label: 'You', icon: 'user' },
 ];
 
+// Blurred overlay for pages that need sign-up
 function AuthGate({ children, message, onSignUp }) {
   return (
     <div style={{ position: 'relative', minHeight: 320 }}>
@@ -27,32 +28,41 @@ function AuthGate({ children, message, onSignUp }) {
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', padding: 32,
-        background: COLORS.isDark ? 'rgba(10,14,23,0.6)' : 'rgba(245,246,250,0.6)',
+        background: COLORS.isDark ? 'rgba(10,10,10,0.6)' : 'rgba(250,250,250,0.6)',
       }}>
         <div style={{
-          background: COLORS.card, borderRadius: 20, padding: '32px 28px', textAlign: 'center',
+          background: COLORS.card, borderRadius: 20, padding: '28px 24px', textAlign: 'center',
           border: `1px solid ${COLORS.border}`,
-          boxShadow: COLORS.isDark ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
           maxWidth: 300, width: '100%',
+          fontFamily: "'Inter Tight', sans-serif",
         }}>
-          <Icon name="lock" size={36} color={COLORS.accent} />
-          <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12 }}>
+          <Icon name="lock" size={32} color={COLORS.textDim} />
+          <div style={{
+            fontWeight: 800, fontSize: 18, color: COLORS.text,
+            letterSpacing: '-0.02em', marginTop: 12,
+          }}>
             {message || 'Sign up to unlock'}
           </div>
-          <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 6, lineHeight: 1.4 }}>
-            Create a free account to access this feature
+          <div style={{
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
+            marginTop: 6, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
+          }}>
+            Free · Takes 30 seconds
           </div>
           <button onClick={onSignUp} style={{
-            marginTop: 16, padding: '12px 32px', borderRadius: 10, border: 'none',
-            background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff',
-            fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
-          }}>Sign Up Free</button>
+            marginTop: 18, padding: '12px 32px', borderRadius: 999, border: 'none',
+            background: COLORS.text, color: COLORS.bg,
+            fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            fontFamily: "'Inter Tight', sans-serif", letterSpacing: '-0.01em',
+            width: '100%',
+          }}>Sign up free</button>
         </div>
       </div>
     </div>
   );
 }
 
+// Placeholder cards for blurred gated pages
 function PlaceholderCards({ count = 3, height = 120 }) {
   return (
     <div>
@@ -72,8 +82,8 @@ function PlaceholderCards({ count = 3, height = 120 }) {
 
 export default function App() {
   const { user, profile, loading, init, isGuest, offline, fetchFeed, fetchTemplates } = useStore();
-  const { colors: themeColors, theme, toggle: toggleTheme } = useTheme();
-  refreshColors();
+  const { colors: COLORS, theme, toggle: toggleTheme } = useTheme();
+  refreshColors(); // keep static COLORS in sync with theme
 
   const [tab, setTab] = useState('log');
   const [toast, setToast] = useState(null);
@@ -86,10 +96,10 @@ export default function App() {
   const [steelData, setSteelData] = useState(null);
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(null);
-  const [workoutActive, setWorkoutActive] = useState(false);
 
   useEffect(() => { init(); }, []);
 
+  // Once logged in, fetch social data
   useEffect(() => {
     if (!isGuest) {
       fetchFeed();
@@ -123,7 +133,6 @@ export default function App() {
       setSteelPrefill(steelData.template);
       setViewUserId(null);
       setTab('log');
-      setWorkoutActive(true);
       showToast(`Starting "${steelData.title}" from ${steelData.from}!`);
     }
     setShowSteelPopup(false);
@@ -146,7 +155,6 @@ export default function App() {
     setSteelPrefill(template);
     setViewUserId(null);
     setTab('log');
-    setWorkoutActive(true);
     showToast(`Steeled "${title}" from ${athleteName}!`);
   };
 
@@ -163,7 +171,9 @@ export default function App() {
     );
   }
 
+  // Main app shell — works for both guests and logged-in users
   const renderContent = () => {
+    // Viewing another user's profile (logged in only)
     if (viewUserId && !isGuest) {
       return (
         <div style={{ padding: '8px 16px 90px' }}>
@@ -178,6 +188,7 @@ export default function App() {
         {tab === 'feed' && (
           isGuest ? (
             <div>
+              {/* Show a peek of the feed then gate */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Activity Feed</div>
                 <div style={{ fontSize: 13, color: COLORS.textDim }}>See what athletes at your gym are lifting</div>
@@ -203,21 +214,19 @@ export default function App() {
         )}
 
         {/* LOG WORKOUT — always mounted once started, hidden when on other tabs */}
-        {(tab === 'log' || workoutMinimized || steelPrefill || workoutActive) && (
+        {(tab === 'log' || workoutMinimized || steelPrefill) && (
           <div key="workout-logger" style={{ display: tab === 'log' ? 'block' : 'none' }}>
             <LogWorkout
               prefill={steelPrefill}
               onMinimize={(info) => {
                 setMinimizedInfo(info);
                 setWorkoutMinimized(true);
-                setWorkoutActive(true);
                 setTab('feed');
               }}
               onDone={() => {
                 setSteelPrefill(null);
                 setWorkoutMinimized(false);
                 setMinimizedInfo(null);
-                setWorkoutActive(false);
                 showToast('Workout saved!');
                 if (!isGuest) setTab('feed');
               }}
@@ -245,6 +254,7 @@ export default function App() {
               <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, marginBottom: 20, lineHeight: 1.5 }}>
                 Sign up to save your workouts to the cloud, access them from any device, and join the community.
               </div>
+              {/* Show guest workout count */}
               {(() => {
                 try {
                   const local = JSON.parse(localStorage.getItem('steel_guest_workouts') || '[]');
@@ -271,7 +281,6 @@ export default function App() {
               <button onClick={() => promptAuth('', 'login')} style={{
                 border: `1px solid ${COLORS.border}`, color: COLORS.text, fontWeight: 600,
                 fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
-                marginTop: 8, padding: '12px 32px', borderRadius: 12, background: 'transparent',
               }}>Log In</button>
             </div>
           ) : (
@@ -282,9 +291,8 @@ export default function App() {
     );
   };
 
-  // FIX #17: Removed key={theme} from root div — theme toggle no longer kills active workout
   return (
-    <div style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
+    <div key={theme} style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
       {/* Offline banner */}
       {offline && (
         <div style={{
@@ -296,24 +304,35 @@ export default function App() {
       )}
 
       {/* Header */}
-      <div style={{ padding: '16px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: `${COLORS.bg}EE`, backdropFilter: 'blur(16px)' }}>
+      <div style={{ padding: '14px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: COLORS.isDark ? 'rgba(10,10,10,0.85)' : 'rgba(250,250,250,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '3px', fontStyle: 'italic' }}>
-            <span style={{ color: COLORS.text }}>STEEL</span>
-          </span>
+          <div style={{
+            fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: 'italic',
+            fontSize: 26, color: COLORS.text, letterSpacing: '-0.02em',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%', background: '#BFE600',
+              display: 'inline-block', marginBottom: 13,
+            }} />
+            Steel
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={toggleTheme} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-              <Icon name={theme === 'light' ? 'moon' : 'sun'} size={20} color={COLORS.textDim} />
+            <button onClick={toggleTheme} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+            }}>
+              <Icon name={theme === 'light' ? 'moon' : 'sun'} size={18} color={COLORS.textDim} />
             </button>
             {isGuest ? (
               <button onClick={() => promptAuth('')} style={{
-                background: COLORS.accent, border: 'none', borderRadius: 8,
-                padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                color: COLORS.isDark ? COLORS.bg : '#fff', fontFamily: 'inherit',
-              }}>Sign Up</button>
+                background: COLORS.text, border: 'none', borderRadius: 999,
+                padding: '7px 16px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                color: COLORS.bg, fontFamily: "'Inter Tight', -apple-system, sans-serif",
+                letterSpacing: '-0.01em',
+              }}>Sign up</button>
             ) : profile && (
               <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
-                <Avatar initials={getInitials(profile.display_name)} size={32} colorIndex={profile.id?.charCodeAt(0) || 0} src={profile.avatar_url || null} />
+                <Avatar initials={getInitials(profile.display_name)} size={30} colorIndex={profile.id?.charCodeAt(0) || 0} src={profile.avatar_url || null} />
               </div>
             )}
           </div>
@@ -325,62 +344,85 @@ export default function App() {
       {/* Minimized workout bar */}
       {workoutMinimized && minimizedInfo && tab !== 'log' && (
         <div onClick={() => setTab('log')} style={{
-          position: 'fixed', bottom: 64, left: 8, right: 8, zIndex: 25,
-          background: COLORS.accent, borderRadius: 14, padding: '12px 16px',
+          position: 'fixed', bottom: 72, left: 12, right: 12, zIndex: 25,
+          background: COLORS.text, borderRadius: 14, padding: '12px 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          cursor: 'pointer', boxShadow: `0 4px 20px ${COLORS.accent}44`,
+          cursor: 'pointer',
+          boxShadow: COLORS.isDark
+            ? '0 10px 30px -10px rgba(0,0,0,0.6)'
+            : '0 10px 30px -10px rgba(0,0,0,0.3)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 4, background: '#fff', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div style={{
+              width: 8, height: 8, borderRadius: 4, background: '#BFE600',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }} />
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{minimizedInfo.title}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-                {minimizedInfo.exerciseCount} exercise{minimizedInfo.exerciseCount !== 1 ? 's' : ''} · {minimizedInfo.setCount} sets done
+              <div style={{
+                fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 700,
+                color: COLORS.bg, letterSpacing: '-0.01em',
+              }}>{minimizedInfo.title}</div>
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                color: COLORS.bg, opacity: 0.6, letterSpacing: '0.08em',
+                textTransform: 'uppercase', fontWeight: 500, marginTop: 1,
+              }}>
+                {minimizedInfo.exerciseCount} EX · {minimizedInfo.setCount} SETS
               </div>
             </div>
           </div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: 8 }}>
+          <div style={{
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 12, fontWeight: 700,
+            color: COLORS.text, background: COLORS.bg, padding: '6px 12px',
+            borderRadius: 999, letterSpacing: '-0.01em',
+          }}>
             Resume
           </div>
         </div>
       )}
 
-      {/* FIX #18: + tab always navigates to log tab (starts workout) */}
-      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => {
-        setViewUserId(null);
-        setTab(t);
-        if (t === 'log') {
-          setWorkoutActive(true);
-        }
-        if (t !== 'log') setSteelPrefill(null);
-      }} />
+      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => { setViewUserId(null); setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
 
+      {/* Auth modal */}
       {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} initialMode={authMode} />}
 
       {/* Steel It popup */}
       {showSteelPopup && steelData && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340, border: `1px solid ${COLORS.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Icon name="copy" size={20} color={COLORS.accent} />
-              <span style={{ fontSize: 18, fontWeight: 700, color: COLORS.text }}>Steel It</span>
-            </div>
-            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 6 }}>{steelData.title}</div>
-            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 20 }}>from {steelData.from}</div>
+          <div style={{
+            background: COLORS.card, borderRadius: 16, padding: 22, width: '100%', maxWidth: 340,
+            border: `1px solid ${COLORS.border}`, fontFamily: "'Inter Tight', sans-serif",
+          }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
+              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8,
+            }}>STEEL IT</div>
+            <div style={{
+              fontSize: 20, fontWeight: 800, color: COLORS.text,
+              letterSpacing: '-0.02em', marginBottom: 4,
+            }}>{steelData.title}</div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim,
+              letterSpacing: '0.06em', marginBottom: 20,
+            }}>FROM {steelData.from?.toUpperCase()}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button onClick={handleSteelStart} style={{
-                width: '100%', padding: 14, borderRadius: 10, border: 'none', background: COLORS.accent,
-                color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 15,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>Start Workout Now</button>
+                width: '100%', padding: 13, borderRadius: 999, border: 'none',
+                background: COLORS.text, color: COLORS.bg,
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                fontFamily: "'Inter Tight', sans-serif", letterSpacing: '-0.01em',
+              }}>Start workout now</button>
               <button onClick={handleSteelSave} style={{
-                width: '100%', padding: 14, borderRadius: 10, border: `1px solid ${COLORS.border}`,
-                background: COLORS.bg, color: COLORS.text, fontWeight: 600, fontSize: 14,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>Save for Later</button>
+                width: '100%', padding: 13, borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: 'transparent',
+                color: COLORS.text, fontWeight: 600, fontSize: 13,
+                cursor: 'pointer', fontFamily: "'Inter Tight', sans-serif", letterSpacing: '-0.01em',
+              }}>Save for later</button>
               <button onClick={() => { setShowSteelPopup(false); setSteelData(null); }} style={{
-                width: '100%', padding: 10, borderRadius: 10, border: 'none', background: 'transparent',
-                color: COLORS.textDim, fontWeight: 500, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                width: '100%', padding: 10, border: 'none', background: 'transparent',
+                color: COLORS.textDim, fontSize: 12, cursor: 'pointer',
+                fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em',
+                textTransform: 'uppercase', fontWeight: 500,
               }}>Cancel</button>
             </div>
           </div>

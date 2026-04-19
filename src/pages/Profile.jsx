@@ -9,25 +9,22 @@ const TABS = ['Stats', 'Workouts', 'Progress', 'PRs', 'Body', 'Following'];
 
 function SubTab({ tabs, active, onChange }) {
   return (
-    <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${COLORS.border}`, marginBottom: 14 }}>
+    <div style={{
+      display: 'flex', gap: 0, borderBottom: `0.5px solid ${COLORS.border}`,
+      marginBottom: 16, overflowX: 'auto', scrollbarWidth: 'none',
+    }}>
       {tabs.map(t => (
         <button key={t} onClick={() => onChange(t)} style={{
-          flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-          fontFamily: 'inherit', background: 'transparent',
-          color: active === t ? COLORS.accent : COLORS.textDim,
-          borderBottom: active === t ? `2px solid ${COLORS.accent}` : '2px solid transparent', marginBottom: -1,
+          flex: 1, minWidth: 'fit-content', padding: '12px 10px', border: 'none', cursor: 'pointer',
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          background: 'transparent',
+          color: active === t ? COLORS.text : COLORS.textDim,
+          borderBottom: active === t ? `2px solid ${COLORS.text}` : '2px solid transparent',
+          marginBottom: -1, whiteSpace: 'nowrap',
         }}>{t}</button>
       ))}
     </div>
-  );
-}
-
-// SVG trophy for calendar (replaces emoji — fix #22)
-function CalendarTrophy({ size = 12 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#FACC15" stroke="#FACC15" strokeWidth="1">
-      <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22M18 2H6v7a6 6 0 0012 0V2z"/>
-    </svg>
   );
 }
 
@@ -45,16 +42,18 @@ function StatsView({ workouts, unit }) {
   const thisWeek = workouts.filter(w => new Date(w.created_at) > weekAgo);
   const weekVol = thisWeek.reduce((s, w) => s + (Number(w.total_volume) || 0), 0);
 
+  // Build workout map by date for calendar
   const workoutsByDate = {};
   workouts.forEach(w => {
-    const key = new Date(w.created_at).toLocaleDateString('en-CA');
+    const key = new Date(w.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD
     if (!workoutsByDate[key]) workoutsByDate[key] = [];
     workoutsByDate[key].push(w);
   });
 
+  // Calendar grid
   const { year, month } = calMonth;
   const firstDay = new Date(year, month, 1);
-  const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+  const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Monday start
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthName = firstDay.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const today = new Date().toLocaleDateString('en-CA');
@@ -66,17 +65,20 @@ function StatsView({ workouts, unit }) {
     setCalMonth(p => p.month === 11 ? { year: p.year + 1, month: 0 } : { year: p.year, month: p.month + 1 });
   };
 
+  // Workout count this month
   const monthWorkouts = workouts.filter(w => {
     const d = new Date(w.created_at);
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
+  // Selected day workouts
   const selectedWorkouts = selectedDay ? (workoutsByDate[selectedDay] || []) : [];
 
   return (
     <div>
       {/* Workout Calendar */}
       <div style={{ background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
+        {/* Month nav */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
             <Icon name="back" size={18} color={COLORS.textDim} />
@@ -90,14 +92,18 @@ function StatsView({ workouts, unit }) {
           </button>
         </div>
 
+        {/* Day headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
             <div key={i} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: COLORS.textDim, padding: 4 }}>{d}</div>
           ))}
         </div>
 
+        {/* Calendar grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+          {/* Empty cells before month starts */}
           {Array.from({ length: startDay }).map((_, i) => <div key={`e-${i}`} />)}
+          {/* Day cells */}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
             const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -129,17 +135,22 @@ function StatsView({ workouts, unit }) {
                     ? hasPr ? COLORS.pro : COLORS.accent
                     : isToday ? COLORS.accent : COLORS.textDim,
                 }}>{day}</span>
+                {/* Green tick for workout days */}
                 {hasWorkout && !hasPr && (
-                  <span style={{ position: 'absolute', top: 0, right: 0, fontSize: 9, lineHeight: 1, color: COLORS.accent }}>
-                    <Icon name="check" size={8} color={COLORS.accent} />
-                  </span>
+                  <span style={{
+                    position: 'absolute', top: 0, right: 0, fontSize: 9, lineHeight: 1,
+                    color: COLORS.accent,
+                  }}>✓</span>
                 )}
-                {/* FIX #22: SVG trophy instead of emoji */}
+                {/* Gold trophy for PR days */}
                 {hasPr && (
-                  <span style={{ position: 'absolute', top: -1, right: -1, lineHeight: 1 }}>
-                    <CalendarTrophy size={12} />
+                  <span style={{
+                    position: 'absolute', top: -1, right: -1, lineHeight: 1,
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#FACC15" stroke="#FACC15" strokeWidth="1"><path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22M18 2H6v7a6 6 0 0012 0V2z"/></svg>
                   </span>
                 )}
+                {/* Multi-workout badge */}
                 {count > 1 && (
                   <span style={{
                     position: 'absolute', bottom: 0, right: 0, fontSize: 7, fontWeight: 800,
@@ -165,7 +176,9 @@ function StatsView({ workouts, unit }) {
               <div key={w.id} style={{ padding: '8px 0', borderBottom: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: COLORS.text }}>{w.title}</span>
-                  {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                   {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.duration_mins}m</span>}
@@ -180,8 +193,6 @@ function StatsView({ workouts, unit }) {
           })}
         </div>
       )}
-
-      {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
         {[
           { icon: 'weight', v: total, l: 'Workouts' },
@@ -198,7 +209,6 @@ function StatsView({ workouts, unit }) {
           </div>
         ))}
       </div>
-
       <div style={{ background: `${COLORS.accent}10`, borderRadius: 12, padding: 16, border: `1px solid ${COLORS.accent}25` }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accent, marginBottom: 8 }}>This Week</div>
         <div style={{ display: 'flex', justifyContent: 'space-around' }}>
@@ -218,9 +228,11 @@ function StatsView({ workouts, unit }) {
   );
 }
 
+// ── Progress Graphs ──
 function ProgressView({ workouts, unit }) {
   const [selectedExercise, setSelectedExercise] = useState(null);
 
+  // Build exercise history from all workouts
   const exerciseHistory = {};
   workouts.forEach(w => {
     (w.workout_exercises || []).forEach(we => {
@@ -235,10 +247,12 @@ function ProgressView({ workouts, unit }) {
     });
   });
 
+  // Sort by most frequently done
   const exerciseNames = Object.keys(exerciseHistory).sort((a, b) => exerciseHistory[b].length - exerciseHistory[a].length);
   const active = selectedExercise || exerciseNames[0];
   const data = (exerciseHistory[active] || []).sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  // Muscle group heatmap
   const muscleCount = {};
   const weekAgo = new Date(Date.now() - 7 * 86400000);
   workouts.filter(w => new Date(w.created_at) > weekAgo).forEach(w => {
@@ -250,6 +264,7 @@ function ProgressView({ workouts, unit }) {
 
   if (exerciseNames.length === 0) return <EmptyState icon="weight" title="No data yet" subtitle="Complete some workouts to see your progress" />;
 
+  // Simple SVG line chart
   const chartW = 320, chartH = 140, padL = 40, padR = 10, padT = 10, padB = 24;
   const drawW = chartW - padL - padR, drawH = chartH - padT - padB;
 
@@ -266,6 +281,7 @@ function ProgressView({ workouts, unit }) {
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDim, marginBottom: 4 }}>{label}</div>
         <svg width={chartW} height={chartH} style={{ maxWidth: '100%' }}>
+          {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map(p => {
             const y = padT + drawH - p * drawH;
             const val = Math.round(minV + p * range);
@@ -276,12 +292,15 @@ function ProgressView({ workouts, unit }) {
               </g>
             );
           })}
+          {/* Line */}
           <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Dots */}
           {values.map((v, i) => {
             const x = padL + (i / (values.length - 1)) * drawW;
             const y = padT + drawH - ((v - minV) / range) * drawH;
             return <circle key={i} cx={x} cy={y} r="3" fill={color} />;
           })}
+          {/* Date labels */}
           {data.filter((_, i) => i === 0 || i === data.length - 1).map((d, i) => {
             const idx = i === 0 ? 0 : data.length - 1;
             const x = padL + (idx / (data.length - 1)) * drawW;
@@ -294,6 +313,7 @@ function ProgressView({ workouts, unit }) {
 
   return (
     <div>
+      {/* Muscle group heatmap */}
       {Object.keys(muscleCount).length > 0 && (
         <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>This Week's Muscle Groups</div>
@@ -313,6 +333,7 @@ function ProgressView({ workouts, unit }) {
         </div>
       )}
 
+      {/* Exercise selector */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDim, marginBottom: 6 }}>EXERCISE</div>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
@@ -327,6 +348,7 @@ function ProgressView({ workouts, unit }) {
         </div>
       </div>
 
+      {/* Charts */}
       {data.length > 0 && (
         <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, border: `1px solid ${COLORS.border}` }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>{active}</div>
@@ -340,6 +362,7 @@ function ProgressView({ workouts, unit }) {
   );
 }
 
+// ── CSV Export ──
 function exportWorkoutsCSV(workouts, unit) {
   const rows = [['Date', 'Workout', 'Exercise', 'Set', 'Weight (' + unit + ')', 'Reps', 'Est 1RM', 'PR']];
   workouts.forEach(w => {
@@ -366,7 +389,7 @@ function exportWorkoutsCSV(workouts, unit) {
 }
 
 function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle }) {
-  const [menuOpen, setMenuOpen] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(null); // workout id
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -429,6 +452,7 @@ function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle }
         );
       })}
 
+      {/* Delete confirmation */}
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}` }}>
@@ -581,7 +605,7 @@ export default function Profile({ onViewProfile }) {
   const loadData = async () => {
     setLoading(true);
     const { data: wks } = await supabase.from('workouts')
-      .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr))')
+      .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, set_number, weight, reps, is_pr))')
       .eq('user_id', user.id).order('created_at', { ascending: false });
     if (wks) setWorkouts(wks);
     const { count: fc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id);
@@ -591,17 +615,15 @@ export default function Profile({ onViewProfile }) {
     setLoading(false);
   };
 
-  // FIX #21: Profile photo upload — fixed async timing with proper await chains
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setUploading(true);
     try {
-      // Try Supabase Storage first
+      // Upload to Supabase Storage
       const ext = file.name.split('.').pop();
       const path = `avatars/${user.id}_${Date.now()}.${ext}`;
       const { error: uploadErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-
       if (!uploadErr) {
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
         if (urlData?.publicUrl) {
@@ -610,30 +632,17 @@ export default function Profile({ onViewProfile }) {
           return;
         }
       }
-
-      // Fallback: convert to base64 with proper promise handling
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target.result);
-        reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(file);
-      });
-
-      // Resize via canvas
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = dataUrl;
-      });
-
+      // Fallback: convert to base64
+      const reader = new FileReader();
+      const dataUrl = await new Promise((res, rej) => { reader.onload = (ev) => res(ev.target.result); reader.onerror = rej; reader.readAsDataURL(file); });
       const canvas = document.createElement('canvas');
+      const img = new Image();
+      await new Promise((res) => { img.onload = res; img.src = dataUrl; });
       canvas.width = 200;
       canvas.height = 200;
       const ctx = canvas.getContext('2d');
       const size = Math.min(img.width, img.height);
-      const sx = (img.width - size) / 2;
-      const sy = (img.height - size) / 2;
+      const sx = (img.width - size) / 2, sy = (img.height - size) / 2;
       ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
       const small = canvas.toDataURL('image/jpeg', 0.7);
       await updateProfile({ avatar_url: small });
@@ -653,6 +662,7 @@ export default function Profile({ onViewProfile }) {
       {/* Profile header */}
       <div style={{ background: COLORS.card, borderRadius: 16, padding: 20, marginBottom: 14, border: `1px solid ${COLORS.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Avatar with photo upload */}
           <div style={{ position: 'relative' }}>
             <Avatar
               initials={getInitials(profile.display_name)}
@@ -662,34 +672,85 @@ export default function Profile({ onViewProfile }) {
             />
             <label style={{
               position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: 12,
-              background: COLORS.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: COLORS.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', border: `2px solid ${COLORS.card}`,
             }}>
-              <Icon name="plus" size={14} color={COLORS.isDark ? COLORS.bg : '#fff'} />
+              <Icon name="plus" size={14} color={COLORS.bg} />
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             </label>
             {uploading && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text }}>{profile.display_name}</div>
-            <div style={{ fontSize: 13, color: COLORS.textDim }}>@{profile.username}</div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              {profile.sport && <Badge color={COLORS.orange}>{profile.sport}</Badge>}
-              {profile.gym && <Badge><Icon name="pin" size={10} color={COLORS.orange} /> {profile.gym}</Badge>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text, letterSpacing: '-0.02em' }}>
+              {profile.display_name}
             </div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim,
+              marginTop: 3, letterSpacing: '0.04em',
+            }}>@{profile.username}</div>
+            {(profile.sport || profile.gym) && (
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
+                marginTop: 8, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
+              }}>
+                {[profile.sport, profile.gym].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button onClick={() => setEditing(true)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: COLORS.textDim, fontFamily: 'inherit', fontWeight: 600 }}>Edit</button>
-            <button onClick={() => setShowSettings(!showSettings)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-              <Icon name="settings" size={20} color={COLORS.textDim} />
+            <button onClick={() => setEditing(true)} style={{
+              background: 'transparent', border: `1px solid ${COLORS.border}`, borderRadius: 999,
+              padding: '7px 14px', cursor: 'pointer',
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.text,
+              letterSpacing: '0.1em', fontWeight: 500, textTransform: 'uppercase',
+            }}>Edit</button>
+            <button onClick={() => setShowSettings(!showSettings)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+              display: 'flex', justifyContent: 'center',
+            }}>
+              <Icon name="settings" size={18} color={COLORS.textDim} />
             </button>
           </div>
         </div>
-        {profile.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 12, lineHeight: 1.4 }}>{profile.bio}</div>}
-        <div style={{ display: 'flex', gap: 20, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${COLORS.border}` }}>
-          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer' }}><span style={{ fontWeight: 700, color: COLORS.text }}>{followerCount}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Followers</span></div>
-          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer' }}><span style={{ fontWeight: 700, color: COLORS.text }}>{followingCount}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Following</span></div>
-          <div><span style={{ fontWeight: 700, color: COLORS.accent }}><Icon name="fire" size={14} color={COLORS.accent} /> {streak}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Weeks</span></div>
+        {profile.bio && (
+          <div style={{
+            fontSize: 13, color: COLORS.text, marginTop: 14, lineHeight: 1.45,
+          }}>{profile.bio}</div>
+        )}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6,
+          marginTop: 16, paddingTop: 14, borderTop: `0.5px solid ${COLORS.border}`,
+        }}>
+          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer', textAlign: 'center' }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700,
+              color: COLORS.text, letterSpacing: '-0.03em',
+            }}>{followerCount}</div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim,
+              letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
+            }}>Followers</div>
+          </div>
+          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer', textAlign: 'center' }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700,
+              color: COLORS.text, letterSpacing: '-0.03em',
+            }}>{followingCount}</div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim,
+              letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
+            }}>Following</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700,
+              color: COLORS.text, letterSpacing: '-0.03em',
+            }}>{streak}</div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim,
+              letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
+            }}>Week streak</div>
+          </div>
         </div>
       </div>
 
@@ -697,9 +758,11 @@ export default function Profile({ onViewProfile }) {
       {showSettings && (
         <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14, border: `1px solid ${COLORS.border}` }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>Settings</div>
+
           <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 10 }}>
             Weights in: <strong style={{ color: COLORS.text }}>{unit === 'lbs' ? 'Pounds' : 'Kilograms'}</strong>
           </div>
+
           {workouts.length > 0 && (
             <button onClick={() => exportWorkoutsCSV(workouts, unit)} style={{
               width: '100%', padding: 12, borderRadius: 10, border: `1px solid ${COLORS.border}`,
@@ -707,9 +770,11 @@ export default function Profile({ onViewProfile }) {
               fontWeight: 600, fontFamily: 'inherit', marginBottom: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
-              <Icon name="settings" size={16} color={COLORS.textDim} /> Download My Data (CSV)
+              <Icon name="settings" size={16} color={COLORS.textDim} />
+              Download My Data (CSV)
             </button>
           )}
+
           <button onClick={async () => { await supabase.auth.signOut(); }} style={{
             width: '100%', padding: 12, borderRadius: 10, border: `1px solid #FF525233`,
             background: '#FF525210', color: '#FF5252', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
@@ -734,6 +799,7 @@ export default function Profile({ onViewProfile }) {
               setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, title: newTitle.trim() } : w));
             }}
             onDelete={async (workoutId) => {
+              // Delete sets, workout_exercises, then workout (cascade should handle it but be safe)
               await supabase.from('workouts').delete().eq('id', workoutId);
               setWorkouts(prev => prev.filter(w => w.id !== workoutId));
             }}

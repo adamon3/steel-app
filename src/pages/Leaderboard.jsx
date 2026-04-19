@@ -3,9 +3,14 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Avatar, Icon, Spinner, EmptyState, getInitials, convertWeight } from '../components/UI';
 
+const FONTS = {
+  sans: "'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif",
+  mono: "'JetBrains Mono', 'SF Mono', Menlo, monospace",
+};
+
 const MAIN_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Romanian Deadlift', 'Pull-ups', 'Leg Press', 'Hip Thrust'];
-const TIME_FILTERS = ['All Time', 'This Month', 'This Week'];
-const RANK_MODES = ['Est. 1RM', 'Heaviest Set'];
+const TIME_FILTERS = ['All time', 'This month', 'This week'];
+const RANK_MODES = ['Est. 1RM', 'Top set'];
 
 function estimate1RM(weight, reps) {
   if (reps <= 0 || weight <= 0) return 0;
@@ -17,7 +22,7 @@ export default function Leaderboard({ onViewProfile }) {
   const { user, profile } = useStore();
   const [gym, setGym] = useState(profile?.gym || '');
   const [exercise, setExercise] = useState('Bench Press');
-  const [timeFilter, setTimeFilter] = useState('All Time');
+  const [timeFilter, setTimeFilter] = useState('All time');
   const [rankMode, setRankMode] = useState('Est. 1RM');
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,14 +46,14 @@ export default function Leaderboard({ onViewProfile }) {
   const fetchLeaderboard = async () => {
     setLoading(true);
     const { data: gymProfiles } = await supabase
-      .from('profiles').select('id, display_name, username, sport, show_leaderboard').eq('gym', gym);
+      .from('profiles').select('id, display_name, username, sport, show_leaderboard, avatar_url').eq('gym', gym);
     if (!gymProfiles || gymProfiles.length === 0) { setEntries([]); setLoading(false); return; }
 
     const visibleProfiles = gymProfiles.filter(p => p.show_leaderboard !== false);
     let dateFilter = null;
-    if (timeFilter === 'This Month') {
+    if (timeFilter === 'This month') {
       const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); dateFilter = d.toISOString();
-    } else if (timeFilter === 'This Week') {
+    } else if (timeFilter === 'This week') {
       const d = new Date(); const day = d.getDay();
       d.setDate(d.getDate() - day + (day === 0 ? -6 : 1)); d.setHours(0,0,0,0); dateFilter = d.toISOString();
     }
@@ -90,99 +95,128 @@ export default function Leaderboard({ onViewProfile }) {
     setLoading(false);
   };
 
-  const medals = ['', '', ''];
   const myRank = entries.findIndex(e => e.isMe) + 1;
 
   return (
-    <div>
-      {/* Explainer */}
-      <div style={{
-        background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14,
-        border: `1px solid ${COLORS.border}`,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="trophy" size={20} color={COLORS.pro} />
-            <span style={{ fontWeight: 700, fontSize: 16, color: COLORS.text }}>Gym Leaderboard</span>
-          </div>
-          <button onClick={() => setShowExplainer(!showExplainer)} style={{
-            background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-            padding: '4px 8px', cursor: 'pointer', fontSize: 11, color: COLORS.textDim, fontFamily: 'inherit',
-          }}>{showExplainer ? 'Hide' : 'How it works'}</button>
-        </div>
-        {showExplainer && (
-          <div style={{ marginTop: 12, fontSize: 13, color: COLORS.textDim, lineHeight: 1.6 }}>
-            <p style={{ margin: '0 0 8px' }}>Leaderboards rank athletes at each gym by their best lifts. Pick an exercise to see who's on top.</p>
-            <p style={{ margin: '0 0 8px' }}><strong style={{ color: COLORS.text }}>Est. 1RM</strong> calculates your estimated one-rep max from any set using the Epley formula: weight x (1 + reps/30). A 100kg x 5 = 117kg estimated 1RM.</p>
-            <p style={{ margin: '0 0 8px' }}><strong style={{ color: COLORS.text }}>Heaviest Set</strong> ranks by the heaviest single weight lifted regardless of reps.</p>
-            <p style={{ margin: 0 }}>You can opt out of leaderboards in your profile settings. Only public workouts count.</p>
-          </div>
-        )}
+    <div style={{ fontFamily: FONTS.sans }}>
+      {/* Heading */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        <h1 style={{
+          fontSize: 22, fontWeight: 800, color: COLORS.text,
+          letterSpacing: '-0.02em', margin: 0,
+        }}>Leaderboard</h1>
+        <button onClick={() => setShowExplainer(!showExplainer)} style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+          letterSpacing: '0.1em', fontWeight: 500, textTransform: 'uppercase',
+        }}>
+          {showExplainer ? 'Hide' : 'How it works'}
+        </button>
       </div>
 
+      {showExplainer && (
+        <div style={{
+          background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 14,
+          border: `1px solid ${COLORS.border}`,
+          fontSize: 13, color: COLORS.textDim, lineHeight: 1.6,
+        }}>
+          <p style={{ margin: '0 0 8px' }}>Rankings by best lift at each gym. Pick an exercise to see who's on top.</p>
+          <p style={{ margin: '0 0 8px' }}><strong style={{ color: COLORS.text }}>Est. 1RM</strong> — one-rep max from any set via Epley: weight × (1 + reps/30).</p>
+          <p style={{ margin: '0 0 8px' }}><strong style={{ color: COLORS.text }}>Top set</strong> — heaviest single weight lifted, regardless of reps.</p>
+          <p style={{ margin: 0 }}>Opt out in profile settings. Only public workouts count.</p>
+        </div>
+      )}
+
       {/* Gym selector */}
-      <select value={gym} onChange={e => setGym(e.target.value)} style={{
-        width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${COLORS.border}`,
-        background: COLORS.card, color: COLORS.text, fontSize: 14, fontFamily: 'inherit',
-        outline: 'none', appearance: 'none', marginBottom: 12,
-      }}>
-        {availableGyms.map(g => <option key={g} value={g}>{g}</option>)}
-      </select>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{
+          fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+          letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase',
+          marginBottom: 6,
+        }}>Gym</div>
+        <select value={gym} onChange={e => setGym(e.target.value)} style={{
+          width: '100%', padding: '11px 14px', borderRadius: 10,
+          border: `1px solid ${COLORS.border}`, background: COLORS.card,
+          color: COLORS.text, fontSize: 14, fontFamily: FONTS.sans,
+          outline: 'none', appearance: 'none', cursor: 'pointer',
+        }}>
+          {availableGyms.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
 
       {/* Exercise pills */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
         {MAIN_LIFTS.map(ex => (
           <button key={ex} onClick={() => setExercise(ex)} style={{
-            padding: '7px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
-            fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
-            background: exercise === ex ? COLORS.accent : COLORS.card,
-            color: exercise === ex ? COLORS.bg : COLORS.textDim,
+            padding: '7px 14px', borderRadius: 999,
+            border: `1px solid ${exercise === ex ? COLORS.text : COLORS.border}`,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+            fontSize: 12, fontWeight: 600, fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+            background: exercise === ex ? COLORS.text : 'transparent',
+            color: exercise === ex ? COLORS.bg : COLORS.text,
           }}>{ex}</button>
         ))}
       </div>
 
-      {/* Time + mode filters */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         {TIME_FILTERS.map(t => (
           <button key={t} onClick={() => setTimeFilter(t)} style={{
             flex: 1, padding: '7px 4px', borderRadius: 8,
-            border: `1px solid ${timeFilter === t ? COLORS.accent : COLORS.border}`,
-            cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-            background: timeFilter === t ? `${COLORS.accent}15` : 'transparent',
-            color: timeFilter === t ? COLORS.accent : COLORS.textDim,
+            border: `1px solid ${timeFilter === t ? COLORS.text : COLORS.border}`,
+            cursor: 'pointer',
+            fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            background: timeFilter === t ? COLORS.card2 : 'transparent',
+            color: timeFilter === t ? COLORS.text : COLORS.textDim,
           }}>{t}</button>
         ))}
-        <div style={{ width: 1, background: COLORS.border }} />
+        <div style={{ width: 1, background: COLORS.border, margin: '0 4px' }} />
         {RANK_MODES.map(m => (
           <button key={m} onClick={() => setRankMode(m)} style={{
             flex: 1, padding: '7px 4px', borderRadius: 8,
-            border: `1px solid ${rankMode === m ? COLORS.orange : COLORS.border}`,
-            cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
-            background: rankMode === m ? `${COLORS.orange}15` : 'transparent',
-            color: rankMode === m ? COLORS.orange : COLORS.textDim,
+            border: `1px solid ${rankMode === m ? COLORS.text : COLORS.border}`,
+            cursor: 'pointer',
+            fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            background: rankMode === m ? COLORS.card2 : 'transparent',
+            color: rankMode === m ? COLORS.text : COLORS.textDim,
           }}>{m}</button>
         ))}
       </div>
 
-      {/* My rank */}
-      {myRank > 0 && (
+      {/* My rank callout */}
+      {myRank > 0 && entries[myRank - 1] && (
         <div style={{
-          background: `${COLORS.accent}10`, borderRadius: 12, padding: '12px 16px',
-          border: `1px solid ${COLORS.accent}25`, marginBottom: 14,
+          background: COLORS.text, color: COLORS.bg,
+          borderRadius: 12, padding: '14px 16px', marginBottom: 14,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>Your rank</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.accent }}>
-              #{myRank} <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.textDim }}>of {entries.length}</span>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 9, color: COLORS.bg, opacity: 0.6,
+              letterSpacing: '0.14em', fontWeight: 500,
+            }}>YOUR RANK</div>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 28, fontWeight: 700,
+              color: COLORS.bg, letterSpacing: '-0.03em', lineHeight: 1,
+            }}>
+              #{myRank}<span style={{ fontSize: 14, opacity: 0.6, fontWeight: 500 }}> / {entries.length}</span>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>
-              {convertWeight(rankMode === 'Est. 1RM' ? entries[myRank - 1].est1RM : entries[myRank - 1].bestWeight, unit)} {unit}
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 22, fontWeight: 700,
+              color: COLORS.bg, letterSpacing: '-0.03em',
+            }}>
+              {convertWeight(rankMode === 'Est. 1RM' ? entries[myRank - 1].est1RM : entries[myRank - 1].bestWeight, unit)}
+              <span style={{ fontSize: 11, opacity: 0.6, fontWeight: 500, marginLeft: 3 }}>{unit}</span>
             </div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>
-              {entries[myRank - 1].bestWeight}{unit} x{entries[myRank - 1].bestReps}
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 10, color: COLORS.bg, opacity: 0.6,
+              letterSpacing: '0.04em', marginTop: 2,
+            }}>
+              {entries[myRank - 1].bestWeight} × {entries[myRank - 1].bestReps}
             </div>
           </div>
         </div>
@@ -190,36 +224,71 @@ export default function Leaderboard({ onViewProfile }) {
 
       {/* Table */}
       {loading ? <Spinner /> : entries.length === 0 ? (
-        <EmptyState icon="trophy" title={`No ${exercise} records`} subtitle={`No one at ${gym} has logged ${exercise} yet`} />
+        <EmptyState icon="trophy" title={`No ${exercise} records`}
+          subtitle={`No one at ${gym} has logged ${exercise} yet`} />
       ) : (
-        <div style={{ background: COLORS.card, borderRadius: 14, overflow: 'hidden', border: `1px solid ${COLORS.border}` }}>
-          {entries.map((entry, i) => (
-            <div key={entry.profile.id} onClick={() => onViewProfile(entry.profile.id)} style={{
-              display: 'flex', gap: 8, alignItems: 'center', padding: '12px 14px',
-              borderBottom: i < entries.length - 1 ? `1px solid ${COLORS.border}` : 'none',
-              cursor: 'pointer', background: entry.isMe ? `${COLORS.accent}08` : 'transparent',
-            }}>
-              <span style={{
-                width: 28, textAlign: 'center', fontWeight: 800, fontSize: i < 3 ? 15 : 13,
-                color: i === 0 ? COLORS.pro : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : COLORS.textDim,
-              }}>{i + 1}</span>
-              <Avatar initials={getInitials(entry.profile.display_name)} size={34} colorIndex={entry.profile.id?.charCodeAt(0) || 0} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: entry.isMe ? 700 : 600, color: entry.isMe ? COLORS.accent : COLORS.text }}>
-                  {entry.profile.display_name}{entry.isMe ? ' (You)' : ''}
+        <div style={{
+          background: COLORS.card, borderRadius: 12,
+          border: `1px solid ${COLORS.border}`, overflow: 'hidden',
+        }}>
+          {entries.map((entry, i) => {
+            const rank = i + 1;
+            const isPodium = rank <= 3;
+            return (
+              <div key={entry.profile.id} onClick={() => onViewProfile(entry.profile.id)} style={{
+                display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 10, alignItems: 'center',
+                padding: '12px 14px',
+                borderBottom: i < entries.length - 1 ? `0.5px solid ${COLORS.border}` : 'none',
+                cursor: 'pointer',
+                background: entry.isMe ? COLORS.card2 : 'transparent',
+              }}>
+                <span style={{
+                  fontFamily: FONTS.mono, fontSize: isPodium ? 18 : 14,
+                  fontWeight: 700, color: COLORS.text,
+                  letterSpacing: '-0.03em', textAlign: 'center',
+                }}>{rank}</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <Avatar
+                    initials={getInitials(entry.profile.display_name)}
+                    size={32}
+                    colorIndex={entry.profile.id?.charCodeAt(0) || 0}
+                    src={entry.profile.avatar_url}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: entry.isMe ? 700 : 600, color: COLORS.text,
+                      letterSpacing: '-0.01em',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {entry.profile.display_name}{entry.isMe ? ' · You' : ''}
+                    </div>
+                    <div style={{
+                      fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                      letterSpacing: '0.04em', marginTop: 2,
+                    }}>
+                      {convertWeight(entry.bestWeight, unit)} × {entry.bestReps}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: COLORS.textDim }}>
-                  {convertWeight(entry.bestWeight, unit)}{unit} x{entry.bestReps}
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 16, fontWeight: 700,
+                    color: COLORS.text, letterSpacing: '-0.02em',
+                  }}>
+                    {convertWeight(rankMode === 'Est. 1RM' ? entry.est1RM : entry.bestWeight, unit)}
+                  </div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2,
+                  }}>
+                    {rankMode === 'Est. 1RM' ? `est 1rm ${unit}` : unit}
+                  </div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: i === 0 ? COLORS.pro : COLORS.text }}>
-                  {convertWeight(rankMode === 'Est. 1RM' ? entry.est1RM : entry.bestWeight, unit)}
-                </div>
-                <div style={{ fontSize: 10, color: COLORS.textDim }}>{rankMode === 'Est. 1RM' ? 'est 1RM' : unit}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

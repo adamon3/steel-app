@@ -1,26 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Button, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+import { COLORS, Avatar, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
 
-// Local SVG icons for this page (no emojis)
-function PinIcon({ size = 14, color }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>;
-}
-function TrophyIcon({ size = 14, color }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>;
-}
-function ClockIcon({ size = 14, color }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
-}
-function WeightIcon({ size = 14, color }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="9" width="4" height="6" rx="1"/><rect x="18" y="9" width="4" height="6" rx="1"/><rect x="6" y="7" width="3" height="10" rx="1"/><rect x="15" y="7" width="3" height="10" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></svg>;
-}
-function ListIcon({ size = 14, color }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
-}
-function SearchIcon({ size = 14, color }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const FONTS = {
+  sans: "'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif",
+  mono: "'JetBrains Mono', 'SF Mono', Menlo, monospace",
+};
+
+function Stat({ label, value, suffix }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{
+        fontFamily: FONTS.mono, fontSize: 20, fontWeight: 700,
+        color: COLORS.text, letterSpacing: '-0.03em',
+      }}>
+        {value}{suffix && <span style={{ color: COLORS.textDim, fontSize: 12, fontWeight: 500 }}>{suffix}</span>}
+      </div>
+      <div style={{
+        fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+        letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
+      }}>{label}</div>
+    </div>
+  );
 }
 
 export default function UserProfile({ userId, onBack, onSteel }) {
@@ -33,9 +35,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
   const [loading, setLoading] = useState(true);
   const unit = myProfile?.unit_pref || 'kg';
 
-  useEffect(() => {
-    if (userId) loadProfile();
-  }, [userId]);
+  useEffect(() => { if (userId) loadProfile(); }, [userId]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -43,13 +43,10 @@ export default function UserProfile({ userId, onBack, onSteel }) {
       const { data: p } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (p) setAthlete(p);
 
-      const { data: wks } = await supabase
-        .from('workouts')
+      const { data: wks } = await supabase.from('workouts')
         .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, set_number, weight, reps, is_pr))')
-        .eq('user_id', userId)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .eq('user_id', userId).eq('is_public', true)
+        .order('created_at', { ascending: false }).limit(10);
       if (wks) setWorkouts(wks);
 
       if (user) {
@@ -62,7 +59,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
       const { count: fgc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId);
       setFollowerCount(fc || 0);
       setFollowingCount(fgc || 0);
-    } catch (e) { console.error('UserProfile load error:', e); }
+    } catch (e) { console.error(e); }
     setLoading(false);
   };
 
@@ -93,17 +90,19 @@ export default function UserProfile({ userId, onBack, onSteel }) {
   const isMe = user?.id === userId;
   const totalWorkouts = workouts.length;
   const totalVolume = workouts.reduce((sum, w) => sum + (Number(w.total_volume) || 0), 0);
+  const volDisp = totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) : String(Math.round(totalVolume));
+  const volSuffix = totalVolume >= 1000 ? ' k' : '';
 
   return (
-    <div>
-      {/* Back button — no emoji, text arrow */}
+    <div style={{ fontFamily: FONTS.sans }}>
+      {/* Back */}
       <button onClick={onBack} style={{
-        background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.textDim,
-        cursor: 'pointer', fontSize: 13, padding: '7px 14px', borderRadius: 8,
-        fontFamily: 'inherit', fontWeight: 600, marginBottom: 12,
-        display: 'flex', alignItems: 'center', gap: 4,
+        background: 'none', border: 'none', color: COLORS.text,
+        cursor: 'pointer', padding: '4px 0', fontFamily: FONTS.sans,
+        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14,
+        fontSize: 13, fontWeight: 600,
       }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLORS.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <Icon name="back" size={16} color={COLORS.text} />
         Back
       </button>
 
@@ -112,121 +111,151 @@ export default function UserProfile({ userId, onBack, onSteel }) {
         background: COLORS.card, borderRadius: 16, padding: 20, marginBottom: 16,
         border: `1px solid ${COLORS.border}`, textAlign: 'center',
       }}>
-        <Avatar initials={getInitials(athlete.display_name)} size={72} colorIndex={athlete.id?.charCodeAt(0) || 0} />
-        <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text, marginTop: 10 }}>{athlete.display_name}</div>
-        <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>@{athlete.username}</div>
+        <Avatar
+          initials={getInitials(athlete.display_name)}
+          size={76}
+          colorIndex={athlete.id?.charCodeAt(0) || 0}
+          src={athlete.avatar_url || null}
+        />
+        <div style={{
+          fontSize: 22, fontWeight: 800, color: COLORS.text,
+          letterSpacing: '-0.02em', marginTop: 12,
+        }}>{athlete.display_name}</div>
+        <div style={{
+          fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
+          marginTop: 2, letterSpacing: '0.04em',
+        }}>@{athlete.username}</div>
 
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
-          {athlete.sport && <Badge color={COLORS.orange}>{athlete.sport}</Badge>}
-          {athlete.gym && (
-            <Badge>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                <PinIcon size={10} color={COLORS.orange} /> {athlete.gym}
-              </span>
-            </Badge>
-          )}
+        {(athlete.sport || athlete.gym) && (
+          <div style={{
+            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+            letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
+            marginTop: 10,
+          }}>
+            {[athlete.sport, athlete.gym].filter(Boolean).join(' · ')}
+          </div>
+        )}
+
+        {athlete.bio && (
+          <div style={{
+            fontSize: 13, color: COLORS.text, marginTop: 12, lineHeight: 1.45,
+            maxWidth: 300, margin: '12px auto 0',
+          }}>
+            {athlete.bio}
+          </div>
+        )}
+
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 20,
+          paddingTop: 16, borderTop: `0.5px solid ${COLORS.border}`,
+        }}>
+          <Stat label="Followers" value={followerCount} />
+          <Stat label="Following" value={followingCount} />
+          <Stat label="Workouts" value={totalWorkouts} />
+          <Stat label={`Total ${unit}`} value={volDisp} suffix={volSuffix} />
         </div>
 
-        {athlete.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 10, lineHeight: 1.4 }}>{athlete.bio}</div>}
-
-        {/* Stats */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 16 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text }}>{followerCount}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>Followers</div>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text }}>{followingCount}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>Following</div>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text }}>{totalWorkouts}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>Workouts</div>
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.accent }}>{formatVolume(totalVolume)}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>Total kg</div>
-          </div>
-        </div>
-
-        {/* Follow button — text only, no emoji */}
         {!isMe && (
           <button onClick={handleFollow} style={{
-            marginTop: 16, padding: '10px 32px', borderRadius: 10, fontWeight: 700,
-            fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
-            background: isFollowing ? 'transparent' : COLORS.accent,
-            color: isFollowing ? COLORS.accent : COLORS.bg,
-            border: isFollowing ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+            marginTop: 18, padding: '11px 36px', borderRadius: 999,
+            fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+            background: isFollowing ? 'transparent' : COLORS.text,
+            color: isFollowing ? COLORS.text : COLORS.bg,
+            border: `1px solid ${COLORS.text}`,
           }}>{isFollowing ? 'Following' : 'Follow'}</button>
         )}
       </div>
 
       {/* Workouts */}
-      <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Recent Workouts</div>
+      <div style={{
+        fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+        letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase',
+        marginBottom: 10,
+      }}>Recent workouts</div>
 
       {workouts.length === 0 ? (
-        <EmptyState icon="weight" title="No workouts yet" subtitle={`${athlete.display_name} hasn't logged any workouts`} />
+        <EmptyState icon="weight" title="No workouts yet"
+          subtitle={`${athlete.display_name} hasn't logged any workouts`} />
       ) : (
         workouts.map(w => {
           const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+          const vol = convertWeight(w.total_volume, unit);
+          const volStr = vol >= 1000 ? `${(vol / 1000).toFixed(1)}k` : String(Math.round(vol));
           return (
             <div key={w.id} style={{
               background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10,
               border: `1px solid ${COLORS.border}`,
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</div>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(w.created_at)}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{
+                    fontSize: 16, fontWeight: 700, color: COLORS.text, letterSpacing: '-0.01em',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{w.title}</div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                    fontWeight: 500, letterSpacing: '0.08em', marginTop: 2, textTransform: 'uppercase',
+                  }}>
+                    {timeAgo(w.created_at).toUpperCase()}
+                    {w.duration_mins > 0 && ` · ${w.duration_mins} MIN`}
+                    {` · ${volStr} ${unit.toUpperCase()}`}
+                    {` · ${w.total_sets} SETS`}
+                  </div>
                 </div>
-                {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
-              </div>
-
-              {/* Stats — icons instead of emojis */}
-              <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                {w.duration_mins > 0 && (
-                  <span style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <ClockIcon size={12} color={COLORS.textDim} /> {w.duration_mins} min
-                  </span>
+                {w.has_pr && (
+                  <span style={{
+                    background: '#BFE600', color: '#0A0A0A',
+                    fontSize: 9, fontWeight: 700, padding: '3px 7px',
+                    borderRadius: 4, letterSpacing: '0.05em', flexShrink: 0, marginLeft: 8,
+                  }}>PR</span>
                 )}
-                <span style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <WeightIcon size={12} color={COLORS.textDim} /> {formatVolume(convertWeight(w.total_volume, unit))} {unit}
-                </span>
-                <span style={{ fontSize: 12, color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <ListIcon size={12} color={COLORS.textDim} /> {w.total_sets} sets
-                </span>
               </div>
 
-              {/* Exercise list */}
-              <div style={{ background: `${COLORS.bg}88`, borderRadius: 8, padding: 8, marginBottom: 10 }}>
+              <div>
                 {exercises.slice(0, 4).map((we, i) => {
                   const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
-                  const topWeight = Math.max(...sets.map(s => s.weight), 0);
-                  const topSet = sets.find(s => s.weight === topWeight);
+                  const topW = Math.max(...sets.map(s => s.weight), 0);
+                  const topSet = sets.find(s => s.weight === topW);
                   return (
                     <div key={we.id} style={{
-                      display: 'flex', justifyContent: 'space-between', padding: '4px 4px',
-                      borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid ${COLORS.border}` : 'none',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: i < Math.min(exercises.length, 4) - 1
+                        ? `0.5px solid ${COLORS.border}` : 'none',
                     }}>
-                      <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{we.exercises?.name}</span>
-                      <span style={{ fontSize: 12, color: COLORS.textDim }}>
-                        {sets.length}s · {convertWeight(topWeight, unit)}{unit} x{topSet?.reps || 0}
+                      <span style={{
+                        fontSize: 13, color: COLORS.text, fontWeight: 600, letterSpacing: '-0.01em',
+                      }}>{we.exercises?.name}</span>
+                      <span style={{
+                        fontFamily: FONTS.mono, fontSize: 12, fontWeight: 500, color: COLORS.textDim,
+                      }}>
+                        {sets.length} × {convertWeight(topW, unit)}<span style={{ fontSize: 9, marginLeft: 3 }}>{unit}</span>
                       </span>
                     </div>
                   );
                 })}
                 {exercises.length > 4 && (
-                  <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 4 }}>+{exercises.length - 4} more</div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                    textAlign: 'center', paddingTop: 8, letterSpacing: '0.1em', fontWeight: 500,
+                  }}>
+                    + {exercises.length - 4} MORE
+                  </div>
                 )}
               </div>
 
-              {/* Steel it button — no emoji */}
               {!isMe && (
                 <button onClick={() => handleSteel(w.id, w.title)} style={{
-                  width: '100%', padding: '9px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13,
-                  cursor: 'pointer', fontFamily: 'inherit', background: COLORS.accent,
-                  color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', transition: 'all 0.15s',
-                }}>Steel this workout</button>
+                  width: '100%', marginTop: 12, padding: '10px 16px',
+                  borderRadius: 999, fontWeight: 700, fontSize: 13,
+                  cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+                  background: COLORS.text, color: COLORS.bg, border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>
+                  <Icon name="copy" size={14} color={COLORS.bg} />
+                  Steel this workout
+                </button>
               )}
             </div>
           );
