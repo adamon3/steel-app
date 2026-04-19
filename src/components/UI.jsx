@@ -303,7 +303,7 @@ export function Select({ label, options, ...props }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BOTTOM TAB BAR — center + button is pill-shaped lime
+// BOTTOM TAB BAR — center + button is monochrome pill
 // ═══════════════════════════════════════════════════════════════
 
 export function BottomTabBar({ tabs, active, onChange }) {
@@ -323,19 +323,19 @@ export function BottomTabBar({ tabs, active, onChange }) {
             <div key={t.id} style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               <button onClick={() => onChange(t.id)} style={{
                 width: 52, height: 52, borderRadius: 16, border: 'none', cursor: 'pointer',
-                background: cl.accent,
+                background: cl.text,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginTop: -14,
                 boxShadow: cl.isDark
-                  ? `0 8px 24px -6px ${cl.accent}40`
-                  : `0 6px 16px -4px ${cl.accent}55`,
+                  ? '0 8px 24px -6px rgba(0,0,0,0.6)'
+                  : '0 6px 16px -4px rgba(0,0,0,0.2)',
                 transition: 'transform 0.15s ease',
               }}
               onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
               onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                <Icon name={t.icon} size={26} color={cl.accentText} />
+                <Icon name={t.icon} size={26} color={cl.bg} />
               </button>
             </div>
           );

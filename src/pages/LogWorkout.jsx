@@ -552,8 +552,9 @@ function CompletionScreen({ workout, onDone, unit }) {
 
 export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, getPreviousSets } = useStore();
-  const [phase, setPhase] = useState(prefill ? 'logging' : 'select');
+  const [phase, setPhase] = useState('logging');
   const [title, setTitle] = useState(prefill?.title || 'Workout');
+  const [showTemplates, setShowTemplates] = useState(false);
   const [workoutExercises, setWorkoutExercises] = useState([]);
   const [showPicker, setShowPicker] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -805,12 +806,42 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           />
         ))}
 
+        {/* Empty state — when no exercises, offer Add and template */}
+        {!hasAnyExercises && (
+          <div style={{
+            textAlign: 'center', padding: '30px 20px 20px',
+            border: `1px dashed ${COLORS.border}`, borderRadius: 14,
+            marginBottom: 10,
+          }}>
+            <div style={{
+              fontSize: 17, fontWeight: 700, color: COLORS.text,
+              letterSpacing: '-0.02em', marginBottom: 4,
+            }}>Ready to lift</div>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
+              letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500,
+            }}>Add an exercise to start your first set</div>
+          </div>
+        )}
+
+        {/* Add exercise — primary action */}
         <button onClick={() => setShowPicker(true)} style={{
-          width: '100%', padding: 14, marginTop: 4,
+          width: '100%', padding: 14, marginTop: 4, marginBottom: 8,
           background: COLORS.text, color: COLORS.bg,
           border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
           cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
         }}>+ Add exercise</button>
+
+        {/* Choose template — secondary (only show if templates exist and no exercises yet) */}
+        {!hasAnyExercises && templates && templates.length > 0 && (
+          <button onClick={() => setShowTemplates(true)} style={{
+            width: '100%', padding: 12,
+            background: 'transparent', color: COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 12,
+            fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+          }}>Start from template</button>
+        )}
       </div>
 
       {showPicker && (
@@ -819,6 +850,48 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           onSelect={addExercise}
           onClose={() => setShowPicker(false)}
         />
+      )}
+
+      {showTemplates && (
+        <div style={{
+          position: 'fixed', inset: 0, background: COLORS.bg, zIndex: 40,
+          display: 'flex', flexDirection: 'column', padding: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <button onClick={() => setShowTemplates(false)} style={{
+              background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+            }}>
+              <Icon name="back" size={20} color={COLORS.text} />
+            </button>
+            <div style={{
+              fontSize: 20, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em',
+            }}>Choose template</div>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {templates.map(t => (
+              <button key={t.id} onClick={() => {
+                pickTemplate(t);
+                setShowTemplates(false);
+              }} style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: 14, marginBottom: 8,
+                background: COLORS.card, border: `1px solid ${COLORS.border}`,
+                borderRadius: 12, cursor: 'pointer', fontFamily: FONTS.sans,
+              }}>
+                <div style={{
+                  fontSize: 15, fontWeight: 700, color: COLORS.text, letterSpacing: '-0.01em',
+                }}>{t.name}</div>
+                <div style={{
+                  fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
+                  marginTop: 4, letterSpacing: '0.04em',
+                }}>
+                  {(t.template_exercises || []).length} EXERCISES
+                  {t.last_used && ` · ${relativeTime(t.last_used).toUpperCase()}`}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
