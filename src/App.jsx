@@ -88,6 +88,7 @@ export default function App() {
   const [tab, setTab] = useState('log');
   const [toast, setToast] = useState(null);
   const [steelPrefill, setSteelPrefill] = useState(null);
+  const [loggerSession, setLoggerSession] = useState(0);
   const [viewUserId, setViewUserId] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
@@ -215,7 +216,7 @@ export default function App() {
 
         {/* LOG WORKOUT — always mounted once started, hidden when on other tabs */}
         {(tab === 'log' || workoutMinimized || steelPrefill) && (
-          <div key="workout-logger" style={{ display: tab === 'log' ? 'block' : 'none' }}>
+          <div key={`workout-logger-${loggerSession}`} style={{ display: tab === 'log' ? 'block' : 'none' }}>
             <LogWorkout
               prefill={steelPrefill}
               onMinimize={(info) => {
@@ -308,15 +309,16 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{
             fontFamily: "'Inter Tight', -apple-system, sans-serif",
-            fontWeight: 900, fontSize: 22, color: COLORS.text,
-            letterSpacing: '0.02em',
-            display: 'flex', alignItems: 'center', gap: 6,
+            fontWeight: 900, fontSize: 20, color: COLORS.text,
+            letterSpacing: '-0.5px',
+            display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            STEEL
             <span style={{
-              width: 7, height: 7, borderRadius: '50%', background: '#BFE600',
-              display: 'inline-block', marginBottom: -2,
+              width: 8, height: 8, borderRadius: '50%', background: '#BFE600',
+              display: 'inline-block',
+              boxShadow: '0 0 12px #BFE600',
             }} />
+            STEEL
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={toggleTheme} style={{
@@ -382,7 +384,15 @@ export default function App() {
         </div>
       )}
 
-      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => { setViewUserId(null); setTab(t); if (t !== 'log') setSteelPrefill(null); }} />
+      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => {
+        setViewUserId(null);
+        // Tapping + from a non-log tab starts fresh (no lingering state)
+        if (t === 'log' && tab !== 'log' && !workoutMinimized && !steelPrefill) {
+          setLoggerSession(s => s + 1);
+        }
+        setTab(t);
+        if (t !== 'log') setSteelPrefill(null);
+      }} />
 
       {/* Auth modal */}
       {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} initialMode={authMode} />}
