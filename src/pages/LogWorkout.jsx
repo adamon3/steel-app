@@ -997,6 +997,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const [exerciseNotesIdx, setExerciseNotesIdx] = useState(null);
   const [showHistory, setShowHistory] = useState(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
 
@@ -1149,12 +1150,24 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
     });
   };
 
-  const handleFinish = async () => {
+  const handleFinish = () => {
     const hasCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
     if (!hasCompleted) {
       alert('Complete at least one set before finishing.');
       return;
     }
+    // Check for unfinished sets (added but not checked off)
+    const unfinishedCount = workoutExercises.reduce((total, ex) =>
+      total + ex.sets.filter(s => !s.completed).length, 0);
+    if (unfinishedCount > 0) {
+      setShowFinishConfirm(true);
+      return;
+    }
+    doSave();
+  };
+
+  const doSave = async () => {
+    setShowFinishConfirm(false);
     setSaving(true);
     const durationMins = Math.max(1, Math.round((Date.now() - startTime) / 60000));
     const workout = {
@@ -1166,12 +1179,14 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       is_public: true,
       exercises: workoutExercises.map(e => ({
         exercise_id: e.exercise_id, notes: e.notes,
-        sets: e.sets.map(s => ({
-          weight: convertWeightBack(s.weight || 0, unit),
-          reps: parseInt(s.reps) || 0,
-          is_pr: s.is_pr, set_type: s.set_type, completed: s.completed,
-        })),
-      })),
+        sets: e.sets
+          .filter(s => s.completed) // only save completed sets
+          .map(s => ({
+            weight: convertWeightBack(s.weight || 0, unit),
+            reps: parseInt(s.reps) || 0,
+            is_pr: s.is_pr, set_type: s.set_type, completed: s.completed,
+          })),
+      })).filter(e => e.sets.length > 0), // drop exercises with no completed sets
     };
     try {
       const saved = await saveWorkout(workout);
@@ -1570,6 +1585,44 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       )}
 
       {/* Discard confirm */}
+      {/* Finish with unfinished sets confirm */}
+      {showFinishConfirm && (() => {
+        const unfinished = workoutExercises.reduce((total, ex) =>
+          total + ex.sets.filter(s => !s.completed).length, 0);
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}>
+            <div style={{
+              background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 320, width: '100%',
+              border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
+            }}>
+              <div style={{
+                fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
+              }}>Finish workout?</div>
+              <div style={{
+                fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.45,
+              }}>
+                You have <span style={{ color: COLORS.text, fontWeight: 600 }}>{unfinished} unfinished set{unfinished !== 1 ? 's' : ''}</span>. They won't be saved.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setShowFinishConfirm(false)} style={{
+                  flex: 1, padding: 11, background: 'transparent', color: COLORS.text,
+                  border: `1px solid ${COLORS.border}`, borderRadius: 999,
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
+                }}>Keep going</button>
+                <button onClick={doSave} style={{
+                  flex: 1, padding: 11, background: COLORS.text, color: COLORS.bg,
+                  border: 'none', borderRadius: 999,
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
+                }}>Finish anyway</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showDiscardConfirm && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
