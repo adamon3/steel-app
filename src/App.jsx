@@ -307,15 +307,16 @@ export default function App() {
       <div style={{ padding: '14px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: COLORS.isDark ? 'rgba(10,10,10,0.85)' : 'rgba(250,250,250,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{
-            fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: 'italic',
-            fontSize: 26, color: COLORS.text, letterSpacing: '-0.02em',
-            display: 'flex', alignItems: 'center', gap: 5,
+            fontFamily: "'Inter Tight', -apple-system, sans-serif",
+            fontWeight: 900, fontSize: 22, color: COLORS.text,
+            letterSpacing: '0.02em',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
+            STEEL
             <span style={{
-              width: 6, height: 6, borderRadius: '50%', background: '#BFE600',
-              display: 'inline-block', marginBottom: 13,
+              width: 7, height: 7, borderRadius: '50%', background: '#BFE600',
+              display: 'inline-block', marginBottom: -2,
             }} />
-            Steel
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={toggleTheme} style={{

@@ -79,15 +79,16 @@ export default function Auth({ onClose, message, initialMode }) {
         {/* Header: serif italic STEEL wordmark with lime dot */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
           <div style={{
-            fontFamily: FONTS.serif, fontStyle: 'italic',
-            fontSize: 28, color: COLORS.text,
-            letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 6,
+            fontFamily: "'Inter Tight', -apple-system, sans-serif",
+            fontWeight: 900, fontSize: 24, color: COLORS.text,
+            letterSpacing: '0.02em',
+            display: 'flex', alignItems: 'center', gap: 7,
           }}>
+            STEEL
             <span style={{
-              width: 6, height: 6, borderRadius: '50%', background: '#BFE600',
-              display: 'inline-block', marginBottom: 14,
+              width: 7, height: 7, borderRadius: '50%', background: '#BFE600',
+              display: 'inline-block',
             }} />
-            Steel
           </div>
           {onClose && (
             <button onClick={onClose} style={{
