@@ -754,6 +754,11 @@ function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate, onBack, onS
 // ═══════════════════════════════════════════════════════════════
 
 function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState(workout.title || '');
+  const [templateSaved, setTemplateSaved] = useState(false);
+  const [showTemplateInput, setShowTemplateInput] = useState(false);
+
   const stats = {
     sets: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
     volume: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0),
@@ -769,6 +774,22 @@ function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
     }, { est: 0, name: e.name });
     return best.est > 0 ? best : null;
   }).filter(Boolean);
+
+  const handleTemplateSave = async () => {
+    if (!templateName.trim() || !onSaveAsTemplate) return;
+    setSavingTemplate(true);
+    try {
+      const result = await onSaveAsTemplate(templateName.trim());
+      if (result !== false) {
+        setTemplateSaved(true);
+        setShowTemplateInput(false);
+      }
+    } catch (err) {
+      console.error('Save template error:', err);
+      alert('Could not save template: ' + (err.message || 'unknown error'));
+    }
+    setSavingTemplate(false);
+  };
 
   return (
     <div style={{ padding: '32px 16px', textAlign: 'center', fontFamily: FONTS.sans }}>
@@ -851,13 +872,68 @@ function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
       )}
 
       {onSaveAsTemplate && (
-        <button onClick={onSaveAsTemplate} style={{
-          width: '100%', padding: 12, marginBottom: 10,
-          background: 'transparent', color: COLORS.text,
-          border: `1px solid ${COLORS.border}`, borderRadius: 12,
-          fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          fontFamily: FONTS.sans, letterSpacing: '-0.01em',
-        }}>Save as template</button>
+        templateSaved ? (
+          <div style={{
+            padding: 12, marginBottom: 10, borderRadius: 12,
+            background: COLORS.card, border: `1px solid ${COLORS.border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+            <Icon name="check" size={14} color={COLORS.text} />
+            <span style={{
+              fontFamily: FONTS.mono, fontSize: 11, color: COLORS.text,
+              letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
+            }}>Template saved</span>
+          </div>
+        ) : showTemplateInput ? (
+          <div style={{
+            padding: 12, marginBottom: 10, borderRadius: 12,
+            background: COLORS.card, border: `1px solid ${COLORS.border}`,
+          }}>
+            <div style={{
+              fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
+              marginBottom: 6, textAlign: 'left',
+            }}>Template name</div>
+            <input
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="e.g. Push Day A"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleTemplateSave(); }}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 10,
+                border: `1px solid ${COLORS.border}`, background: COLORS.bg,
+                color: COLORS.text, fontSize: 14, fontFamily: FONTS.sans,
+                outline: 'none', marginBottom: 10, boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setShowTemplateInput(false)} style={{
+                flex: 1, padding: 10, background: 'transparent', color: COLORS.text,
+                border: `1px solid ${COLORS.border}`, borderRadius: 999,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
+              }}>Cancel</button>
+              <button onClick={handleTemplateSave} disabled={!templateName.trim() || savingTemplate} style={{
+                flex: 1, padding: 10,
+                background: templateName.trim() ? COLORS.text : COLORS.card2,
+                color: templateName.trim() ? COLORS.bg : COLORS.textDim,
+                border: 'none', borderRadius: 999,
+                fontSize: 13, fontWeight: 700,
+                cursor: templateName.trim() ? 'pointer' : 'not-allowed',
+                fontFamily: FONTS.sans,
+                opacity: savingTemplate ? 0.6 : 1,
+              }}>{savingTemplate ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowTemplateInput(true)} style={{
+            width: '100%', padding: 12, marginBottom: 10,
+            background: 'transparent', color: COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 12,
+            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+          }}>Save as template</button>
+        )
       )}
 
       <button onClick={onDone} style={{
@@ -1216,10 +1292,15 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
 
   const handleSaveAsTemplate = async () => {
     if (!templateName.trim()) return;
-    await saveTemplate(templateName.trim(), workoutExercises);
-    await fetchTemplates();
-    setShowSaveTemplate(false);
-    setTemplateName('');
+    try {
+      await saveTemplate(templateName.trim(), workoutExercises);
+      await fetchTemplates();
+      setShowSaveTemplate(false);
+      setTemplateName('');
+    } catch (err) {
+      console.error('saveTemplate failed:', err);
+      alert('Could not save template: ' + (err.message || 'unknown error'));
+    }
   };
 
   const handleBack = () => {
@@ -1260,7 +1341,16 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
         workout={completedWorkout}
         onDone={onDone}
         unit={unit}
-        onSaveAsTemplate={() => setShowSaveTemplate(true)}
+        onSaveAsTemplate={async (name) => {
+          try {
+            await saveTemplate(name, workoutExercises);
+            await fetchTemplates();
+            return true;
+          } catch (err) {
+            console.error('saveTemplate failed:', err);
+            throw err;
+          }
+        }}
       />
     );
   }
