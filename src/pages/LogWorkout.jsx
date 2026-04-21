@@ -1324,19 +1324,28 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       </div>
 
       <div style={{ padding: '16px 16px 0', position: 'relative' }}>
-        {/* Secondary action row: back + menu */}
+        {/* Secondary action row: cancel + menu */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: 14,
         }}>
-          <button onClick={handleBack} style={{
+          <button onClick={() => {
+            if (hasAnyCompleted) {
+              setShowDiscardConfirm(true);
+            } else {
+              // No work done yet — just bail back to home
+              setWorkoutExercises([]);
+              setTitle('Workout');
+              setWorkoutNotes('');
+              setPhase('home');
+            }
+          }} style={{
             background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 6,
-            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
-            letterSpacing: '0.1em', fontWeight: 500, textTransform: 'uppercase',
+            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.red,
+            letterSpacing: '0.1em', fontWeight: 600, textTransform: 'uppercase',
           }}>
-            <Icon name="back" size={14} color={COLORS.textDim} />
-            Back
+            Cancel
           </button>
           <button onClick={() => setShowMenu(!showMenu)} style={{
             background: 'none', border: 'none', padding: 4, cursor: 'pointer',
@@ -1359,7 +1368,16 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                 {hasAnyExercises && (
                   <MenuItem label="Save as template" onClick={() => { setShowMenu(false); setTemplateName(title); setShowSaveTemplate(true); }} />
                 )}
-                <MenuItem label="Discard workout" destructive onClick={() => { setShowMenu(false); setShowDiscardConfirm(true); }} />
+                {onMinimize && hasAnyCompleted && (
+                  <MenuItem label="Minimize" onClick={() => {
+                    setShowMenu(false);
+                    onMinimize({
+                      title: title || 'Workout', elapsed,
+                      exerciseCount: workoutExercises.length,
+                      setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
+                    });
+                  }} />
+                )}
               </div>
             </>
           )}
