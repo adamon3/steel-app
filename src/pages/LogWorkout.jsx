@@ -49,54 +49,82 @@ function estimate1RM(w, r) {
 // REST BAR
 // ═══════════════════════════════════════════════════════════════
 
-function RestBar({ state, elapsed, duration, onSkip }) {
+function RestBar({ state, elapsed, duration, onSkip, onAdjust }) {
   if (state === 'active') {
     const pct = Math.max(0, Math.min(100, (elapsed / duration) * 100));
     const remaining = Math.max(0, duration - elapsed);
     return (
-      <div style={{ padding: '10px 4px 12px' }}>
+      <div style={{
+        margin: '10px 0 12px',
+        padding: '12px 14px',
+        background: COLORS.card2,
+        borderRadius: 12,
+      }}>
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          fontFamily: FONTS.mono, fontSize: 9,
-          color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase',
-          fontWeight: 500, marginBottom: 6,
+          marginBottom: 10,
         }}>
-          <span>REST · {fmt(duration)}</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ color: COLORS.text, fontSize: 11, letterSpacing: '0.04em' }}>
-              −{fmt(remaining)}
-            </span>
-            {onSkip && (
-              <button onClick={onSkip} style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                color: COLORS.textDim, fontSize: 10, letterSpacing: '0.1em',
-                fontFamily: FONTS.mono, fontWeight: 500, textTransform: 'uppercase',
-              }}>Skip</button>
-            )}
-          </span>
+          <span style={{
+            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+            letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
+          }}>REST</span>
+          <span style={{
+            fontFamily: FONTS.mono, fontSize: 22, color: COLORS.text,
+            fontWeight: 700, letterSpacing: '-0.02em',
+            fontVariantNumeric: 'tabular-nums',
+          }}>{fmt(remaining)}</span>
         </div>
-        <div style={{ height: 3, background: COLORS.border, borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: 4, background: COLORS.border, borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
           <div style={{
             width: `${pct}%`, height: '100%', background: COLORS.text,
             transition: 'width 1s linear',
           }} />
         </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => onAdjust?.(-15)} style={{
+            flex: 1, padding: '8px 0', background: COLORS.bg,
+            border: 'none', borderRadius: 8,
+            color: COLORS.text, fontSize: 12, fontWeight: 700,
+            fontFamily: FONTS.mono, cursor: 'pointer', letterSpacing: '-0.01em',
+          }}>−15s</button>
+          <button onClick={() => onAdjust?.(15)} style={{
+            flex: 1, padding: '8px 0', background: COLORS.bg,
+            border: 'none', borderRadius: 8,
+            color: COLORS.text, fontSize: 12, fontWeight: 700,
+            fontFamily: FONTS.mono, cursor: 'pointer', letterSpacing: '-0.01em',
+          }}>+15s</button>
+          <button onClick={() => onAdjust?.(30)} style={{
+            flex: 1, padding: '8px 0', background: COLORS.bg,
+            border: 'none', borderRadius: 8,
+            color: COLORS.text, fontSize: 12, fontWeight: 700,
+            fontFamily: FONTS.mono, cursor: 'pointer', letterSpacing: '-0.01em',
+          }}>+30s</button>
+          {onSkip && (
+            <button onClick={onSkip} style={{
+              flex: 1, padding: '8px 0', background: COLORS.text,
+              border: 'none', borderRadius: 8,
+              color: COLORS.bg, fontSize: 12, fontWeight: 700,
+              fontFamily: FONTS.sans, cursor: 'pointer', letterSpacing: '-0.01em',
+            }}>Skip</button>
+          )}
+        </div>
       </div>
     );
   }
 
+  // Passive (past or upcoming) — still visible but subtle
   const label = duration < 60 ? `${duration}s` : fmt(duration);
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
-      padding: '3px 20px',
-      opacity: state === 'past' ? 0.6 : 0.4,
+      padding: '6px 8px',
+      opacity: state === 'past' ? 0.55 : 0.4,
     }}>
       <div style={{ flex: 1, height: 1, background: COLORS.border }} />
       <span style={{
-        fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+        fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
         letterSpacing: '0.12em', fontWeight: 500,
-      }}>{label}</span>
+      }}>REST · {label}</span>
       <div style={{ flex: 1, height: 1, background: COLORS.border }} />
     </div>
   );
@@ -296,7 +324,7 @@ function SetRow({ exIdx, setIdx, set, prevSet, unit, onComplete, onUncomplete, o
 // EXERCISE CARD
 // ═══════════════════════════════════════════════════════════════
 
-function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElapsed, onUpdate, onAddSet, onRemove, onShowHistory, onRemoveSet, onEditNotes, onSkipRest }) {
+function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElapsed, onUpdate, onAddSet, onRemove, onShowHistory, onRemoveSet, onEditNotes, onSkipRest, onAdjustRest }) {
   const lastSet = prevSets?.[0];
   const lastDate = lastSet?.workout_date;
   const [showMenu, setShowMenu] = useState(false);
@@ -421,6 +449,7 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
                 elapsed={restState === 'active' ? restElapsed : 0}
                 duration={restDuration}
                 onSkip={restState === 'active' ? onSkipRest : null}
+                onAdjust={restState === 'active' ? onAdjustRest : null}
               />
             )}
           </React.Fragment>
@@ -1502,6 +1531,13 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             onShowHistory={() => setShowHistory(ex)}
             onEditNotes={() => setExerciseNotesIdx(exIdx)}
             onSkipRest={() => setRestStartedAt(null)}
+            onAdjustRest={(delta) => {
+              // delta in seconds: positive = extend rest, negative = shorten
+              // Shift restStartedAt backwards/forwards so remaining time changes by `delta`
+              if (restStartedAt) {
+                setRestStartedAt(t => t + (delta * 1000));
+              }
+            }}
           />
         ))}
 
