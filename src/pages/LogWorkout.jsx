@@ -9,6 +9,9 @@ const FONTS = {
 };
 
 const MUSCLE_GROUPS = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Other'];
+const LIME = '#BFE600';
+const LIME_WASH_DARK = 'rgba(191, 230, 0, 0.08)';
+const LIME_WASH_LIGHT = 'rgba(191, 230, 0, 0.12)';
 
 // ═══════════════════════════════════════════════════════════════
 // Helpers
@@ -45,96 +48,259 @@ function estimate1RM(w, r) {
   return Math.round(w * (1 + r / 30));
 }
 
+function parseRestInput(raw) {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return null;
+  if (trimmed.includes(':')) {
+    const [m, s] = trimmed.split(':');
+    return (parseInt(m) || 0) * 60 + (parseInt(s) || 0);
+  }
+  const n = parseInt(trimmed) || 0;
+  if (n < 20) return n * 60; // "3" = 3 min
+  return n; // "90" = 90s
+}
+
+// Play a subtle ding via Web Audio
+function playDing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+    if (navigator.vibrate) navigator.vibrate(100);
+  } catch (e) { /* no audio, no problem */ }
+}
+
+function haptic() {
+  try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {}
+}
+
 // ═══════════════════════════════════════════════════════════════
-// REST BAR
+// REST BAR (collapsed / compact) — what sits between sets
 // ═══════════════════════════════════════════════════════════════
 
-function RestBar({ state, elapsed, duration, onSkip, onAdjust }) {
+function RestBar({ state, elapsed, duration, onExpand }) {
+  // state: 'active' (current rest running), 'past' (already rested), 'upcoming' (hidden)
+  if (state === 'upcoming') return null;
+
   if (state === 'active') {
     const pct = Math.max(0, Math.min(100, (elapsed / duration) * 100));
     const remaining = Math.max(0, duration - elapsed);
     return (
-      <div style={{
-        margin: '10px 0 12px',
-        padding: '12px 14px',
-        background: COLORS.card2,
-        borderRadius: 12,
-      }}>
+      <button
+        onClick={onExpand}
+        style={{
+          display: 'block', width: '100%',
+          margin: '4px 0', padding: 0, border: 'none',
+          background: 'transparent', cursor: 'pointer',
+        }}
+      >
         <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          marginBottom: 10,
+          position: 'relative',
+          height: 28, borderRadius: 6,
+          background: COLORS.card2,
+          overflow: 'hidden',
         }}>
-          <span style={{
-            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
-            letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
-          }}>REST</span>
-          <span style={{
-            fontFamily: FONTS.mono, fontSize: 22, color: COLORS.text,
-            fontWeight: 700, letterSpacing: '-0.02em',
-            fontVariantNumeric: 'tabular-nums',
-          }}>{fmt(remaining)}</span>
-        </div>
-        <div style={{ height: 4, background: COLORS.border, borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
           <div style={{
-            width: `${pct}%`, height: '100%', background: COLORS.text,
+            position: 'absolute', inset: 0,
+            width: `${pct}%`, background: COLORS.text, opacity: 0.14,
             transition: 'width 1s linear',
           }} />
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: FONTS.mono, fontSize: 13, fontWeight: 700,
+            color: COLORS.text, letterSpacing: '-0.02em',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {fmt(remaining)}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => onAdjust?.(-15)} style={{
-            flex: 1, padding: '8px 0', background: COLORS.bg,
-            border: 'none', borderRadius: 8,
-            color: COLORS.text, fontSize: 12, fontWeight: 700,
-            fontFamily: FONTS.mono, cursor: 'pointer', letterSpacing: '-0.01em',
-          }}>−15s</button>
-          <button onClick={() => onAdjust?.(15)} style={{
-            flex: 1, padding: '8px 0', background: COLORS.bg,
-            border: 'none', borderRadius: 8,
-            color: COLORS.text, fontSize: 12, fontWeight: 700,
-            fontFamily: FONTS.mono, cursor: 'pointer', letterSpacing: '-0.01em',
-          }}>+15s</button>
-          <button onClick={() => onAdjust?.(30)} style={{
-            flex: 1, padding: '8px 0', background: COLORS.bg,
-            border: 'none', borderRadius: 8,
-            color: COLORS.text, fontSize: 12, fontWeight: 700,
-            fontFamily: FONTS.mono, cursor: 'pointer', letterSpacing: '-0.01em',
-          }}>+30s</button>
-          {onSkip && (
-            <button onClick={onSkip} style={{
-              flex: 1, padding: '8px 0', background: COLORS.text,
-              border: 'none', borderRadius: 8,
-              color: COLORS.bg, fontSize: 12, fontWeight: 700,
-              fontFamily: FONTS.sans, cursor: 'pointer', letterSpacing: '-0.01em',
-            }}>Skip</button>
-          )}
-        </div>
-      </div>
+      </button>
     );
   }
 
-  // Passive (past or upcoming) — still visible but subtle
+  // past — tiny mono divider
   const label = duration < 60 ? `${duration}s` : fmt(duration);
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '6px 8px',
-      opacity: state === 'past' ? 0.55 : 0.4,
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '4px 6px',
+      opacity: 0.4,
     }}>
       <div style={{ flex: 1, height: 1, background: COLORS.border }} />
       <span style={{
-        fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
-        letterSpacing: '0.12em', fontWeight: 500,
-      }}>REST · {label}</span>
+        fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+        letterSpacing: '0.1em', fontWeight: 500,
+      }}>{label}</span>
       <div style={{ flex: 1, height: 1, background: COLORS.border }} />
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SET ROW
+// REST PANEL (full Strong-style sheet from bottom)
 // ═══════════════════════════════════════════════════════════════
 
-const COLS = '24px 1fr 64px 52px 36px';
+function RestPanel({ remaining, duration, paused, onPause, onResume, onReset, onSkip, onAdjust, onSetRemaining, onClose }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const pct = Math.max(0, Math.min(100, ((duration - remaining) / duration) * 100));
+
+  const commitDraft = () => {
+    const secs = parseRestInput(draft);
+    if (secs && secs > 0 && secs < 3600) onSetRemaining?.(secs);
+    setEditing(false);
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 44,
+        }}
+      />
+      {/* Sheet */}
+      <div style={{
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 45,
+        background: COLORS.isDark ? '#18181A' : '#111',
+        color: '#fff',
+        borderTopLeftRadius: 22, borderTopRightRadius: 22,
+        padding: '14px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)',
+        fontFamily: FONTS.sans,
+      }}>
+        {/* Grab handle */}
+        <div style={{
+          width: 40, height: 4, borderRadius: 2,
+          background: 'rgba(255,255,255,0.2)',
+          margin: '0 auto 14px',
+        }} />
+
+        {/* Top row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{
+            fontFamily: FONTS.mono, fontSize: 10, color: 'rgba(255,255,255,0.6)',
+            letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
+          }}>Rest timer</span>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+            color: 'rgba(255,255,255,0.6)', fontSize: 20, lineHeight: 1,
+          }}>×</button>
+        </div>
+
+        {/* Big timer — tap to edit */}
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          {editing ? (
+            <input
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commitDraft}
+              onKeyDown={e => { if (e.key === 'Enter') commitDraft(); }}
+              autoFocus
+              placeholder="2:00"
+              inputMode="text"
+              style={{
+                fontFamily: FONTS.mono, fontSize: 56, fontWeight: 700,
+                color: '#fff', background: 'transparent',
+                border: 'none', outline: 'none', textAlign: 'center',
+                padding: 0, width: '100%', letterSpacing: '-0.03em',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+          ) : (
+            <div
+              onClick={() => { setDraft(fmt(remaining)); setEditing(true); }}
+              style={{
+                fontFamily: FONTS.mono, fontSize: 56, fontWeight: 700,
+                color: '#fff', letterSpacing: '-0.03em',
+                cursor: 'text', fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1, userSelect: 'none',
+              }}
+            >{fmt(remaining)}</div>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        <div style={{
+          height: 4, borderRadius: 2,
+          background: 'rgba(255,255,255,0.15)', overflow: 'hidden',
+          marginBottom: 18,
+        }}>
+          <div style={{
+            height: '100%', width: `${pct}%`, background: LIME,
+            transition: 'width 1s linear',
+          }} />
+        </div>
+
+        {/* −/+ row */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <button onClick={() => onAdjust(-15)} style={{
+            flex: 1, padding: '12px 0', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
+            color: '#fff', fontSize: 15, fontWeight: 700,
+            fontFamily: FONTS.mono, letterSpacing: '-0.01em',
+          }}>−15</button>
+          <button onClick={() => onAdjust(-5)} style={{
+            flex: 1, padding: '12px 0', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
+            color: '#fff', fontSize: 15, fontWeight: 700,
+            fontFamily: FONTS.mono, letterSpacing: '-0.01em',
+          }}>−5</button>
+          <button onClick={() => onAdjust(5)} style={{
+            flex: 1, padding: '12px 0', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
+            color: '#fff', fontSize: 15, fontWeight: 700,
+            fontFamily: FONTS.mono, letterSpacing: '-0.01em',
+          }}>+5</button>
+          <button onClick={() => onAdjust(15)} style={{
+            flex: 1, padding: '12px 0', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
+            color: '#fff', fontSize: 15, fontWeight: 700,
+            fontFamily: FONTS.mono, letterSpacing: '-0.01em',
+          }}>+15</button>
+        </div>
+
+        {/* Bottom actions */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={paused ? onResume : onPause} style={{
+            flex: 1, padding: '13px 0', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
+            color: '#fff', fontSize: 14, fontWeight: 700,
+            fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+          }}>{paused ? 'Resume' : 'Pause'}</button>
+          <button onClick={onReset} style={{
+            flex: 1, padding: '13px 0', borderRadius: 12,
+            background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer',
+            color: '#fff', fontSize: 14, fontWeight: 700,
+            fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+          }}>Reset</button>
+          <button onClick={onSkip} style={{
+            flex: 1.3, padding: '13px 0', borderRadius: 12,
+            background: LIME, border: 'none', cursor: 'pointer',
+            color: '#0A0A0A', fontSize: 14, fontWeight: 700,
+            fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+          }}>Skip</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SET ROW — tighter Strong-like density
+// ═══════════════════════════════════════════════════════════════
+
+const COLS = '28px 1fr 60px 48px 34px';
 
 const SET_TYPES = {
   normal: { label: (idx) => idx + 1, color: null },
@@ -143,7 +309,11 @@ const SET_TYPES = {
   failure: { label: () => 'F', color: null },
 };
 
-function SetRow({ exIdx, setIdx, set, prevSet, unit, onComplete, onUncomplete, onUpdate, onTogglePR, onCycleSetType, onRemove }) {
+function SetRow({
+  exIdx, setIdx, set, prevSet, unit, isActive,
+  onComplete, onUncomplete, onUpdate, onTogglePR, onCycleSetType, onRemove,
+  focusNextSet,
+}) {
   const weightRef = `w-${exIdx}-${setIdx}`;
   const repsRef = `r-${exIdx}-${setIdx}`;
   const isPRvsPrev = prevSet && set.completed && set.weight > prevSet.weight;
@@ -167,75 +337,34 @@ function SetRow({ exIdx, setIdx, set, prevSet, unit, onComplete, onUncomplete, o
     touchStart.current = null;
   };
 
-  if (set.completed) {
-    return (
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{
-            display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center',
-            padding: '10px 4px', background: COLORS.card2, borderRadius: 10, margin: '4px 0',
-            transform: `translateX(-${swipeOffset}px)`,
-            transition: swipeOffset === 0 ? 'transform 0.2s' : 'none',
-          }}
-        >
-          <button onClick={onCycleSetType} style={{
-            textAlign: 'center', fontFamily: FONTS.mono,
-            fontSize: 12, fontWeight: 600,
-            color: setColor || COLORS.textDim,
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          }}>{setLabel}</button>
+  const completeSet = () => {
+    haptic();
+    onComplete();
+  };
 
-          <span style={{
-            fontFamily: FONTS.mono, fontSize: 12, color: COLORS.textDim,
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            {prevSet ? `${convertWeight(prevSet.weight, unit)} × ${prevSet.reps}` : '—'}
-            {(set.is_pr || isPRvsPrev) && (
-              <span style={{
-                background: '#BFE600', color: '#0A0A0A',
-                fontSize: 9, fontWeight: 700, padding: '2px 6px',
-                borderRadius: 4, letterSpacing: '0.05em',
-              }}>PR</span>
-            )}
-          </span>
+  // Auto-populate on complete if empty
+  const handleCheckTap = () => {
+    if (!set.weight || !set.reps) {
+      // Try prev set from DB, fall back to most recent completed in this workout
+      // Handled in parent via onComplete patch
+    }
+    completeSet();
+  };
 
-          <span onClick={onUncomplete} style={{
-            textAlign: 'center', fontFamily: FONTS.mono, fontSize: 18, fontWeight: 700,
-            color: COLORS.text, letterSpacing: '-0.02em', cursor: 'pointer',
-          }}>{set.weight || '—'}</span>
+  // Background color logic:
+  // - completed → soft lime wash
+  // - active (next to do) → subtle card2 highlight
+  // - otherwise → transparent
+  const rowBg = set.completed
+    ? (COLORS.isDark ? LIME_WASH_DARK : LIME_WASH_LIGHT)
+    : isActive
+      ? COLORS.card2
+      : 'transparent';
 
-          <span onClick={onUncomplete} style={{
-            textAlign: 'center', fontFamily: FONTS.mono, fontSize: 18, fontWeight: 700,
-            color: COLORS.text, letterSpacing: '-0.02em', cursor: 'pointer',
-          }}>{set.reps || '—'}</span>
+  const rowBorder = isActive && !set.completed
+    ? `1px solid ${COLORS.border}`
+    : '1px solid transparent';
 
-          <span style={{ textAlign: 'center' }}>
-            <button onClick={onUncomplete} onDoubleClick={onTogglePR} style={{
-              width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer',
-              background: COLORS.text, color: COLORS.bg, padding: 0,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {set.is_pr
-                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={COLORS.bg} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
-                : <Icon name="check" size={13} color={COLORS.bg} />}
-            </button>
-          </span>
-        </div>
-        {swipeOffset > 0 && (
-          <div style={{
-            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-            fontFamily: FONTS.mono, fontSize: 10, color: COLORS.red,
-            letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600,
-          }}>DELETE</div>
-        )}
-      </div>
-    );
-  }
-
-  // Active / not yet completed
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
       <div
@@ -243,69 +372,119 @@ function SetRow({ exIdx, setIdx, set, prevSet, unit, onComplete, onUncomplete, o
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         style={{
-          display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center',
-          padding: '8px 4px',
+          display: 'grid', gridTemplateColumns: COLS, gap: 8, alignItems: 'center',
+          padding: '7px 6px', borderRadius: 8, margin: '2px 0',
+          background: rowBg,
+          border: rowBorder,
           transform: `translateX(-${swipeOffset}px)`,
-          transition: swipeOffset === 0 ? 'transform 0.2s' : 'none',
+          transition: swipeOffset === 0 ? 'transform 0.2s, background 0.15s' : 'none',
         }}
       >
         <button onClick={onCycleSetType} style={{
           textAlign: 'center', fontFamily: FONTS.mono,
           fontSize: 12, fontWeight: 700,
-          color: setColor || COLORS.text,
-          background: COLORS.card2, border: 'none',
-          borderRadius: 7, padding: '7px 0', cursor: 'pointer',
+          color: setColor || (set.completed ? COLORS.text : COLORS.textDim),
+          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
         }}>{setLabel}</button>
 
-        <span style={{ fontFamily: FONTS.mono, fontSize: 12, color: COLORS.textDim }}>
-          {prevSet ? `${convertWeight(prevSet.weight, unit)} × ${prevSet.reps}` : '—'}
+        <span style={{
+          fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}>
+          {prevSet ? `${convertWeight(prevSet.weight, unit)}×${prevSet.reps}` : '—'}
+          {(set.is_pr || isPRvsPrev) && set.completed && (
+            <span style={{
+              background: LIME, color: '#0A0A0A',
+              fontSize: 8, fontWeight: 700, padding: '1px 5px',
+              borderRadius: 3, letterSpacing: '0.05em',
+            }}>PR</span>
+          )}
         </span>
 
-        <input
-          id={weightRef} type="number" inputMode="decimal" enterKeyHint="next"
-          value={set.weight || ''}
-          placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
-          onChange={e => onUpdate('weight', parseFloat(e.target.value) || 0)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById(repsRef)?.focus(); } }}
-          onFocus={e => e.target.select()}
-          style={{
-            textAlign: 'center', fontFamily: FONTS.mono,
-            fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em',
-            background: COLORS.card2, border: 'none', borderRadius: 8,
-            padding: '9px 0', color: COLORS.text,
-            outline: 'none', width: '100%', boxSizing: 'border-box',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        />
-
-        <input
-          id={repsRef} type="number" inputMode="numeric" enterKeyHint="done"
-          value={set.reps || ''}
-          placeholder={prevSet ? String(prevSet.reps) : '0'}
-          onChange={e => onUpdate('reps', parseInt(e.target.value) || 0)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onComplete(); } }}
-          onFocus={e => e.target.select()}
-          style={{
-            textAlign: 'center', fontFamily: FONTS.mono,
-            fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em',
-            background: COLORS.card2, border: 'none', borderRadius: 8,
-            padding: '9px 0', color: COLORS.text,
-            outline: 'none', width: '100%', boxSizing: 'border-box',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        />
+        {set.completed ? (
+          <>
+            <span onClick={onUncomplete} style={{
+              textAlign: 'center', fontFamily: FONTS.mono, fontSize: 15, fontWeight: 700,
+              color: COLORS.text, letterSpacing: '-0.02em', cursor: 'pointer',
+              fontVariantNumeric: 'tabular-nums',
+            }}>{set.weight || '—'}</span>
+            <span onClick={onUncomplete} style={{
+              textAlign: 'center', fontFamily: FONTS.mono, fontSize: 15, fontWeight: 700,
+              color: COLORS.text, letterSpacing: '-0.02em', cursor: 'pointer',
+              fontVariantNumeric: 'tabular-nums',
+            }}>{set.reps || '—'}</span>
+          </>
+        ) : (
+          <>
+            <input
+              id={weightRef} type="number" inputMode="decimal" enterKeyHint="next"
+              value={set.weight || ''}
+              placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
+              onChange={e => onUpdate('weight', parseFloat(e.target.value) || 0)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  document.getElementById(repsRef)?.focus();
+                }
+              }}
+              onFocus={e => e.target.select()}
+              style={{
+                textAlign: 'center', fontFamily: FONTS.mono,
+                fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em',
+                background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+                borderRadius: 7,
+                padding: '7px 0', color: COLORS.text,
+                outline: 'none', width: '100%', boxSizing: 'border-box',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+            <input
+              id={repsRef} type="number" inputMode="numeric" enterKeyHint="done"
+              value={set.reps || ''}
+              placeholder={prevSet ? String(prevSet.reps) : '0'}
+              onChange={e => onUpdate('reps', parseInt(e.target.value) || 0)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.target.blur();
+                  // Complete set on Enter after reps
+                  completeSet();
+                }
+              }}
+              onFocus={e => e.target.select()}
+              style={{
+                textAlign: 'center', fontFamily: FONTS.mono,
+                fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em',
+                background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+                borderRadius: 7,
+                padding: '7px 0', color: COLORS.text,
+                outline: 'none', width: '100%', boxSizing: 'border-box',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            />
+          </>
+        )}
 
         <span style={{ textAlign: 'center' }}>
-          <button onClick={onComplete} style={{
-            width: 24, height: 24, borderRadius: '50%',
-            border: 'none', background: COLORS.card2,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', padding: 0,
-          }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke={COLORS.textDim} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+          <button
+            onClick={set.completed ? onUncomplete : handleCheckTap}
+            onDoubleClick={set.completed ? onTogglePR : undefined}
+            style={{
+              width: 26, height: 26, borderRadius: 7,
+              border: 'none', padding: 0, cursor: 'pointer',
+              background: set.completed ? COLORS.text : COLORS.card2,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {set.is_pr ? (
+              <span style={{ fontSize: 14 }}>🏆</span>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke={set.completed ? COLORS.bg : COLORS.textDim}
+                strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
           </button>
         </span>
       </div>
@@ -314,6 +493,7 @@ function SetRow({ exIdx, setIdx, set, prevSet, unit, onComplete, onUncomplete, o
           position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
           fontFamily: FONTS.mono, fontSize: 10, color: COLORS.red,
           letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600,
+          pointerEvents: 'none',
         }}>DELETE</div>
       )}
     </div>
@@ -324,27 +504,35 @@ function SetRow({ exIdx, setIdx, set, prevSet, unit, onComplete, onUncomplete, o
 // EXERCISE CARD
 // ═══════════════════════════════════════════════════════════════
 
-function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElapsed, onUpdate, onAddSet, onRemove, onShowHistory, onRemoveSet, onEditNotes, onSkipRest, onAdjustRest }) {
+function ExerciseCard({
+  exIdx, exercise, prevSets, unit,
+  restDuration, restElapsed, restAnchor, restPaused,
+  onUpdate, onAddSet, onRemove, onShowHistory, onRemoveSet,
+  onEditNotes, onExpandRest,
+}) {
   const lastSet = prevSets?.[0];
   const lastDate = lastSet?.workout_date;
   const [showMenu, setShowMenu] = useState(false);
 
+  // Active set index = first not-completed set
+  const activeSetIdx = exercise.sets.findIndex(s => !s.completed);
+
   return (
-    <div style={{ marginBottom: 24 }}>
-      {/* Exercise header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 8px', position: 'relative' }}>
+    <div style={{ marginBottom: 18 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 2px 6px', position: 'relative' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div onClick={onShowHistory} style={{
             display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
           }}>
             <div style={{
-              fontFamily: FONTS.sans, fontSize: 17, fontWeight: 700, color: COLORS.text,
+              fontFamily: FONTS.sans, fontSize: 16, fontWeight: 700, color: COLORS.text,
               letterSpacing: '-0.01em',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {exercise.name}
             </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke={COLORS.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 3v18h18" />
               <path d="M7 14l4-4 4 4 5-5" />
@@ -352,24 +540,22 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
           </div>
           {lastSet && (
             <div style={{
-              fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
-              fontWeight: 500, marginTop: 2, letterSpacing: '0.04em',
+              fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+              fontWeight: 500, marginTop: 1, letterSpacing: '0.04em',
             }}>
-              LAST · {convertWeight(lastSet.weight, unit)} × {lastSet.reps}{lastDate ? ` · ${formatDate(lastDate)}` : ''}
+              LAST · {convertWeight(lastSet.weight, unit)}×{lastSet.reps}{lastDate ? ` · ${formatDate(lastDate)}` : ''}
             </div>
           )}
         </div>
         <button onClick={() => setShowMenu(!showMenu)} style={{
           background: 'none', border: 'none', color: COLORS.textDim,
-          cursor: 'pointer', fontSize: 18, padding: 4, lineHeight: 1, fontWeight: 700,
+          cursor: 'pointer', fontSize: 16, padding: 4, lineHeight: 1, fontWeight: 700,
         }}>⋯</button>
 
         {showMenu && (
           <>
-            <div
-              onClick={() => setShowMenu(false)}
-              style={{ position: 'fixed', inset: 0, zIndex: 30 }}
-            />
+            <div onClick={() => setShowMenu(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
             <div style={{
               position: 'absolute', top: 28, right: 0, zIndex: 31,
               background: COLORS.card, border: `1px solid ${COLORS.border}`,
@@ -386,12 +572,11 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
         )}
       </div>
 
-      {/* Exercise notes */}
+      {/* Notes */}
       {exercise.notes && (
-        <div style={{
-          fontSize: 12, color: COLORS.text, padding: '8px 10px',
-          background: COLORS.card2, borderRadius: 8, marginBottom: 8,
-          lineHeight: 1.45,
+        <div onClick={onEditNotes} style={{
+          fontSize: 12, color: COLORS.text, padding: '6px 10px', marginBottom: 6,
+          background: COLORS.card2, borderRadius: 7, lineHeight: 1.4, cursor: 'text',
         }}>
           {exercise.notes}
         </div>
@@ -399,8 +584,8 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
 
       {/* Column headers */}
       <div style={{
-        display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center',
-        padding: '8px 4px',
+        display: 'grid', gridTemplateColumns: COLS, gap: 8, alignItems: 'center',
+        padding: '6px 6px',
         fontFamily: FONTS.mono, fontSize: 9, fontWeight: 500,
         color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase',
         borderBottom: `0.5px solid ${COLORS.border}`,
@@ -412,16 +597,18 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
         <span></span>
       </div>
 
-      {/* Set rows with rest between */}
+      {/* Set rows */}
       {exercise.sets.map((set, i) => {
         const prevSet = prevSets?.[i];
-        const thisDone = set.completed;
-        const nextDone = exercise.sets[i + 1]?.completed;
-        const nextIsActive = !nextDone && exercise.sets.findIndex((s, idx) => idx > i && !s.completed) === i + 1;
+        const isThisRestActive = restAnchor && restAnchor.exIdx === exIdx && restAnchor.setIdx === i;
+        const nextExists = i < exercise.sets.length - 1;
 
+        // Rest state after this set
         let restState = 'upcoming';
-        if (thisDone && nextIsActive) restState = 'active';
-        else if (thisDone && nextDone) restState = 'past';
+        if (set.completed && isThisRestActive) restState = 'active';
+        else if (set.completed && exercise.sets[i + 1]?.completed) restState = 'past';
+
+        const isThisActive = i === activeSetIdx;
 
         return (
           <React.Fragment key={i}>
@@ -431,6 +618,7 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
               set={set}
               prevSet={prevSet}
               unit={unit}
+              isActive={isThisActive}
               onComplete={() => onUpdate(i, { completed: true })}
               onUncomplete={() => onUpdate(i, { completed: false })}
               onUpdate={(field, val) => onUpdate(i, { [field]: val })}
@@ -443,13 +631,13 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
               }}
               onRemove={() => onRemoveSet?.(i)}
             />
-            {i < exercise.sets.length - 1 && (
+            {/* Rest bar shown AFTER every completed set that has another set following, including final */}
+            {set.completed && (
               <RestBar
                 state={restState}
                 elapsed={restState === 'active' ? restElapsed : 0}
                 duration={restDuration}
-                onSkip={restState === 'active' ? onSkipRest : null}
-                onAdjust={restState === 'active' ? onAdjustRest : null}
+                onExpand={restState === 'active' ? onExpandRest : null}
               />
             )}
           </React.Fragment>
@@ -458,10 +646,10 @@ function ExerciseCard({ exIdx, exercise, prevSets, unit, restDuration, restElaps
 
       {/* Add set */}
       <button onClick={onAddSet} style={{
-        width: '100%', marginTop: 10,
+        width: '100%', marginTop: 6,
         background: 'none', border: `1px dashed ${COLORS.border}`,
-        color: COLORS.textDim, padding: '11px 0', borderRadius: 10,
-        fontFamily: FONTS.mono, fontSize: 11, fontWeight: 500,
+        color: COLORS.textDim, padding: '9px 0', borderRadius: 8,
+        fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500,
         letterSpacing: '0.1em', textTransform: 'uppercase',
         cursor: 'pointer',
       }}>+ Add set · {fmt(restDuration)}</button>
@@ -491,6 +679,8 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newGroup, setNewGroup] = useState('Chest');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const normalizeGroup = (g) => {
     if (!g) return 'Other';
@@ -517,12 +707,21 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    const created = await onCreate(newName.trim(), newGroup);
-    if (created) {
-      onSelect(created);
-      setShowCreate(false);
-      setNewName('');
+    setCreating(true);
+    setCreateError('');
+    try {
+      const created = await onCreate(newName.trim(), newGroup);
+      if (created) {
+        onSelect(created);
+        setShowCreate(false);
+        setNewName('');
+      } else {
+        setCreateError('Could not create exercise. Try again.');
+      }
+    } catch (err) {
+      setCreateError(err?.message || 'Something went wrong');
     }
+    setCreating(false);
   };
 
   if (showCreate) {
@@ -532,7 +731,7 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
         display: 'flex', flexDirection: 'column', padding: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <button onClick={() => setShowCreate(false)} style={{
+          <button onClick={() => { setShowCreate(false); setCreateError(''); }} style={{
             background: 'none', border: 'none', padding: 4, cursor: 'pointer',
           }}>
             <Icon name="back" size={20} color={COLORS.text} />
@@ -553,6 +752,7 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
           onChange={e => setNewName(e.target.value)}
           placeholder="e.g. Zercher Squat"
           autoFocus
+          onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) handleCreate(); }}
           style={{
             width: '100%', padding: '12px 14px', borderRadius: 10,
             border: `1px solid ${COLORS.border}`, background: COLORS.card,
@@ -566,7 +766,7 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
           letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
           marginBottom: 6,
         }}>Muscle group</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
           {MUSCLE_GROUPS.filter(g => g !== 'All').map(g => (
             <button key={g} onClick={() => setNewGroup(g)} style={{
               padding: '8px 14px', borderRadius: 999,
@@ -580,18 +780,26 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
           ))}
         </div>
 
+        {createError && (
+          <div style={{
+            fontSize: 12, color: COLORS.red, marginBottom: 12, textAlign: 'center',
+            fontFamily: FONTS.mono, letterSpacing: '0.04em',
+          }}>{createError}</div>
+        )}
+
         <button
           onClick={handleCreate}
-          disabled={!newName.trim()}
+          disabled={!newName.trim() || creating}
           style={{
             width: '100%', padding: 14,
             background: newName.trim() ? COLORS.text : COLORS.card2,
             color: newName.trim() ? COLORS.bg : COLORS.textDim,
             border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
-            cursor: newName.trim() ? 'pointer' : 'not-allowed',
+            cursor: newName.trim() && !creating ? 'pointer' : 'not-allowed',
             fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+            opacity: creating ? 0.6 : 1,
           }}
-        >Create & add</button>
+        >{creating ? 'Creating…' : 'Create & add'}</button>
       </div>
     );
   }
@@ -636,7 +844,6 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
         }}
       />
 
-      {/* Category pills */}
       <div style={{
         display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 10,
         marginBottom: 6, scrollbarWidth: 'none',
@@ -660,12 +867,12 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
             <div style={{
               fontSize: 14, color: COLORS.textDim, marginBottom: 14,
             }}>No exercises found</div>
-            <button onClick={() => setShowCreate(true)} style={{
+            <button onClick={() => { setNewName(search); setShowCreate(true); }} style={{
               background: COLORS.text, color: COLORS.bg, border: 'none',
               borderRadius: 999, padding: '10px 20px',
               fontWeight: 700, fontSize: 13, cursor: 'pointer',
               fontFamily: FONTS.sans, letterSpacing: '-0.01em',
-            }}>+ Create "{search}"</button>
+            }}>+ Create {search ? `"${search}"` : 'new'}</button>
           </div>
         ) : (
           filtered.map(e => (
@@ -693,10 +900,10 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Start Workout home screen
+// Start Workout home
 // ═══════════════════════════════════════════════════════════════
 
-function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate, onBack, onSaveAsTemplate }) {
+function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate }) {
   return (
     <div style={{ fontFamily: FONTS.sans, paddingBottom: 60 }}>
       <div style={{
@@ -782,7 +989,7 @@ function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate, onBack, onS
 // Completion
 // ═══════════════════════════════════════════════════════════════
 
-function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
+function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate }) {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState(workout.title || '');
   const [templateSaved, setTemplateSaved] = useState(false);
@@ -814,7 +1021,6 @@ function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
         setShowTemplateInput(false);
       }
     } catch (err) {
-      console.error('Save template error:', err);
       alert('Could not save template: ' + (err.message || 'unknown error'));
     }
     setSavingTemplate(false);
@@ -965,6 +1171,16 @@ function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
         )
       )}
 
+      {onReopen && (
+        <button onClick={onReopen} style={{
+          width: '100%', padding: 12, marginBottom: 10,
+          background: 'transparent', color: COLORS.textDim,
+          border: `1px solid ${COLORS.border}`, borderRadius: 12,
+          fontSize: 13, fontWeight: 500, cursor: 'pointer',
+          fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+        }}>Back to workout</button>
+      )}
+
       <button onClick={onDone} style={{
         width: '100%', padding: 14, background: COLORS.text, color: COLORS.bg,
         border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
@@ -975,7 +1191,7 @@ function CompletionScreen({ workout, onDone, unit, onSaveAsTemplate }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Exercise history view
+// Exercise history
 // ═══════════════════════════════════════════════════════════════
 
 function ExerciseHistory({ exercise, userId, unit, onBack }) {
@@ -1068,7 +1284,7 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
                 {sets.map((s, i) => (
                   <span key={i}>
                     {convertWeight(s.weight, unit)}×{s.reps}
-                    {s.is_pr && <span style={{ color: '#BFE600', marginLeft: 2 }}>★</span>}
+                    {s.is_pr && <span style={{ color: LIME, marginLeft: 2 }}>★</span>}
                   </span>
                 ))}
               </div>
@@ -1096,10 +1312,17 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const [elapsed, setElapsed] = useState(0);
   const [previousData, setPreviousData] = useState({});
   const [completedWorkout, setCompletedWorkout] = useState(null);
+
+  // Rest timer state
   const [restDuration, setRestDuration] = useState(120);
-  const [showRestPicker, setShowRestPicker] = useState(false);
   const [restStartedAt, setRestStartedAt] = useState(null);
   const [restElapsed, setRestElapsed] = useState(0);
+  const [restAnchor, setRestAnchor] = useState(null); // { exIdx, setIdx }
+  const [restPaused, setRestPaused] = useState(false);
+  const [restPausedAt, setRestPausedAt] = useState(null);
+  const [showRestPanel, setShowRestPanel] = useState(false);
+  const dingPlayedRef = useRef(false);
+
   const [showMenu, setShowMenu] = useState(false);
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [exerciseNotesIdx, setExerciseNotesIdx] = useState(null);
@@ -1119,12 +1342,30 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
     return () => clearInterval(iv);
   }, [startTime, phase]);
 
+  // Rest timer tick
+  useEffect(() => {
+    if (!restStartedAt || restPaused) return;
+    const iv = setInterval(() => {
+      const e = Math.floor((Date.now() - restStartedAt) / 1000);
+      setRestElapsed(e);
+      // Ding + vibrate when we cross the boundary
+      if (e >= restDuration && !dingPlayedRef.current) {
+        dingPlayedRef.current = true;
+        playDing();
+      }
+    }, 250);
+    return () => clearInterval(iv);
+  }, [restStartedAt, restPaused, restDuration]);
+
+  // Reset ding flag when starting a new rest
+  useEffect(() => {
+    if (restStartedAt) dingPlayedRef.current = false;
+  }, [restStartedAt]);
+
+  // Sync rest elapsed when pause state changes
   useEffect(() => {
     if (!restStartedAt) { setRestElapsed(0); return; }
-    const iv = setInterval(() => {
-      setRestElapsed(Math.floor((Date.now() - restStartedAt) / 1000));
-    }, 500);
-    return () => clearInterval(iv);
+    setRestElapsed(Math.floor((Date.now() - restStartedAt) / 1000));
   }, [restStartedAt]);
 
   const loadPrevious = async (exId) => {
@@ -1188,14 +1429,18 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   };
 
   const createExercise = async (name, muscleGroup) => {
+    if (!user?.id) {
+      alert('You need to be signed in to create custom exercises.');
+      return null;
+    }
     const { data, error } = await supabase
       .from('exercises')
-      .insert({ name, muscle_group: muscleGroup, is_custom: true, created_by: user?.id })
+      .insert({ name, muscle_group: muscleGroup, is_custom: true, created_by: user.id })
       .select()
       .single();
     if (error) {
       console.error('Failed to create exercise:', error);
-      return null;
+      throw error;
     }
     await fetchExercises();
     return data;
@@ -1204,23 +1449,43 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const updateSet = (exIdx, setIdx, patch) => {
     setWorkoutExercises(prev => {
       const next = JSON.parse(JSON.stringify(prev));
-      if (patch.completed && !next[exIdx].sets[setIdx].weight) {
-        const inWorkoutPrev = next[exIdx].sets.slice(0, setIdx).reverse().find(s => s.weight > 0);
-        const dbPrev = previousData[next[exIdx].exercise_id]?.[setIdx];
-        if (inWorkoutPrev) {
-          next[exIdx].sets[setIdx].weight = inWorkoutPrev.weight;
-          next[exIdx].sets[setIdx].reps = inWorkoutPrev.reps;
-        } else if (dbPrev) {
-          next[exIdx].sets[setIdx].weight = convertWeight(dbPrev.weight, unit);
-          next[exIdx].sets[setIdx].reps = dbPrev.reps;
+      const thisSet = next[exIdx].sets[setIdx];
+
+      // On complete: auto-populate weight/reps from previous set if empty
+      if (patch.completed) {
+        if (!thisSet.weight || !thisSet.reps) {
+          // Look back within this exercise for the last completed set
+          const inWorkoutPrev = next[exIdx].sets.slice(0, setIdx).reverse()
+            .find(s => s.completed && s.weight > 0);
+          const dbPrev = previousData[next[exIdx].exercise_id]?.[setIdx];
+
+          if (inWorkoutPrev) {
+            if (!thisSet.weight) thisSet.weight = inWorkoutPrev.weight;
+            if (!thisSet.reps) thisSet.reps = inWorkoutPrev.reps;
+          } else if (dbPrev) {
+            if (!thisSet.weight) thisSet.weight = convertWeight(dbPrev.weight, unit);
+            if (!thisSet.reps) thisSet.reps = dbPrev.reps;
+          }
         }
       }
-      Object.assign(next[exIdx].sets[setIdx], patch);
+      Object.assign(thisSet, patch);
       return next;
     });
 
-    if (patch.completed) setRestStartedAt(Date.now());
-    if (patch.completed === false) setRestStartedAt(null);
+    if (patch.completed) {
+      haptic();
+      setRestStartedAt(Date.now());
+      setRestAnchor({ exIdx, setIdx });
+      setRestPaused(false);
+      setRestPausedAt(null);
+    }
+    if (patch.completed === false) {
+      // Clear rest if this was the anchor
+      if (restAnchor && restAnchor.exIdx === exIdx && restAnchor.setIdx === setIdx) {
+        setRestStartedAt(null);
+        setRestAnchor(null);
+      }
+    }
   };
 
   const addSet = (exIdx) => {
@@ -1258,20 +1523,72 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
     });
   };
 
-  const handleFinish = () => {
+  // ─── Rest timer controls ───
+  const restRemaining = Math.max(0, restDuration - restElapsed);
+
+  const pauseRest = () => {
+    setRestPaused(true);
+    setRestPausedAt(Date.now());
+  };
+
+  const resumeRest = () => {
+    if (restPaused && restPausedAt && restStartedAt) {
+      const pauseDuration = Date.now() - restPausedAt;
+      setRestStartedAt(restStartedAt + pauseDuration);
+      setRestPaused(false);
+      setRestPausedAt(null);
+    }
+  };
+
+  const resetRest = () => {
+    setRestStartedAt(Date.now());
+    setRestPaused(false);
+    setRestPausedAt(null);
+    dingPlayedRef.current = false;
+  };
+
+  const skipRest = () => {
+    setRestStartedAt(null);
+    setRestAnchor(null);
+    setRestPaused(false);
+    setRestPausedAt(null);
+    setShowRestPanel(false);
+  };
+
+  const adjustRest = (delta) => {
+    if (restStartedAt) {
+      // delta positive = add time (shift started later); negative = remove time
+      setRestStartedAt(t => t + (delta * 1000));
+    }
+  };
+
+  const setRestRemainingTime = (secs) => {
+    const wanted = Math.max(1, Math.min(3599, secs));
+    setRestStartedAt(Date.now() - (restDuration - wanted) * 1000);
+    setRestPaused(false);
+    setRestPausedAt(null);
+    dingPlayedRef.current = false;
+  };
+
+  const setDefaultRestDuration = (secs) => {
+    setRestDuration(secs);
+    // If currently resting, also set remaining to this value
+    if (restStartedAt) {
+      setRestStartedAt(Date.now());
+      setRestPaused(false);
+      setRestPausedAt(null);
+      dingPlayedRef.current = false;
+    }
+  };
+
+  // ─── Finish flow ───
+  const handleFinishTap = () => {
     const hasCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
     if (!hasCompleted) {
       alert('Complete at least one set before finishing.');
       return;
     }
-    // Check for unfinished sets (added but not checked off)
-    const unfinishedCount = workoutExercises.reduce((total, ex) =>
-      total + ex.sets.filter(s => !s.completed).length, 0);
-    if (unfinishedCount > 0) {
-      setShowFinishConfirm(true);
-      return;
-    }
-    doSave();
+    setShowFinishConfirm(true);
   };
 
   const doSave = async () => {
@@ -1288,13 +1605,13 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       exercises: workoutExercises.map(e => ({
         exercise_id: e.exercise_id, notes: e.notes,
         sets: e.sets
-          .filter(s => s.completed) // only save completed sets
+          .filter(s => s.completed)
           .map(s => ({
             weight: convertWeightBack(s.weight || 0, unit),
             reps: parseInt(s.reps) || 0,
             is_pr: s.is_pr, set_type: s.set_type, completed: s.completed,
           })),
-      })).filter(e => e.sets.length > 0), // drop exercises with no completed sets
+      })).filter(e => e.sets.length > 0),
     };
     try {
       const saved = await saveWorkout(workout);
@@ -1316,37 +1633,46 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
     setTitle('Workout');
     setWorkoutNotes('');
     setShowDiscardConfirm(false);
+    setRestStartedAt(null);
+    setRestAnchor(null);
     setPhase('home');
   };
 
-  const handleSaveAsTemplate = async () => {
-    if (!templateName.trim()) return;
+  const handleSaveAsTemplate = async (nameOverride) => {
+    const name = (nameOverride || templateName).trim();
+    if (!name) return false;
     try {
-      await saveTemplate(templateName.trim(), workoutExercises);
+      await saveTemplate(name, workoutExercises);
       await fetchTemplates();
-      setShowSaveTemplate(false);
-      setTemplateName('');
+      if (!nameOverride) {
+        setShowSaveTemplate(false);
+        setTemplateName('');
+      }
+      return true;
     } catch (err) {
-      console.error('saveTemplate failed:', err);
       alert('Could not save template: ' + (err.message || 'unknown error'));
+      throw err;
     }
   };
 
-  const handleBack = () => {
-    if (phase === 'logging' && workoutExercises.some(ex => ex.sets.some(s => s.completed))) {
-      if (onMinimize) {
-        onMinimize({
-          title: title || 'Workout', elapsed,
-          exerciseCount: workoutExercises.length,
-          setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
-        });
-      }
-    } else if (phase === 'logging') {
-      // No completed sets → return to home, discard
-      setWorkoutExercises([]);
-      setPhase('home');
+  const handleMinimize = () => {
+    if (!onMinimize) return;
+    onMinimize({
+      title: title || 'Workout', elapsed,
+      exerciseCount: workoutExercises.length,
+      setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
+    });
+  };
+
+  const handleCancelTap = () => {
+    const hasAnyCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
+    if (hasAnyCompleted) {
+      setShowDiscardConfirm(true);
     } else {
-      onDone();
+      setWorkoutExercises([]);
+      setTitle('Workout');
+      setWorkoutNotes('');
+      setPhase('home');
     }
   };
 
@@ -1369,16 +1695,10 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       <CompletionScreen
         workout={completedWorkout}
         onDone={onDone}
+        onReopen={() => setPhase('logging')}
         unit={unit}
         onSaveAsTemplate={async (name) => {
-          try {
-            await saveTemplate(name, workoutExercises);
-            await fetchTemplates();
-            return true;
-          } catch (err) {
-            console.error('saveTemplate failed:', err);
-            throw err;
-          }
+          return await handleSaveAsTemplate(name);
         }}
       />
     );
@@ -1388,29 +1708,36 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const hasAnyExercises = workoutExercises.length > 0;
   const hasAnyCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
   const today = formatDate(new Date());
-
   const editingExercise = exerciseNotesIdx !== null ? workoutExercises[exerciseNotesIdx] : null;
 
   return (
-    <div style={{ paddingBottom: 100, paddingTop: 64, fontFamily: FONTS.sans }}>
+    <div style={{ paddingBottom: 120, paddingTop: 62, fontFamily: FONTS.sans }}>
       {/* Top bar */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30,
         background: COLORS.isDark ? 'rgba(10,10,10,0.85)' : 'rgba(250,250,250,0.85)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         borderBottom: `0.5px solid ${COLORS.border}`,
-        padding: 'calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px',
+        padding: 'calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         gap: 10,
       }}>
-        {/* Rest timer button (left) */}
-        <button onClick={() => setShowRestPicker(true)} style={{
-          background: COLORS.card2, border: 'none',
+        {/* Rest timer button (left) — tap opens panel */}
+        <button onClick={() => setShowRestPanel(true)} style={{
+          background: restStartedAt ? COLORS.text : COLORS.card2, border: 'none',
           width: 36, height: 36, borderRadius: 10,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', flexShrink: 0,
+          cursor: 'pointer', flexShrink: 0, position: 'relative',
         }}>
-          <Icon name="clock" size={16} color={COLORS.text} />
+          <Icon name="clock" size={15} color={restStartedAt ? COLORS.bg : COLORS.text} />
+          {restStartedAt && (
+            <span style={{
+              position: 'absolute', bottom: -18, left: '50%', transform: 'translateX(-50%)',
+              fontFamily: FONTS.mono, fontSize: 9, color: COLORS.text,
+              letterSpacing: '-0.02em', fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}>{fmt(restRemaining)}</span>
+          )}
         </button>
 
         {/* Centered title + elapsed */}
@@ -1431,44 +1758,47 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           <span style={{
             fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
             fontWeight: 500, marginTop: 2, letterSpacing: '0.06em',
+            fontVariantNumeric: 'tabular-nums',
           }}>{fmt(elapsed)} · {today}</span>
         </div>
 
-        {/* Finish (right) */}
-        <button onClick={handleFinish} disabled={saving || !hasAnyCompleted} style={{
-          background: hasAnyCompleted ? COLORS.text : 'transparent',
-          color: hasAnyCompleted ? COLORS.bg : COLORS.textDim,
-          border: `1px solid ${hasAnyCompleted ? COLORS.text : COLORS.border}`,
-          borderRadius: 999, padding: '7px 16px', fontWeight: 700, fontSize: 13,
-          cursor: hasAnyCompleted ? 'pointer' : 'not-allowed', fontFamily: FONTS.sans,
-          opacity: saving ? 0.6 : 1, flexShrink: 0, letterSpacing: '-0.01em',
-        }}>{saving ? '...' : 'Finish'}</button>
+        {/* Minimize (only if sets logged) + Finish */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {onMinimize && hasAnyCompleted && (
+            <button onClick={handleMinimize} style={{
+              background: COLORS.card2, border: 'none',
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke={COLORS.text} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          )}
+          <button onClick={handleFinishTap} disabled={saving || !hasAnyCompleted} style={{
+            background: hasAnyCompleted ? COLORS.text : 'transparent',
+            color: hasAnyCompleted ? COLORS.bg : COLORS.textDim,
+            border: `1px solid ${hasAnyCompleted ? COLORS.text : COLORS.border}`,
+            borderRadius: 999, padding: '7px 14px', fontWeight: 700, fontSize: 13,
+            cursor: hasAnyCompleted ? 'pointer' : 'not-allowed', fontFamily: FONTS.sans,
+            opacity: saving ? 0.6 : 1, letterSpacing: '-0.01em',
+          }}>{saving ? '...' : 'Finish'}</button>
+        </div>
       </div>
 
-      <div style={{ padding: '16px 16px 0', position: 'relative' }}>
-        {/* Secondary action row: cancel + menu */}
+      <div style={{ padding: '12px 14px 0', position: 'relative' }}>
+        {/* Cancel + menu */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          marginBottom: 14,
+          marginBottom: 12,
         }}>
-          <button onClick={() => {
-            if (hasAnyCompleted) {
-              setShowDiscardConfirm(true);
-            } else {
-              // No work done yet — just bail back to home
-              setWorkoutExercises([]);
-              setTitle('Workout');
-              setWorkoutNotes('');
-              setPhase('home');
-            }
-          }} style={{
+          <button onClick={handleCancelTap} style={{
             background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 6,
             fontFamily: FONTS.mono, fontSize: 10, color: COLORS.red,
             letterSpacing: '0.1em', fontWeight: 600, textTransform: 'uppercase',
-          }}>
-            Cancel
-          </button>
+          }}>Cancel</button>
           <button onClick={() => setShowMenu(!showMenu)} style={{
             background: 'none', border: 'none', padding: 4, cursor: 'pointer',
             color: COLORS.textDim, fontSize: 18, lineHeight: 1, fontWeight: 700,
@@ -1491,14 +1821,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                   <MenuItem label="Save as template" onClick={() => { setShowMenu(false); setTemplateName(title); setShowSaveTemplate(true); }} />
                 )}
                 {onMinimize && hasAnyCompleted && (
-                  <MenuItem label="Minimize" onClick={() => {
-                    setShowMenu(false);
-                    onMinimize({
-                      title: title || 'Workout', elapsed,
-                      exerciseCount: workoutExercises.length,
-                      setCount: workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
-                    });
-                  }} />
+                  <MenuItem label="Minimize" onClick={() => { setShowMenu(false); handleMinimize(); }} />
                 )}
               </div>
             </>
@@ -1508,7 +1831,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
         {/* Workout notes preview */}
         {workoutNotes && (
           <div onClick={() => setShowNotesEditor(true)} style={{
-            fontSize: 13, color: COLORS.text, padding: '10px 12px', marginBottom: 14,
+            fontSize: 13, color: COLORS.text, padding: '10px 12px', marginBottom: 12,
             background: COLORS.card2, borderRadius: 10, lineHeight: 1.45, cursor: 'pointer',
           }}>
             {workoutNotes}
@@ -1524,20 +1847,15 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             unit={unit}
             restDuration={restDuration}
             restElapsed={restElapsed}
+            restAnchor={restAnchor}
+            restPaused={restPaused}
             onUpdate={(setIdx, patch) => updateSet(exIdx, setIdx, patch)}
             onAddSet={() => addSet(exIdx)}
             onRemove={() => removeExercise(exIdx)}
             onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
             onShowHistory={() => setShowHistory(ex)}
             onEditNotes={() => setExerciseNotesIdx(exIdx)}
-            onSkipRest={() => setRestStartedAt(null)}
-            onAdjustRest={(delta) => {
-              // delta in seconds: positive = extend rest, negative = shorten
-              // Shift restStartedAt backwards/forwards so remaining time changes by `delta`
-              if (restStartedAt) {
-                setRestStartedAt(t => t + (delta * 1000));
-              }
-            }}
+            onExpandRest={() => setShowRestPanel(true)}
           />
         ))}
 
@@ -1559,12 +1877,57 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
         )}
 
         <button onClick={() => setShowPicker(true)} style={{
-          width: '100%', padding: 14, marginTop: 4,
+          width: '100%', padding: 13, marginTop: 4,
           background: COLORS.text, color: COLORS.bg,
           border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
           cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
         }}>+ Add exercise</button>
+
+        {/* Finish + Cancel at bottom for natural flow */}
+        {hasAnyExercises && (
+          <div style={{ marginTop: 20, marginBottom: 16 }}>
+            <button onClick={handleFinishTap} disabled={saving || !hasAnyCompleted} style={{
+              width: '100%', padding: 14, marginBottom: 8,
+              background: hasAnyCompleted ? COLORS.text : COLORS.card2,
+              color: hasAnyCompleted ? COLORS.bg : COLORS.textDim,
+              border: 'none', borderRadius: 12,
+              fontSize: 14, fontWeight: 700,
+              cursor: hasAnyCompleted ? 'pointer' : 'not-allowed',
+              fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+              opacity: saving ? 0.6 : 1,
+            }}>{saving ? 'Saving…' : 'Finish workout'}</button>
+            <button onClick={handleCancelTap} style={{
+              width: '100%', padding: 12,
+              background: 'transparent', color: COLORS.red,
+              border: `1px solid ${COLORS.border}`, borderRadius: 12,
+              fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+            }}>Cancel workout</button>
+          </div>
+        )}
       </div>
+
+      {/* Rest panel */}
+      {showRestPanel && (
+        <RestPanel
+          remaining={restStartedAt ? restRemaining : restDuration}
+          duration={restDuration}
+          paused={restPaused}
+          onPause={pauseRest}
+          onResume={resumeRest}
+          onReset={resetRest}
+          onSkip={skipRest}
+          onAdjust={adjustRest}
+          onSetRemaining={(secs) => {
+            if (restStartedAt) {
+              setRestRemainingTime(secs);
+            } else {
+              setDefaultRestDuration(secs);
+            }
+          }}
+          onClose={() => setShowRestPanel(false)}
+        />
+      )}
 
       {/* Exercise picker */}
       {showPicker && (
@@ -1574,72 +1937,6 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           onClose={() => setShowPicker(false)}
           onCreate={createExercise}
         />
-      )}
-
-      {/* Rest time picker */}
-      {showRestPicker && (
-        <div onClick={() => setShowRestPicker(false)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 45,
-          display: 'flex', alignItems: 'flex-end',
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: COLORS.bg, width: '100%', borderRadius: '20px 20px 0 0',
-            padding: '20px 16px calc(env(safe-area-inset-bottom, 0px) + 24px)',
-            fontFamily: FONTS.sans,
-          }}>
-            <div style={{
-              fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
-              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
-              marginBottom: 10, textAlign: 'center',
-            }}>Rest timer</div>
-            <div style={{
-              fontSize: 40, fontWeight: 800, color: COLORS.text,
-              letterSpacing: '-0.03em', textAlign: 'center',
-              fontFamily: FONTS.mono, marginBottom: 20,
-            }}>{fmt(restDuration)}</div>
-            <div style={{
-              display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 20,
-            }}>
-              <button onClick={() => setRestDuration(v => Math.max(15, v - 30))} style={{
-                background: COLORS.card2, border: 'none', color: COLORS.text,
-                fontSize: 15, padding: '10px 16px', borderRadius: 10, fontWeight: 700,
-                fontFamily: FONTS.mono, cursor: 'pointer',
-              }}>−30s</button>
-              <button onClick={() => setRestDuration(v => Math.max(15, v - 15))} style={{
-                background: COLORS.card2, border: 'none', color: COLORS.text,
-                fontSize: 15, padding: '10px 16px', borderRadius: 10, fontWeight: 700,
-                fontFamily: FONTS.mono, cursor: 'pointer',
-              }}>−15s</button>
-              <button onClick={() => setRestDuration(v => v + 15)} style={{
-                background: COLORS.card2, border: 'none', color: COLORS.text,
-                fontSize: 15, padding: '10px 16px', borderRadius: 10, fontWeight: 700,
-                fontFamily: FONTS.mono, cursor: 'pointer',
-              }}>+15s</button>
-              <button onClick={() => setRestDuration(v => v + 30)} style={{
-                background: COLORS.card2, border: 'none', color: COLORS.text,
-                fontSize: 15, padding: '10px 16px', borderRadius: 10, fontWeight: 700,
-                fontFamily: FONTS.mono, cursor: 'pointer',
-              }}>+30s</button>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
-              {[60, 90, 120, 150, 180, 240, 300].map(s => (
-                <button key={s} onClick={() => setRestDuration(s)} style={{
-                  padding: '7px 12px', borderRadius: 999,
-                  border: `1px solid ${restDuration === s ? COLORS.text : COLORS.border}`,
-                  background: restDuration === s ? COLORS.text : 'transparent',
-                  color: restDuration === s ? COLORS.bg : COLORS.text,
-                  fontSize: 12, fontWeight: 600, fontFamily: FONTS.mono,
-                  cursor: 'pointer',
-                }}>{fmt(s)}</button>
-              ))}
-            </div>
-            <button onClick={() => setShowRestPicker(false)} style={{
-              width: '100%', padding: 13, background: COLORS.text, color: COLORS.bg,
-              border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
-              cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
-            }}>Done</button>
-          </div>
-        </div>
       )}
 
       {/* Workout notes editor */}
@@ -1731,8 +2028,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
         />
       )}
 
-      {/* Discard confirm */}
-      {/* Finish with unfinished sets confirm */}
+      {/* Finish confirm */}
       {showFinishConfirm && (() => {
         const unfinished = workoutExercises.reduce((total, ex) =>
           total + ex.sets.filter(s => !s.completed).length, 0);
@@ -1751,7 +2047,10 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
               <div style={{
                 fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.45,
               }}>
-                You have <span style={{ color: COLORS.text, fontWeight: 600 }}>{unfinished} unfinished set{unfinished !== 1 ? 's' : ''}</span>. They won't be saved.
+                {unfinished > 0
+                  ? <>You have <span style={{ color: COLORS.text, fontWeight: 600 }}>{unfinished} unfinished set{unfinished !== 1 ? 's' : ''}</span> that won't be saved.</>
+                  : 'Save this workout and share it to your feed.'
+                }
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setShowFinishConfirm(false)} style={{
@@ -1763,13 +2062,14 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                   flex: 1, padding: 11, background: COLORS.text, color: COLORS.bg,
                   border: 'none', borderRadius: 999,
                   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
-                }}>Finish anyway</button>
+                }}>Finish</button>
               </div>
             </div>
           </div>
         );
       })()}
 
+      {/* Discard confirm */}
       {showDiscardConfirm && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
@@ -1781,7 +2081,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
           }}>
             <div style={{
               fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
-            }}>Discard workout?</div>
+            }}>Cancel workout?</div>
             <div style={{
               fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.45,
             }}>All sets you've logged will be lost. This can't be undone.</div>
@@ -1790,18 +2090,18 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                 flex: 1, padding: 11, background: 'transparent', color: COLORS.text,
                 border: `1px solid ${COLORS.border}`, borderRadius: 999,
                 fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
-              }}>Cancel</button>
+              }}>Keep workout</button>
               <button onClick={handleDiscard} style={{
                 flex: 1, padding: 11, background: COLORS.red, color: '#fff',
                 border: 'none', borderRadius: 999,
                 fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
-              }}>Discard</button>
+              }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Save as template */}
+      {/* Save as template from menu */}
       {showSaveTemplate && (
         <div onClick={() => setShowSaveTemplate(false)} style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
@@ -1820,6 +2120,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
               onChange={e => setTemplateName(e.target.value)}
               placeholder="Template name"
               autoFocus
+              onKeyDown={e => { if (e.key === 'Enter' && templateName.trim()) handleSaveAsTemplate(); }}
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
                 border: `1px solid ${COLORS.border}`, background: COLORS.bg,
@@ -1833,7 +2134,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
                 border: `1px solid ${COLORS.border}`, borderRadius: 999,
                 fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
               }}>Cancel</button>
-              <button onClick={handleSaveAsTemplate} disabled={!templateName.trim()} style={{
+              <button onClick={() => handleSaveAsTemplate()} disabled={!templateName.trim()} style={{
                 flex: 1, padding: 11,
                 background: templateName.trim() ? COLORS.text : COLORS.card2,
                 color: templateName.trim() ? COLORS.bg : COLORS.textDim,
