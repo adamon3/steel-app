@@ -1,24 +1,289 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0A0A0A" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Steel" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="description" content="Steel — the social gym app. Track your workouts, compete on gym leaderboards, and follow your friends." />
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STEEL — The Social Gym App</title>
+<meta name="description" content="Track your workouts, join your gym's community, and find training that works. Coming soon to iOS and Android.">
+<meta property="og:title" content="STEEL — The Social Gym App">
+<meta property="og:description" content="Track your workouts, join your gym's community, and find training that works.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #050507; --card: #111114; --accent: #6366F1; --accent-glow: #818CF8;
+    --text: #FAFAFA; --dim: #71717A; --border: #27272A; --orange: #FB923C; --gold: #FACC15;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Outfit', -apple-system, sans-serif; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  .hero-bg { position: fixed; inset: 0; z-index: 0; background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99,102,241,0.15) 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 80% 60%, rgba(99,102,241,0.08) 0%, transparent 60%), var(--bg); }
+  .content { position: relative; z-index: 1; }
+  .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 60px 24px 80px; }
+  .logo { font-size: 18px; font-weight: 900; letter-spacing: 8px; font-style: italic; color: var(--accent-glow); margin-bottom: 48px; animation: fadeDown 0.8s ease-out; }
+  .hero h1 { font-size: clamp(42px, 8vw, 72px); font-weight: 900; line-height: 1.05; letter-spacing: -2px; margin-bottom: 20px; max-width: 700px; animation: fadeUp 0.8s ease-out 0.1s both; }
+  .hero h1 .accent { color: var(--accent-glow); }
+  .hero .subtitle { font-size: clamp(16px, 3vw, 20px); color: var(--dim); line-height: 1.5; max-width: 520px; margin-bottom: 12px; animation: fadeUp 0.8s ease-out 0.2s both; }
+  .hero .wink { font-size: 14px; color: var(--accent-glow); font-style: italic; margin-bottom: 36px; opacity: 0.8; animation: fadeUp 0.8s ease-out 0.25s both; }
+  .signup-form { display: flex; gap: 10px; width: 100%; max-width: 440px; animation: fadeUp 0.8s ease-out 0.3s both; }
+  .signup-form input { flex: 1; padding: 16px 20px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+  .signup-form input:focus { border-color: var(--accent); }
+  .signup-form input::placeholder { color: var(--dim); }
+  .signup-form button { padding: 16px 28px; border-radius: 14px; border: none; background: var(--accent); color: #fff; font-weight: 700; font-size: 16px; cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.2s; }
+  .signup-form button:hover { background: var(--accent-glow); transform: translateY(-1px); }
+  .signup-form button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .signup-meta { margin-top: 16px; font-size: 14px; color: var(--dim); animation: fadeUp 0.8s ease-out 0.4s both; }
+  .success-msg { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); border-radius: 14px; padding: 16px 24px; color: var(--accent-glow); font-weight: 600; font-size: 16px; max-width: 440px; animation: fadeUp 0.4s ease-out; }
+  .try-link { margin-top: 24px; display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 14px; text-decoration: none; border-bottom: 1px solid var(--border); padding-bottom: 2px; transition: color 0.2s; animation: fadeUp 0.8s ease-out 0.5s both; }
+  .try-link:hover { color: var(--text); }
+  .features { padding: 80px 24px; max-width: 1000px; margin: 0 auto; }
+  .features-label { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; text-align: center; }
+  .features h2 { font-size: clamp(28px, 5vw, 44px); font-weight: 800; text-align: center; margin-bottom: 60px; letter-spacing: -1px; }
+  .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px 28px; transition: all 0.3s; }
+  .feature-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+  .feature-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .feature-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .feature-card p { font-size: 15px; color: var(--dim); line-height: 1.6; }
+  .diff-section { padding: 80px 24px; max-width: 700px; margin: 0 auto; text-align: center; }
+  .diff-section h2 { font-size: clamp(28px, 5vw, 40px); font-weight: 800; margin-bottom: 40px; letter-spacing: -1px; }
+  .diff-item { display: flex; align-items: flex-start; gap: 16px; text-align: left; padding: 24px 0; border-bottom: 1px solid var(--border); }
+  .diff-num { width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 800; font-size: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .diff-item h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .diff-item p { font-size: 14px; color: var(--dim); line-height: 1.5; }
+  .cta { padding: 100px 24px; text-align: center; background: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(99,102,241,0.1) 0%, transparent 70%); }
+  .cta h2 { font-size: clamp(28px, 5vw, 44px); font-weight: 900; margin-bottom: 16px; letter-spacing: -1px; }
+  .cta .subtitle { font-size: 18px; color: var(--dim); margin-bottom: 40px; }
+  .footer { padding: 40px 24px; text-align: center; border-top: 1px solid var(--border); }
+  .footer-logo { font-size: 16px; font-weight: 900; letter-spacing: 6px; font-style: italic; color: var(--accent-glow); margin-bottom: 8px; }
+  .footer p { font-size: 13px; color: var(--dim); }
+  @media (max-width: 500px) { .signup-form { flex-direction: column; } .signup-form button { width: 100%; } .features-grid { grid-template-columns: 1fr; } .install-grid { grid-template-columns: 1fr !important; } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  .icon-svg { display: inline-block; vertical-align: middle; }
+</style>
+</head>
+<body>
 
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+<div class="hero-bg"></div>
+<div class="content">
 
-    <title>Steel</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./src/main.jsx"></script>
-  </body>
+<!-- HERO -->
+<section class="hero">
+  <div class="logo">STEEL</div>
+  <h1>The gym doesn't have to be a <span class="accent">solo sport</span></h1>
+  <p class="subtitle">Track workouts. Compete with your gym. Copy the athletes doing it right.</p>
+  <p class="wink">Yes, it's Steel. Not steal. Well... kind of both.</p>
+  
+  <div id="signup-area">
+    <div class="signup-form" id="form">
+      <input type="email" id="email" placeholder="Enter your email" required>
+      <button onclick="handleSignup()" id="btn">Get Early Access</button>
+    </div>
+    <p class="signup-meta">Launching soon on iOS & Android</p>
+  </div>
+
+  <a href="https://steel-app-eight.vercel.app" class="try-link" target="_blank">
+    Try Steel Beta now →
+  </a>
+</section>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="features-label">Everything you need</div>
+  <h2>Simple to start. Powerful when you need it.</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background: rgba(99,102,241,0.15);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="4" height="6" rx="1"/><rect x="18" y="9" width="4" height="6" rx="1"/><rect x="6" y="7" width="3" height="10" rx="1"/><rect x="15" y="7" width="3" height="10" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+      </div>
+      <h3>Log workouts fast</h3>
+      <p>Remembers your last session. Tap to fill, swipe to complete. Designed to stay out of your way between sets.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background: rgba(251,146,60,0.15);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FB923C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2z"/></svg>
+      </div>
+      <h3>Gym leaderboards</h3>
+      <p>Join your gym and see where you stand. Friendly competition that makes every session count a little more.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background: rgba(250,204,21,0.15);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FACC15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </div>
+      <h3>Steel it</h3>
+      <p>Follow athletes by sport. Train like a rugby winger, a boxer, a powerlifter. One tap and their workout is yours.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background: rgba(34,197,94,0.15);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </div>
+      <h3>See your progress</h3>
+      <p>Graphs for every exercise. Personal records. Workout calendar. Watch yourself improve week by week.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background: rgba(236,72,153,0.15);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <h3>Social feed</h3>
+      <p>See what your friends are training. Share your workouts. Get motivated by real people, not influencers.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background: rgba(99,102,241,0.15);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#818CF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3>Smart features</h3>
+      <p>Rest timer, progressive overload suggestions, supersets, templates. As much or as little as you want.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DIFFERENTIATORS -->
+<section class="diff-section">
+  <h2>Why people are switching to Steel</h2>
+  <div class="diff-item">
+    <div class="diff-num">1</div>
+    <div>
+      <h3>Your gym has a leaderboard now</h3>
+      <p>Join your gym. See where you rank. Watch your mates try to catch you.</p>
+    </div>
+  </div>
+  <div class="diff-item">
+    <div class="diff-num">2</div>
+    <div>
+      <h3>Find training that fits your sport</h3>
+      <p>Play rugby? Follow a winger's speed programme. Into boxing? Steel a fighter's conditioning. Whatever your sport, someone's already doing what works.</p>
+    </div>
+  </div>
+  <div class="diff-item">
+    <div class="diff-num">3</div>
+    <div>
+      <h3>No plan? No problem.</h3>
+      <p>Copy others in one tap. Follow athletes in your sport — a winger's speed work, a boxer's conditioning — or just someone at your gym who's getting results.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TRY STEEL BETA -->
+<section class="features" style="padding-top: 40px;">
+  <div class="features-label">Can't wait?</div>
+  <h2>Try Steel Beta</h2>
+  <div style="max-width: 600px; margin: 0 auto;">
+    <p style="text-align: center; color: var(--dim); font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+      Steel is live as a web app right now. Add it to your home screen and it works just like a native app — full screen, no browser bar, instant load.
+    </p>
+
+    <a href="https://steel-app-eight.vercel.app" target="_blank" style="display: block; text-align: center; padding: 16px 28px; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 700; font-size: 16px; text-decoration: none; margin-bottom: 32px; transition: all 0.2s;">
+      Open Steel Beta
+    </a>
+
+    <div class="install-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.5" style="margin-bottom: 12px;"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83"/><path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg>
+        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px;">iPhone</h3>
+        <div style="font-size: 13px; color: var(--dim); line-height: 1.8;">
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">1.</span><span>Open the link in <strong style="color: var(--text);">Safari</strong></span></div>
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">2.</span><span>Tap the <strong style="color: var(--text);">Share</strong> button</span></div>
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">3.</span><span>Tap <strong style="color: var(--text);">Add to Home Screen</strong></span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">4.</span><span>Tap <strong style="color: var(--text);">Add</strong> — done</span></div>
+        </div>
+      </div>
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.5" style="margin-bottom: 12px;"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.27-.86-.31-.16-.69-.04-.86.27l-1.87 3.23C14.93 8.35 13.5 8.01 12 8.01s-2.93.34-4.44.93L5.69 5.71c-.16-.31-.54-.43-.86-.27-.31.16-.43.54-.27.86L6.4 9.48C3.88 10.87 2.12 13.27 2 16h20c-.12-2.73-1.88-5.13-4.4-6.52zM7 13.5a1 1 0 110-2 1 1 0 010 2zm10 0a1 1 0 110-2 1 1 0 010 2z"/></svg>
+        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px;">Android</h3>
+        <div style="font-size: 13px; color: var(--dim); line-height: 1.8;">
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">1.</span><span>Open the link in <strong style="color: var(--text);">Chrome</strong></span></div>
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">2.</span><span>Tap the <strong style="color: var(--text);">three dots menu</strong></span></div>
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">3.</span><span>Tap <strong style="color: var(--text);">Add to Home Screen</strong></span></div>
+          <div style="display: flex; gap: 8px;"><span style="color: var(--accent); font-weight: 700; flex-shrink: 0;">4.</span><span>Tap <strong style="color: var(--text);">Add</strong> — done</span></div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align: center; color: var(--dim); font-size: 13px; margin-top: 16px;">Opens full screen with no browser bar. Looks and feels like a real app.</p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2>Get in early</h2>
+  <p class="subtitle">Join the waitlist and be first to try Steel when it launches.</p>
+  <div style="max-width: 440px; margin: 0 auto;">
+    <div class="signup-form">
+      <input type="email" id="email2" placeholder="Enter your email" required>
+      <button onclick="handleSignup2()" id="btn2">I'm in</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-logo">STEEL</div>
+  <p>Steel workouts from athletes you admire</p>
+</footer>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://tkrwctmzftnmdspioohw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrcndjdG16ZnRubWRzcGlvb2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODMyMjcsImV4cCI6MjA5MDM1OTIyN30.aLgYaxe2HZwdbS1TxmcvaurzCoOJ_No2ScucyypodeM';
+
+async function supaFetch(path, method, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: method || 'GET',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('Supabase error:', res.status, err);
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+async function submitEmail(email, btnId) {
+  const btn = document.getElementById(btnId);
+  const original = btn.textContent;
+  btn.textContent = 'Joining...';
+  btn.disabled = true;
+  try {
+    await supaFetch('waitlist', 'POST', { email: email.toLowerCase().trim() });
+    const area = document.getElementById('signup-area');
+    if (area && btnId === 'btn') {
+      area.innerHTML = '<div class="success-msg">You\'re on the list. We\'ll be in touch.</div>';
+    } else {
+      btn.textContent = "You're in!";
+      btn.style.background = '#22C55E';
+    }
+  } catch(e) {
+    btn.textContent = original;
+    btn.disabled = false;
+    if (e.message.includes('duplicate')) {
+      btn.textContent = 'Already signed up';
+      btn.style.background = '#22C55E';
+      btn.disabled = true;
+    } else {
+      alert('Something went wrong — try again');
+    }
+  }
+}
+
+function handleSignup() {
+  const email = document.getElementById('email').value;
+  if (!email || !email.includes('@')) { alert('Enter a valid email'); return; }
+  submitEmail(email, 'btn');
+}
+
+function handleSignup2() {
+  const email = document.getElementById('email2').value;
+  if (!email || !email.includes('@')) { alert('Enter a valid email'); return; }
+  submitEmail(email, 'btn2');
+}
+</script>
+
+</body>
 </html>

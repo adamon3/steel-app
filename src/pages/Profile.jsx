@@ -9,19 +9,13 @@ const TABS = ['Stats', 'Workouts', 'Progress', 'PRs', 'Body', 'Following'];
 
 function SubTab({ tabs, active, onChange }) {
   return (
-    <div style={{
-      display: 'flex', gap: 0, borderBottom: `0.5px solid ${COLORS.border}`,
-      marginBottom: 16, overflowX: 'auto', scrollbarWidth: 'none',
-    }}>
+    <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${COLORS.border}`, marginBottom: 14 }}>
       {tabs.map(t => (
         <button key={t} onClick={() => onChange(t)} style={{
-          flex: 1, minWidth: 'fit-content', padding: '12px 10px', border: 'none', cursor: 'pointer',
-          fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
-          background: 'transparent',
-          color: active === t ? COLORS.text : COLORS.textDim,
-          borderBottom: active === t ? `2px solid ${COLORS.text}` : '2px solid transparent',
-          marginBottom: -1, whiteSpace: 'nowrap',
+          flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          fontFamily: 'inherit', background: 'transparent',
+          color: active === t ? COLORS.accent : COLORS.textDim,
+          borderBottom: active === t ? `2px solid ${COLORS.accent}` : '2px solid transparent', marginBottom: -1,
         }}>{t}</button>
       ))}
     </div>
@@ -672,85 +666,34 @@ export default function Profile({ onViewProfile }) {
             />
             <label style={{
               position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: 12,
-              background: COLORS.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: COLORS.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', border: `2px solid ${COLORS.card}`,
             }}>
-              <Icon name="plus" size={14} color={COLORS.bg} />
+              <Icon name="plus" size={14} color={COLORS.isDark ? COLORS.bg : '#fff'} />
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             </label>
             {uploading && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text, letterSpacing: '-0.02em' }}>
-              {profile.display_name}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text }}>{profile.display_name}</div>
+            <div style={{ fontSize: 13, color: COLORS.textDim }}>@{profile.username}</div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              {profile.sport && <Badge color={COLORS.orange}>{profile.sport}</Badge>}
+              {profile.gym && <Badge><Icon name="pin" size={10} color={COLORS.orange} /> {profile.gym}</Badge>}
             </div>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim,
-              marginTop: 3, letterSpacing: '0.04em',
-            }}>@{profile.username}</div>
-            {(profile.sport || profile.gym) && (
-              <div style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
-                marginTop: 8, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
-              }}>
-                {[profile.sport, profile.gym].filter(Boolean).join(' · ')}
-              </div>
-            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button onClick={() => setEditing(true)} style={{
-              background: 'transparent', border: `1px solid ${COLORS.border}`, borderRadius: 999,
-              padding: '7px 14px', cursor: 'pointer',
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.text,
-              letterSpacing: '0.1em', fontWeight: 500, textTransform: 'uppercase',
-            }}>Edit</button>
-            <button onClick={() => setShowSettings(!showSettings)} style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-              display: 'flex', justifyContent: 'center',
-            }}>
-              <Icon name="settings" size={18} color={COLORS.textDim} />
+            <button onClick={() => setEditing(true)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 12, color: COLORS.textDim, fontFamily: 'inherit', fontWeight: 600 }}>Edit</button>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              <Icon name="settings" size={20} color={COLORS.textDim} />
             </button>
           </div>
         </div>
-        {profile.bio && (
-          <div style={{
-            fontSize: 13, color: COLORS.text, marginTop: 14, lineHeight: 1.45,
-          }}>{profile.bio}</div>
-        )}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6,
-          marginTop: 16, paddingTop: 14, borderTop: `0.5px solid ${COLORS.border}`,
-        }}>
-          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700,
-              color: COLORS.text, letterSpacing: '-0.03em',
-            }}>{followerCount}</div>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim,
-              letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
-            }}>Followers</div>
-          </div>
-          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700,
-              color: COLORS.text, letterSpacing: '-0.03em',
-            }}>{followingCount}</div>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim,
-              letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
-            }}>Following</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700,
-              color: COLORS.text, letterSpacing: '-0.03em',
-            }}>{streak}</div>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim,
-              letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginTop: 2,
-            }}>Week streak</div>
-          </div>
+        {profile.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 12, lineHeight: 1.4 }}>{profile.bio}</div>}
+        <div style={{ display: 'flex', gap: 20, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${COLORS.border}` }}>
+          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer' }}><span style={{ fontWeight: 700, color: COLORS.text }}>{followerCount}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Followers</span></div>
+          <div onClick={() => setSubTab('Following')} style={{ cursor: 'pointer' }}><span style={{ fontWeight: 700, color: COLORS.text }}>{followingCount}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Following</span></div>
+          <div><span style={{ fontWeight: 700, color: COLORS.accent }}><Icon name="fire" size={14} color={COLORS.accent} /> {streak}</span><span style={{ fontSize: 13, color: COLORS.textDim, marginLeft: 4 }}>Weeks</span></div>
         </div>
       </div>
 

@@ -80,15 +80,13 @@ export default function Auth({ onClose, message, initialMode }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
           <div style={{
             fontFamily: "'Inter Tight', -apple-system, sans-serif",
-            fontWeight: 900, fontSize: 22, color: COLORS.text,
-            letterSpacing: '-0.5px',
-            display: 'flex', alignItems: 'center', gap: 8,
+            fontWeight: 900,
+            fontSize: 22,
+            color: COLORS.text,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            lineHeight: 1,
           }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%', background: '#BFE600',
-              display: 'inline-block',
-              boxShadow: '0 0 12px #BFE600',
-            }} />
             STEEL
           </div>
           {onClose && (

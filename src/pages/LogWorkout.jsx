@@ -1665,15 +1665,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   };
 
   const handleCancelTap = () => {
-    const hasAnyCompleted = workoutExercises.some(ex => ex.sets.some(s => s.completed));
-    if (hasAnyCompleted) {
-      setShowDiscardConfirm(true);
-    } else {
-      setWorkoutExercises([]);
-      setTitle('Workout');
-      setWorkoutNotes('');
-      setPhase('home');
-    }
+    setShowDiscardConfirm(true);
   };
 
   // ─── Phase: home ───
@@ -2032,6 +2024,155 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       {showFinishConfirm && (() => {
         const unfinished = workoutExercises.reduce((total, ex) =>
           total + ex.sets.filter(s => !s.completed).length, 0);
+        const completed = workoutExercises.reduce((total, ex) =>
+          total + ex.sets.filter(s => s.completed).length, 0);
+        const volume = workoutExercises.reduce((t, e) =>
+          t + e.sets.filter(s => s.completed).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
+        const volDisp = volume >= 1000 ? (volume / 1000).toFixed(1) : String(Math.round(volume));
+        const volSuffix = volume >= 1000 ? 'k' : unit;
+        const prCount = workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.is_pr).length, 0);
+
+        // Unfinished-sets variant — warning, tighter
+        if (unfinished > 0) {
+          return (
+            <div style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+            }}>
+              <div style={{
+                background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 320, width: '100%',
+                border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
+              }}>
+                <div style={{
+                  fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
+                }}>Finish without these sets?</div>
+                <div style={{
+                  fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.45,
+                }}>
+                  You have <span style={{ color: COLORS.text, fontWeight: 600 }}>{unfinished} unfinished set{unfinished !== 1 ? 's' : ''}</span>. They won't be saved to your workout.
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setShowFinishConfirm(false)} style={{
+                    flex: 1, padding: 11, background: 'transparent', color: COLORS.text,
+                    border: `1px solid ${COLORS.border}`, borderRadius: 999,
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
+                  }}>Keep going</button>
+                  <button onClick={doSave} style={{
+                    flex: 1, padding: 11, background: COLORS.text, color: COLORS.bg,
+                    border: 'none', borderRadius: 999,
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
+                  }}>Finish anyway</button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Everything-complete variant — celebratory summary
+        return (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 55,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}>
+            <div style={{
+              background: COLORS.card, borderRadius: 20, padding: '28px 22px 22px', maxWidth: 340, width: '100%',
+              border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans, textAlign: 'center',
+            }}>
+              {/* Lime check circle */}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 56, height: 56, borderRadius: '50%',
+                background: LIME, marginBottom: 14,
+                boxShadow: `0 0 32px ${LIME}66`,
+              }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                  stroke="#0A0A0A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 4,
+              }}>Nice work!</div>
+              <div style={{
+                fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 18,
+              }}>You smashed it</div>
+
+              {/* Mini stats strip */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: prCount > 0 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+                gap: 6, marginBottom: 20,
+              }}>
+                <div style={{
+                  padding: '10px 6px', background: COLORS.card2, borderRadius: 10,
+                }}>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 18, fontWeight: 700,
+                    color: COLORS.text, letterSpacing: '-0.03em',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>{completed}</div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 8, color: COLORS.textDim,
+                    letterSpacing: '0.14em', fontWeight: 500, marginTop: 2,
+                  }}>SETS</div>
+                </div>
+                <div style={{
+                  padding: '10px 6px', background: COLORS.card2, borderRadius: 10,
+                }}>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 18, fontWeight: 700,
+                    color: COLORS.text, letterSpacing: '-0.03em',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {volDisp}<span style={{ color: COLORS.textDim, fontSize: 11, fontWeight: 500 }}>{volSuffix}</span>
+                  </div>
+                  <div style={{
+                    fontFamily: FONTS.mono, fontSize: 8, color: COLORS.textDim,
+                    letterSpacing: '0.14em', fontWeight: 500, marginTop: 2,
+                  }}>VOLUME</div>
+                </div>
+                {prCount > 0 && (
+                  <div style={{
+                    padding: '10px 6px',
+                    background: COLORS.isDark ? LIME_WASH_DARK : LIME_WASH_LIGHT,
+                    borderRadius: 10, border: `1px solid ${LIME}33`,
+                  }}>
+                    <div style={{
+                      fontFamily: FONTS.mono, fontSize: 18, fontWeight: 700,
+                      color: COLORS.text, letterSpacing: '-0.03em',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>{prCount}</div>
+                    <div style={{
+                      fontFamily: FONTS.mono, fontSize: 8, color: COLORS.textDim,
+                      letterSpacing: '0.14em', fontWeight: 500, marginTop: 2,
+                    }}>PR</div>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={doSave} style={{
+                width: '100%', padding: 13, background: COLORS.text, color: COLORS.bg,
+                border: 'none', borderRadius: 12,
+                fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                fontFamily: FONTS.sans, letterSpacing: '-0.01em', marginBottom: 8,
+              }}>Save & share</button>
+
+              <button onClick={() => setShowFinishConfirm(false)} style={{
+                width: '100%', padding: 10, background: 'transparent', color: COLORS.textDim,
+                border: 'none',
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                fontFamily: FONTS.mono, letterSpacing: '0.1em', textTransform: 'uppercase',
+              }}>One more set</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Discard confirm */}
+      {showDiscardConfirm && (() => {
+        const completedCount = workoutExercises.reduce((t, ex) =>
+          t + ex.sets.filter(s => s.completed).length, 0);
         return (
           <div style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
@@ -2043,63 +2184,33 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
             }}>
               <div style={{
                 fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
-              }}>Finish workout?</div>
+              }}>Cancel workout?</div>
               <div style={{
                 fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.45,
               }}>
-                {unfinished > 0
-                  ? <>You have <span style={{ color: COLORS.text, fontWeight: 600 }}>{unfinished} unfinished set{unfinished !== 1 ? 's' : ''}</span> that won't be saved.</>
-                  : 'Save this workout and share it to your feed.'
+                {completedCount > 0
+                  ? <>You'll lose <span style={{ color: COLORS.text, fontWeight: 600 }}>{completedCount} completed set{completedCount !== 1 ? 's' : ''}</span>. This can't be undone.</>
+                  : <>Nothing to save yet — this just goes back to the start screen.</>
                 }
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setShowFinishConfirm(false)} style={{
+                <button onClick={() => setShowDiscardConfirm(false)} style={{
                   flex: 1, padding: 11, background: 'transparent', color: COLORS.text,
                   border: `1px solid ${COLORS.border}`, borderRadius: 999,
                   fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
-                }}>Keep going</button>
-                <button onClick={doSave} style={{
-                  flex: 1, padding: 11, background: COLORS.text, color: COLORS.bg,
+                }}>Keep workout</button>
+                <button onClick={handleDiscard} style={{
+                  flex: 1, padding: 11,
+                  background: completedCount > 0 ? COLORS.red : COLORS.text,
+                  color: completedCount > 0 ? '#fff' : COLORS.bg,
                   border: 'none', borderRadius: 999,
                   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
-                }}>Finish</button>
+                }}>{completedCount > 0 ? 'Discard' : 'Cancel'}</button>
               </div>
             </div>
           </div>
         );
       })()}
-
-      {/* Discard confirm */}
-      {showDiscardConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-        }}>
-          <div style={{
-            background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 320, width: '100%',
-            border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
-          }}>
-            <div style={{
-              fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
-            }}>Cancel workout?</div>
-            <div style={{
-              fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.45,
-            }}>All sets you've logged will be lost. This can't be undone.</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowDiscardConfirm(false)} style={{
-                flex: 1, padding: 11, background: 'transparent', color: COLORS.text,
-                border: `1px solid ${COLORS.border}`, borderRadius: 999,
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
-              }}>Keep workout</button>
-              <button onClick={handleDiscard} style={{
-                flex: 1, padding: 11, background: COLORS.red, color: '#fff',
-                border: 'none', borderRadius: 999,
-                fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
-              }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Save as template from menu */}
       {showSaveTemplate && (

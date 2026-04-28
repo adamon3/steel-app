@@ -309,15 +309,13 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{
             fontFamily: "'Inter Tight', -apple-system, sans-serif",
-            fontWeight: 900, fontSize: 20, color: COLORS.text,
-            letterSpacing: '-0.5px',
-            display: 'flex', alignItems: 'center', gap: 8,
+            fontWeight: 900,
+            fontSize: 20,
+            color: COLORS.text,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            lineHeight: 1,
           }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%', background: '#BFE600',
-              display: 'inline-block',
-              boxShadow: '0 0 12px #BFE600',
-            }} />
             STEEL
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
