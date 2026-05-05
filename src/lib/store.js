@@ -389,4 +389,16 @@ export const useStore = create((set, get) => ({
       }
     } catch (e) { console.error('toggleFollow error:', e); }
   },
+
+  addComment: async (workoutId, body) => {
+    const { user } = get();
+    if (!user || !isOnline()) return null;
+    try {
+      const { data } = await supabase.from('comments')
+        .insert({ workout_id: workoutId, user_id: user.id, body })
+        .select('id, body, user_id, created_at, profiles:user_id (id, username, display_name)')
+        .single();
+      return data;
+    } catch (e) { console.error('addComment error:', e); return null; }
+  },
 }));

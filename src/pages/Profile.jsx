@@ -198,8 +198,8 @@ function StatsView({ workouts, unit, onWorkout }) {
         ].map((s, i) => (
           <div key={i} style={{ background: COLORS.card, borderRadius: 12, padding: '14px 10px', textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
             <Icon name={s.icon} size={16} color={COLORS.textDim} />
-            <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, marginTop: 4 }}>{s.v}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>{s.l}</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700, color: COLORS.text, marginTop: 4, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{s.v}</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim, marginTop: 3, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500 }}>{s.l}</div>
           </div>
         ))}
       </div>
@@ -317,9 +317,9 @@ function ProgressView({ workouts, unit }) {
               return (
                 <div key={group} style={{
                   padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  background: `rgba(0, 230, 118, ${0.1 + intensity * 0.3})`,
-                  color: intensity > 0.5 ? COLORS.accent : COLORS.textDim,
-                  border: `1px solid rgba(0, 230, 118, ${0.15 + intensity * 0.2})`,
+                  background: `rgba(191, 230, 0, ${0.1 + intensity * 0.3})`,
+                  color: COLORS.textDim,
+                  border: `1px solid rgba(191, 230, 0, ${0.2 + intensity * 0.25})`,
                 }}>{group} ({count})</div>
               );
             })}
@@ -517,8 +517,8 @@ function PRsView({ workouts, unit }) {
             <div style={{ fontSize: 11, color: COLORS.textDim }}>{timeAgo(pr.date)}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.text }}>{convertWeight(pr.weight, unit)} {unit}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>x {pr.reps}</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 16, color: COLORS.text, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{convertWeight(pr.weight, unit)}<span style={{ fontSize: 10, color: COLORS.textDim, fontWeight: 500, marginLeft: 2 }}>{unit}</span></div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim, fontVariantNumeric: 'tabular-nums' }}>× {pr.reps}</div>
           </div>
         </div>
       ))}
@@ -618,7 +618,7 @@ export default function Profile({ onViewProfile, onWorkout }) {
   const loadData = async () => {
     setLoading(true);
     const { data: wks } = await supabase.from('workouts')
-      .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, set_number, weight, reps, is_pr))')
+      .select('*, workout_exercises (id, sort_order, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type))')
       .eq('user_id', user.id).order('created_at', { ascending: false });
     if (wks) setWorkouts(wks);
     const { count: fc } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id);

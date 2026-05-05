@@ -304,7 +304,7 @@ function ExercisePicker({ exercises, onSelect, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 
 export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }) {
-  const { user, profile, exercises, fetchExercises, fetchWorkout, updateWorkoutFull, deleteWorkout } = useStore();
+  const { user, profile, exercises, fetchExercises, fetchWorkout, updateWorkoutFull, deleteWorkout, toggleLike, addComment } = useStore();
   const [workout, setWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -312,6 +312,11 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [draft, setDraft] = useState(null); // editable copy
+  const [likedByMe, setLikedByMe] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [localComments, setLocalComments] = useState([]);
+  const [commentInput, setCommentInput] = useState('');
+  const [postingComment, setPostingComment] = useState(false);
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => {
@@ -321,6 +326,11 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
       const w = await fetchWorkout(workoutId);
       if (alive) {
         setWorkout(w);
+        setLikedByMe(w?.likes?.some(l => l.user_id === user?.id) || false);
+        setLikeCount(w?.likes?.length || 0);
+        setLocalComments(
+          (w?.comments || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+        );
         setLoading(false);
       }
     })();
@@ -360,6 +370,29 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
   const cancelEdit = () => {
     setDraft(null);
     setEditing(false);
+  };
+
+  const handleLike = async () => {
+    if (!user) return;
+    const wasLiked = likedByMe;
+    setLikedByMe(!wasLiked);
+    setLikeCount(c => wasLiked ? c - 1 : c + 1);
+    await toggleLike(workoutId);
+  };
+
+  const handlePostComment = async () => {
+    const body = commentInput.trim();
+    if (!body || !user) return;
+    setPostingComment(true);
+    const newComment = await addComment(workoutId, body);
+    if (newComment) {
+      setLocalComments(prev => [...prev, {
+        ...newComment,
+        profiles: { display_name: profile?.display_name, username: profile?.username, id: user.id },
+      }]);
+      setCommentInput('');
+    }
+    setPostingComment(false);
   };
 
   const saveEdit = async () => {
@@ -709,6 +742,30 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
           </div>
         )}
 
+        {/* Social row — likes + comment count */}
+        {!editing && (
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}>
+            <button onClick={handleLike} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              <span style={{ fontSize: 18, color: likedByMe ? LIME : COLORS.textDim, lineHeight: 1 }}>
+                {likedByMe ? '♥' : '♡'}
+              </span>
+              <span style={{
+                fontFamily: FONTS.mono, fontSize: 12, fontWeight: 600,
+                color: likedByMe ? LIME : COLORS.textDim,
+              }}>{likeCount}</span>
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontSize: 15, color: COLORS.textDim, lineHeight: 1 }}>💬</span>
+              <span style={{
+                fontFamily: FONTS.mono, fontSize: 12, fontWeight: 600, color: COLORS.textDim,
+              }}>{localComments.length}</span>
+            </div>
+          </div>
+        )}
+
         {/* Exercise list */}
         {display.exercises.map((ex, idx) => (
           <ExerciseBlock
@@ -729,6 +786,76 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
             border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700,
             cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
           }}>+ Add exercise</button>
+        )}
+
+        {/* Comments section (view mode) */}
+        {!editing && (
+          <div style={{ marginTop: 28, borderTop: `0.5px solid ${COLORS.border}`, paddingTop: 20 }}>
+            {localComments.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{
+                  fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+                  letterSpacing: '0.14em', fontWeight: 500, textTransform: 'uppercase', marginBottom: 12,
+                }}>
+                  Comments ({localComments.length})
+                </div>
+                {localComments.map((c, i) => (
+                  <div key={c.id || i} style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                    <Avatar
+                      initials={getInitials(c.profiles?.display_name || '?')}
+                      size={28}
+                      colorIndex={c.profiles?.id?.charCodeAt(0) || 0}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>
+                          {c.profiles?.display_name}
+                        </span>
+                        <span style={{
+                          fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+                          letterSpacing: '0.08em',
+                        }}>
+                          {timeAgo(c.created_at).toUpperCase()}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: COLORS.text, marginTop: 3, lineHeight: 1.4 }}>
+                        {c.body}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                value={commentInput}
+                onChange={e => setCommentInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePostComment(); }
+                }}
+                placeholder="Add a comment…"
+                style={{
+                  flex: 1, padding: '10px 12px', borderRadius: 10,
+                  border: `1px solid ${COLORS.border}`, background: COLORS.card,
+                  color: COLORS.text, fontSize: 13, fontFamily: FONTS.sans,
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={handlePostComment}
+                disabled={!commentInput.trim() || postingComment}
+                style={{
+                  padding: '10px 16px', borderRadius: 10, border: 'none',
+                  background: commentInput.trim() ? COLORS.text : COLORS.border,
+                  color: commentInput.trim() ? COLORS.bg : COLORS.textDim,
+                  fontWeight: 700, fontSize: 13, fontFamily: FONTS.sans,
+                  cursor: commentInput.trim() && !postingComment ? 'pointer' : 'default',
+                  opacity: postingComment ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >{postingComment ? '…' : 'Post'}</button>
+            </div>
+          </div>
         )}
 
         {/* Action buttons (view mode) */}
