@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
 
-export default function GymCommunity({ onViewProfile }) {
+export default function GymCommunity({ onViewProfile, onWorkout }) {
   const { user, profile, updateProfile } = useStore();
   const [gyms, setGyms] = useState([]);
   const [myGymData, setMyGymData] = useState(null);
@@ -226,11 +226,11 @@ export default function GymCommunity({ onViewProfile }) {
             const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
             const p = w.profiles;
             return (
-              <div key={w.id} style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}` }}>
+              <div key={w.id} onClick={() => onWorkout?.(w.id)} style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <Avatar initials={getInitials(p?.display_name || '??')} size={36} colorIndex={p?.id?.charCodeAt(0) || 0} onClick={() => onViewProfile?.(p?.id)} />
+                  <Avatar initials={getInitials(p?.display_name || '??')} size={36} colorIndex={p?.id?.charCodeAt(0) || 0} onClick={(e) => { e?.stopPropagation?.(); onViewProfile?.(p?.id); }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text, cursor: 'pointer' }} onClick={() => onViewProfile?.(p?.id)}>{p?.display_name}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onViewProfile?.(p?.id); }}>{p?.display_name}</div>
                     <div style={{ fontSize: 12, color: COLORS.textDim }}>{timeAgo(w.created_at)}</div>
                   </div>
                   {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}

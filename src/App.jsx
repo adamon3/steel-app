@@ -9,6 +9,7 @@ import Leaderboard from './pages/Leaderboard';
 import UserProfile from './pages/UserProfile';
 import GymCommunity from './pages/GymCommunity';
 import Profile from './pages/Profile';
+import WorkoutDetail from './pages/WorkoutDetail';
 
 const tabs = [
   { id: 'feed', label: 'Home', icon: 'home' },
@@ -90,6 +91,7 @@ export default function App() {
   const [steelPrefill, setSteelPrefill] = useState(null);
   const [loggerSession, setLoggerSession] = useState(0);
   const [viewUserId, setViewUserId] = useState(null);
+  const [viewWorkoutId, setViewWorkoutId] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [authMode, setAuthMode] = useState('signup');
@@ -164,6 +166,11 @@ export default function App() {
     if (userId === user?.id) { setTab('profile'); } else { setViewUserId(userId); }
   };
 
+  const handleViewWorkout = (workoutId) => {
+    if (isGuest) { promptAuth('Sign up to view workouts'); return; }
+    setViewWorkoutId(workoutId);
+  };
+
   if (loading) {
     return (
       <div style={{ background: COLORS.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -178,7 +185,7 @@ export default function App() {
     if (viewUserId && !isGuest) {
       return (
         <div style={{ padding: '8px 16px 90px' }}>
-          <UserProfile userId={viewUserId} onBack={() => setViewUserId(null)} onSteel={handleSteelFromProfile} />
+          <UserProfile userId={viewUserId} onBack={() => setViewUserId(null)} onSteel={handleSteelFromProfile} onWorkout={handleViewWorkout} />
         </div>
       );
     }
@@ -199,7 +206,7 @@ export default function App() {
               </AuthGate>
             </div>
           ) : (
-            <Feed onSteel={handleSteel} onProfile={handleViewProfile} />
+            <Feed onSteel={handleSteel} onProfile={handleViewProfile} onWorkout={handleViewWorkout} />
           )
         )}
 
@@ -210,7 +217,7 @@ export default function App() {
               <PlaceholderCards count={3} height={120} />
             </AuthGate>
           ) : (
-            <Discover onViewProfile={handleViewProfile} />
+            <Discover onViewProfile={handleViewProfile} onWorkout={handleViewWorkout} />
           )
         )}
 
@@ -242,7 +249,7 @@ export default function App() {
               <PlaceholderCards count={4} height={60} />
             </AuthGate>
           ) : (
-            <GymCommunity onViewProfile={handleViewProfile} />
+            <GymCommunity onViewProfile={handleViewProfile} onWorkout={handleViewWorkout} />
           )
         )}
 
@@ -285,7 +292,7 @@ export default function App() {
               }}>Log In</button>
             </div>
           ) : (
-            <Profile onViewProfile={handleViewProfile} />
+            <Profile onViewProfile={handleViewProfile} onWorkout={handleViewWorkout} />
           )
         )}
       </div>
@@ -391,6 +398,16 @@ export default function App() {
         setTab(t);
         if (t !== 'log') setSteelPrefill(null);
       }} />
+
+      {/* Workout detail modal */}
+      {viewWorkoutId && (
+        <WorkoutDetail
+          workoutId={viewWorkoutId}
+          onClose={() => setViewWorkoutId(null)}
+          onProfile={(uid) => { setViewWorkoutId(null); handleViewProfile(uid); }}
+          onSteel={(w) => { setViewWorkoutId(null); handleSteel(w); }}
+        />
+      )}
 
       {/* Auth modal */}
       {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} initialMode={authMode} />}

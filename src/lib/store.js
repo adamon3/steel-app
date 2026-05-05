@@ -270,6 +270,97 @@ export const useStore = create((set, get) => ({
     } catch (e) { console.error('steelWorkout error:', e); return null; }
   },
 
+  fetchWorkout: async (workoutId) => {
+    if (!isOnline()) return null;
+    try {
+      const { data, error } = await supabase.from('workouts')
+        .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id, body, user_id, created_at, profiles:user_id (id, username, display_name))')
+        .eq('id', workoutId).maybeSingle();
+      if (error) { console.error('fetchWorkout error:', error); return null; }
+      return data;
+    } catch (e) { console.error('fetchWorkout error:', e); return null; }
+  },
+
+  // Full edit: replaces title, notes, duration, is_public, exercises, sets
+  updateWorkoutFull: async (workoutId, payload) => {
+    const { user } = get();
+    if (!user || !isOnline()) return false;
+    try {
+      // 1. Update workout-level fields and recompute totals
+      let totalVolume = 0, totalSets = 0, hasPr = false;
+      (payload.exercises || []).forEach(ex => {
+        (ex.sets || []).forEach(s => {
+          totalVolume += (s.weight || 0) * (s.reps || 0);
+          totalSets += 1;
+          if (s.is_pr) hasPr = true;
+        });
+      });
+
+      const updates = {
+        title: payload.title || 'Workout',
+        notes: payload.notes || '',
+        duration_mins: payload.duration_mins || 0,
+        is_public: payload.is_public !== false,
+        total_volume: totalVolume,
+        total_sets: totalSets,
+        has_pr: hasPr,
+      };
+      const { error: upErr } = await supabase.from('workouts').update(updates).eq('id', workoutId).eq('user_id', user.id);
+      if (upErr) { console.error('updateWorkoutFull workout error:', upErr); return false; }
+
+      // 2. Wipe existing workout_exercises (cascade deletes sets) and re-insert from payload
+      const { data: existingWE } = await supabase.from('workout_exercises').select('id').eq('workout_id', workoutId);
+      if (existingWE?.length) {
+        const ids = existingWE.map(we => we.id);
+        await supabase.from('sets').delete().in('workout_exercise_id', ids);
+        await supabase.from('workout_exercises').delete().in('id', ids);
+      }
+
+      // 3. Re-insert exercises and sets
+      for (let i = 0; i < (payload.exercises || []).length; i++) {
+        const ex = payload.exercises[i];
+        if (!ex.exercise_id) continue;
+        const validSets = (ex.sets || []).filter(s => (s.weight !== undefined && s.weight !== null) || (s.reps !== undefined && s.reps !== null));
+        if (validSets.length === 0) continue;
+        const { data: we } = await supabase.from('workout_exercises').insert({
+          workout_id: workoutId, exercise_id: ex.exercise_id, sort_order: i, notes: ex.notes || '',
+        }).select().single();
+        if (we) {
+          await supabase.from('sets').insert(validSets.map((s, j) => ({
+            workout_exercise_id: we.id, set_number: j + 1,
+            weight: s.weight || 0, reps: s.reps || 0,
+            is_pr: s.is_pr || false, set_type: s.set_type || 'normal',
+          })));
+        }
+      }
+
+      await get().fetchFeed();
+      return true;
+    } catch (e) { console.error('updateWorkoutFull error:', e); return false; }
+  },
+
+  deleteWorkout: async (workoutId) => {
+    const { user } = get();
+    if (!user || !isOnline()) return false;
+    try {
+      // Delete sets and workout_exercises first (FK cascade should handle, but explicit is safer)
+      const { data: existingWE } = await supabase.from('workout_exercises').select('id').eq('workout_id', workoutId);
+      if (existingWE?.length) {
+        const ids = existingWE.map(we => we.id);
+        await supabase.from('sets').delete().in('workout_exercise_id', ids);
+        await supabase.from('workout_exercises').delete().in('id', ids);
+      }
+      // Likes and comments
+      await supabase.from('likes').delete().eq('workout_id', workoutId);
+      await supabase.from('comments').delete().eq('workout_id', workoutId);
+      // The workout itself
+      const { error } = await supabase.from('workouts').delete().eq('id', workoutId).eq('user_id', user.id);
+      if (error) { console.error('deleteWorkout error:', error); return false; }
+      await get().fetchFeed();
+      return true;
+    } catch (e) { console.error('deleteWorkout error:', e); return false; }
+  },
+
   toggleLike: async (workoutId) => {
     const { user } = get();
     if (!user || !isOnline()) return;

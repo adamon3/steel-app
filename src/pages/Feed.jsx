@@ -60,7 +60,7 @@ function CommentSection({ workoutId, initialCount }) {
   );
 }
 
-function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
+function WorkoutCard({ workout, onSteel, onProfile, onWorkout, unitPref }) {
   const { user, toggleLike } = useStore();
   const [liked, setLiked] = useState(false);
   const [steeled, setSteeled] = useState(false);
@@ -71,10 +71,21 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
     if (user && workout.likes) setLiked(workout.likes.some(l => l.user_id === user.id));
   }, [workout.likes, user]);
 
-  const handleLike = async () => {
+  const handleLike = async (e) => {
+    e?.stopPropagation();
     setLiked(!liked); setLikeCount(c => liked ? c - 1 : c + 1); await toggleLike(workout.id);
   };
-  const handleSteel = () => { setSteeled(true); onSteel(workout); setTimeout(() => setSteeled(false), 2000); };
+  const handleSteel = (e) => {
+    e?.stopPropagation();
+    setSteeled(true); onSteel(workout); setTimeout(() => setSteeled(false), 2000);
+  };
+  const handleProfile = (e) => {
+    e?.stopPropagation();
+    onProfile?.(p?.id);
+  };
+  const handleOpenWorkout = () => {
+    onWorkout?.(workout.id);
+  };
 
   const exercises = (workout.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
   const unit = unitPref || 'kg';
@@ -82,62 +93,66 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
 
   return (
     <div style={{ background: COLORS.card, borderRadius: 16, marginBottom: 12, border: `1px solid ${COLORS.border}`, overflow: 'hidden' }}>
-      <div style={{ padding: '14px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} onClick={() => onProfile?.(p?.id)} />
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span onClick={() => onProfile?.(p?.id)} style={{ fontWeight: 700, color: COLORS.text, cursor: 'pointer', fontSize: 14 }}>{p?.display_name}</span>
-              {p?.sport && <Badge color={COLORS.orange}>{p.sport}</Badge>}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 1 }}>{timeAgo(workout.created_at)}{p?.gym ? ` · ${p.gym}` : ''}</div>
-          </div>
-        </div>
-        <div style={{ fontWeight: 800, fontSize: 18, color: COLORS.text, marginBottom: 10 }}>{workout.title}</div>
-        {/* Workout photo */}
-        {workout.image_url && (
-          <div style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden' }}>
-            <img src={workout.image_url} alt="" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
-          </div>
-        )}
-        {/* Workout note */}
-        {workout.notes && workout.notes.trim() && (
-          <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 10, lineHeight: 1.4, fontStyle: 'italic' }}>
-            "{workout.notes}"
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
-          {[
-            ...(workout.duration_mins > 0 ? [{ label: 'Duration', value: `${workout.duration_mins}m` }] : []),
-            { label: `Volume (${unit})`, value: formatVolume(convertWeight(workout.total_volume, unit)) },
-            { label: 'Sets', value: workout.total_sets },
-            ...(prCount > 0 ? [{ label: 'PRs', value: prCount, highlight: true }] : []),
-          ].map((s, i) => (
-            <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < 3 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
-              <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>{s.label}</div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: s.highlight ? COLORS.pro : COLORS.text }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ padding: '0 16px 12px' }}>
-        {exercises.slice(0, 4).map((we, i) => {
-          const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
-          const topW = Math.max(...sets.map(s => s.weight), 0);
-          const topSet = sets.find(s => s.weight === topW);
-          const hasPr = sets.some(s => s.is_pr);
-          return (
-            <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', marginBottom: 4, background: `${COLORS.bg}60`, borderRadius: 8, border: hasPr ? `1px solid ${COLORS.pro}33` : 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600 }}>{we.exercises?.name}</span>
-                {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>PR</span>}
+      {/* Tappable body — opens workout detail */}
+      <div onClick={handleOpenWorkout} style={{ cursor: 'pointer' }}>
+        <div style={{ padding: '14px 16px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} onClick={handleProfile} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span onClick={handleProfile} style={{ fontWeight: 700, color: COLORS.text, cursor: 'pointer', fontSize: 14 }}>{p?.display_name}</span>
+                {p?.sport && <Badge color={COLORS.orange}>{p.sport}</Badge>}
               </div>
-              <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{sets.length}×{convertWeight(topW, unit)}{unit}</span>
+              <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 1 }}>{timeAgo(workout.created_at)}{p?.gym ? ` · ${p.gym}` : ''}</div>
             </div>
-          );
-        })}
-        {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6, textAlign: 'center' }}>+{exercises.length - 4} more exercises</div>}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 18, color: COLORS.text, marginBottom: 10 }}>{workout.title}</div>
+          {/* Workout photo */}
+          {workout.image_url && (
+            <div style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden' }}>
+              <img src={workout.image_url} alt="" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
+            </div>
+          )}
+          {/* Workout note */}
+          {workout.notes && workout.notes.trim() && (
+            <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 10, lineHeight: 1.4, fontStyle: 'italic' }}>
+              "{workout.notes}"
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
+            {[
+              ...(workout.duration_mins > 0 ? [{ label: 'Duration', value: `${workout.duration_mins}m` }] : []),
+              { label: `Volume (${unit})`, value: formatVolume(convertWeight(workout.total_volume, unit)) },
+              { label: 'Sets', value: workout.total_sets },
+              ...(prCount > 0 ? [{ label: 'PRs', value: prCount, highlight: true }] : []),
+            ].map((s, i) => (
+              <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < 3 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
+                <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: s.highlight ? COLORS.pro : COLORS.text }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ padding: '0 16px 12px' }}>
+          {exercises.slice(0, 4).map((we, i) => {
+            const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
+            const topW = Math.max(...sets.map(s => s.weight), 0);
+            const topSet = sets.find(s => s.weight === topW);
+            const hasPr = sets.some(s => s.is_pr);
+            return (
+              <div key={we.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', marginBottom: 4, background: `${COLORS.bg}60`, borderRadius: 8, border: hasPr ? `1px solid ${COLORS.pro}33` : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600 }}>{we.exercises?.name}</span>
+                  {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>PR</span>}
+                </div>
+                <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{sets.length}×{convertWeight(topW, unit)}{unit}</span>
+              </div>
+            );
+          })}
+          {exercises.length > 4 && <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6, textAlign: 'center' }}>+{exercises.length - 4} more exercises</div>}
+        </div>
       </div>
+      {/* Action bar — NOT tappable as a unit, individual buttons handle their own clicks */}
       <div style={{ padding: '10px 16px', borderTop: `1px solid ${COLORS.border}`, background: `${COLORS.bg}40` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -160,7 +175,7 @@ function WorkoutCard({ workout, onSteel, onProfile, unitPref }) {
   );
 }
 
-export default function Feed({ onSteel, onProfile }) {
+export default function Feed({ onSteel, onProfile, onWorkout }) {
   const { feed, fetchFeed, profile, user } = useStore();
   const [loading, setLoading] = useState(true);
   const [feedTab, setFeedTab] = useState('foryou');
@@ -244,7 +259,7 @@ export default function Feed({ onSteel, onProfile }) {
             subtitle={feedTab === 'following' ? 'Follow athletes from the Discover tab to see their workouts here' : 'Be the first to log a workout and show up in the feed!'}
           />
         ) : (
-          activeFeed.map(w => <WorkoutCard key={w.id} workout={w} unitPref={profile?.unit_pref} onSteel={onSteel} onProfile={onProfile} />)
+          activeFeed.map(w => <WorkoutCard key={w.id} workout={w} unitPref={profile?.unit_pref} onSteel={onSteel} onProfile={onProfile} onWorkout={onWorkout} />)
         )
       )}
     </div>

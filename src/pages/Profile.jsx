@@ -22,7 +22,7 @@ function SubTab({ tabs, active, onChange }) {
   );
 }
 
-function StatsView({ workouts, unit }) {
+function StatsView({ workouts, unit, onWorkout }) {
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
   const [selectedDay, setSelectedDay] = useState(null);
 
@@ -167,7 +167,7 @@ function StatsView({ workouts, unit }) {
           {selectedWorkouts.map(w => {
             const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
             return (
-              <div key={w.id} style={{ padding: '8px 0', borderBottom: `1px solid ${COLORS.border}` }}>
+              <div key={w.id} onClick={() => onWorkout?.(w.id)} style={{ padding: '8px 0', borderBottom: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: COLORS.text }}>{w.title}</span>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -382,24 +382,40 @@ function exportWorkoutsCSV(workouts, unit) {
   URL.revokeObjectURL(url);
 }
 
-function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle }) {
+function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle, onWorkout }) {
   const [menuOpen, setMenuOpen] = useState(null); // workout id
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   if (workouts.length === 0) return <EmptyState icon="weight" title="No workouts yet" subtitle="Log your first workout to see it here" />;
+
+  const openWorkout = (w, e) => {
+    // Don't open if we're inline-editing the title or any menu/popup is open
+    if (editingId === w.id || menuOpen) return;
+    onWorkout?.(w.id);
+  };
+
   return (
     <div>
       {workouts.map(w => {
         const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
         const isMenuOpen = menuOpen === w.id;
         return (
-          <div key={w.id} style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}`, opacity: w.is_public === false ? 0.7 : 1 }}>
+          <div
+            key={w.id}
+            onClick={(e) => openWorkout(w, e)}
+            style={{
+              background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10,
+              border: `1px solid ${COLORS.border}`,
+              opacity: w.is_public === false ? 0.7 : 1,
+              cursor: editingId === w.id ? 'default' : 'pointer',
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
               <div style={{ flex: 1 }}>
                 {editingId === w.id ? (
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                     <input value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus
                       onKeyDown={e => { if (e.key === 'Enter') { onEditTitle(w.id, editTitle); setEditingId(null); } }}
                       style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${COLORS.accent}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
@@ -417,12 +433,15 @@ function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle }
                   </>
                 )}
               </div>
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <button onClick={() => setMenuOpen(isMenuOpen ? null : w.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 18, color: COLORS.textDim, fontFamily: 'inherit' }}>···</button>
                 {isMenuOpen && (
                   <div style={{ position: 'absolute', right: 0, top: 28, background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 10, minWidth: 150, overflow: 'hidden' }}>
+                    <button onClick={() => { onWorkout?.(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name="settings" size={14} color={COLORS.textDim} /> View / Edit
+                    </button>
                     <button onClick={() => { setEditTitle(w.title); setEditingId(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Icon name="settings" size={14} color={COLORS.textDim} /> Edit Title
+                      <Icon name="settings" size={14} color={COLORS.textDim} /> Quick rename
                     </button>
                     <button onClick={() => { onTogglePrivacy(w.id, w.is_public); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Icon name={w.is_public !== false ? 'lock' : 'globe'} size={14} color={COLORS.textDim} /> {w.is_public !== false ? 'Make Private' : 'Make Public'}
@@ -448,7 +467,7 @@ function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle }
 
       {/* Delete confirmation */}
       {confirmDelete && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={e => e.stopPropagation()}>
           <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}` }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Delete Workout?</div>
             <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 20, lineHeight: 1.5 }}>
@@ -582,7 +601,7 @@ function EditProfile({ profile, onSave, onCancel }) {
   );
 }
 
-export default function Profile({ onViewProfile }) {
+export default function Profile({ onViewProfile, onWorkout }) {
   const { profile, updateProfile, user } = useStore();
   const [subTab, setSubTab] = useState('Stats');
   const [editing, setEditing] = useState(false);
@@ -729,8 +748,9 @@ export default function Profile({ onViewProfile }) {
 
       {loading ? <Spinner /> : (
         <>
-          {subTab === 'Stats' && <StatsView workouts={workouts} unit={unit} />}
+          {subTab === 'Stats' && <StatsView workouts={workouts} unit={unit} onWorkout={onWorkout} />}
           {subTab === 'Workouts' && <WorkoutsView workouts={workouts} unit={unit}
+            onWorkout={onWorkout}
             onTogglePrivacy={async (workoutId, currentPublic) => {
               const newVal = currentPublic === false ? true : false;
               await supabase.from('workouts').update({ is_public: newVal }).eq('id', workoutId);

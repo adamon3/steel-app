@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Avatar, Badge, Button, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
 
-export default function UserProfile({ userId, onBack, onSteel }) {
+export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
   const { user, profile: myProfile } = useStore();
   const [athlete, setAthlete] = useState(null);
   const [workouts, setWorkouts] = useState([]);
@@ -144,10 +144,15 @@ export default function UserProfile({ userId, onBack, onSteel }) {
         workouts.map(w => {
           const exercises = (w.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
           return (
-            <div key={w.id} style={{
-              background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10,
-              border: `1px solid ${COLORS.border}`,
-            }}>
+            <div
+              key={w.id}
+              onClick={() => onWorkout?.(w.id)}
+              style={{
+                background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10,
+                border: `1px solid ${COLORS.border}`,
+                cursor: 'pointer',
+              }}
+            >
               {/* Workout header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
@@ -189,7 +194,7 @@ export default function UserProfile({ userId, onBack, onSteel }) {
 
               {/* Steel it button */}
               {!isMe && (
-                <button onClick={() => handleSteel(w.id, w.title)} style={{
+                <button onClick={(e) => { e.stopPropagation(); handleSteel(w.id, w.title); }} style={{
                   width: '100%', padding: '9px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13,
                   cursor: 'pointer', fontFamily: 'inherit', background: COLORS.accent,
                   color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', transition: 'all 0.15s',
