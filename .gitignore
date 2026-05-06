@@ -5,3 +5,6 @@ dist
 .env.*.local
 *.log
 .DS_Store
+.claude/
+_build.bat
+_push.bat
