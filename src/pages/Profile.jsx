@@ -87,14 +87,14 @@ function StatsView({ workouts, unit, onWorkout }) {
         </div>
 
         {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4, maxWidth: 420, margin: '0 auto 4px' }}>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
             <div key={i} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: COLORS.textDim, padding: 4 }}>{d}</div>
           ))}
         </div>
 
         {/* Calendar grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, maxWidth: 420, margin: '0 auto' }}>
           {/* Empty cells before month starts */}
           {Array.from({ length: startDay }).map((_, i) => <div key={`e-${i}`} />)}
           {/* Day cells */}

@@ -1045,7 +1045,7 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
         fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
         letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 28, fontWeight: 500,
       }}>
-        {workout.duration_mins} MIN · {workout.exercises.length} EXERCISES
+        {workout.duration_mins} MIN · {workout.exercises.length} {workout.exercises.length === 1 ? 'EXERCISE' : 'EXERCISES'}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 28 }}>
@@ -1603,7 +1603,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
       template_id: null,
       is_public: true,
       exercises: workoutExercises.map(e => ({
-        exercise_id: e.exercise_id, notes: e.notes,
+        exercise_id: e.exercise_id, name: e.name, notes: e.notes,
         sets: e.sets
           .filter(s => s.completed)
           .map(s => ({
