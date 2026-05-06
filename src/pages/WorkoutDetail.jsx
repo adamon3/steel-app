@@ -544,8 +544,6 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
   const volSuffix = totalVolume >= 1000 ? 'k' : ` ${unit}`;
 
   const p = workout.profiles;
-  const likeCount = workout.likes?.length || 0;
-  const commentCount = workout.comments?.length || 0;
 
   return (
     <div style={{
