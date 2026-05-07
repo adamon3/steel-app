@@ -99,6 +99,7 @@ export default function App() {
   const [steelData, setSteelData] = useState(null);
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(null);
+  const [workoutActive, setWorkoutActive] = useState(false);
 
   useEffect(() => { init(); }, []);
 
@@ -222,10 +223,15 @@ export default function App() {
         )}
 
         {/* LOG WORKOUT — always mounted once started, hidden when on other tabs */}
-        {(tab === 'log' || workoutMinimized || steelPrefill) && (
+        {(tab === 'log' || workoutActive || workoutMinimized || steelPrefill) && (
           <div key={`workout-logger-${loggerSession}`} style={{ display: tab === 'log' ? 'block' : 'none' }}>
             <LogWorkout
               prefill={steelPrefill}
+              onActiveChange={(active, info) => {
+                setWorkoutActive(active);
+                if (active && info) setMinimizedInfo(info);
+                if (!active) { setWorkoutMinimized(false); setMinimizedInfo(null); }
+              }}
               onMinimize={(info) => {
                 setMinimizedInfo(info);
                 setWorkoutMinimized(true);
@@ -233,6 +239,7 @@ export default function App() {
               }}
               onDone={() => {
                 setSteelPrefill(null);
+                setWorkoutActive(false);
                 setWorkoutMinimized(false);
                 setMinimizedInfo(null);
                 showToast('Workout saved!');
@@ -350,7 +357,7 @@ export default function App() {
       {renderContent()}
 
       {/* Minimized workout bar */}
-      {workoutMinimized && minimizedInfo && tab !== 'log' && (
+      {(workoutMinimized || workoutActive) && minimizedInfo && tab !== 'log' && (
         <div onClick={() => setTab('log')} style={{
           position: 'fixed', bottom: 72, left: 12, right: 12, zIndex: 25,
           background: COLORS.text, borderRadius: 14, padding: '12px 16px',
@@ -391,9 +398,13 @@ export default function App() {
 
       <BottomTabBar tabs={tabs} active={tab} onChange={(t) => {
         setViewUserId(null);
-        // Tapping + from a non-log tab starts fresh (no lingering state)
-        if (t === 'log' && tab !== 'log' && !workoutMinimized && !steelPrefill) {
+        // Tapping + from a non-log tab: only start fresh if no active workout
+        if (t === 'log' && tab !== 'log' && !workoutMinimized && !workoutActive && !steelPrefill) {
           setLoggerSession(s => s + 1);
+        }
+        // If resuming a minimized/active workout, clear minimized state
+        if (t === 'log' && (workoutMinimized || workoutActive)) {
+          setWorkoutMinimized(false);
         }
         setTab(t);
         if (t !== 'log') setSteelPrefill(null);

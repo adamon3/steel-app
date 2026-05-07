@@ -417,10 +417,10 @@ function SetRow({
         ) : (
           <>
             <input
-              id={weightRef} type="number" inputMode="decimal" enterKeyHint="next"
+              id={weightRef} type="number" inputMode="decimal" enterKeyHint="next" min="0" max="9999"
               value={set.weight || ''}
               placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
-              onChange={e => onUpdate('weight', parseFloat(e.target.value) || 0)}
+              onChange={e => { const v = parseFloat(e.target.value) || 0; onUpdate('weight', Math.min(Math.max(v, 0), 9999)); }}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -439,10 +439,10 @@ function SetRow({
               }}
             />
             <input
-              id={repsRef} type="number" inputMode="numeric" enterKeyHint="done"
+              id={repsRef} type="number" inputMode="numeric" enterKeyHint="done" min="0" max="999" step="1"
               value={set.reps || ''}
               placeholder={prevSet ? String(prevSet.reps) : '0'}
-              onChange={e => onUpdate('reps', parseInt(e.target.value) || 0)}
+              onChange={e => { const v = parseInt(e.target.value) || 0; onUpdate('reps', Math.min(Math.max(v, 0), 999)); }}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -1300,7 +1300,7 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
 // MAIN
 // ═══════════════════════════════════════════════════════════════
 
-export default function LogWorkout({ prefill, onDone, onMinimize }) {
+export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange }) {
   const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, saveTemplate, getPreviousSets, user } = useStore();
   const [phase, setPhase] = useState(prefill ? 'logging' : 'home');
   const [title, setTitle] = useState(prefill?.title || 'Workout');
@@ -1335,6 +1335,21 @@ export default function LogWorkout({ prefill, onDone, onMinimize }) {
   const unit = profile?.unit_pref || 'kg';
 
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
+
+  useEffect(() => {
+    if (!onActiveChange) return;
+    const isActive = phase === 'logging' && workoutExercises.length > 0;
+    const completedSets = workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0);
+    if (isActive) {
+      onActiveChange(true, {
+        title: title || 'Workout', elapsed,
+        exerciseCount: workoutExercises.length,
+        setCount: completedSets,
+      });
+    } else {
+      onActiveChange(false, null);
+    }
+  }, [phase, workoutExercises.length, title]);
 
   useEffect(() => {
     if (phase !== 'logging') return;

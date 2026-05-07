@@ -182,7 +182,7 @@ export default function Feed({ onSteel, onProfile, onWorkout }) {
   const [followingFeed, setFollowingFeed] = useState([]);
   const [loadingFollowing, setLoadingFollowing] = useState(false);
 
-  useEffect(() => { fetchFeed().then(() => setLoading(false)); }, []);
+  useEffect(() => { fetchFeed().then(() => setLoading(false)).catch(() => setLoading(false)); }, []);
 
   useEffect(() => {
     if (feedTab === 'following' && user) loadFollowingFeed();
