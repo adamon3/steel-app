@@ -566,11 +566,22 @@ function FollowingView({ userId, onViewProfile }) {
   );
 }
 
+const PRIVACY_MODES = [
+  { value: 'normal', label: 'Normal', blurb: 'Your workouts appear in feeds and leaderboards. You see other athletes too.' },
+  { value: 'private', label: 'Private', blurb: 'Your workouts are hidden from everyone else. You can still browse and Steel theirs.' },
+  { value: 'solo', label: 'Solo', blurb: 'No social at all. Just you and your training log. Feed, Discover and Gym tabs are hidden.' },
+];
+
 function EditProfile({ profile, onSave, onCancel }) {
   const [form, setForm] = useState({
     display_name: profile.display_name || '', bio: profile.bio || '', sport: profile.sport || '',
-    gym: profile.gym || '', unit_pref: profile.unit_pref || 'kg', show_leaderboard: profile.show_leaderboard !== false,
+    gym: profile.gym || '', unit_pref: profile.unit_pref || 'kg',
+    show_leaderboard: profile.show_leaderboard !== false,
+    privacy_mode: profile.privacy_mode || 'normal',
   });
+  const isNormal = form.privacy_mode === 'normal';
+  const activeBlurb = PRIVACY_MODES.find(m => m.value === form.privacy_mode)?.blurb;
+
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, marginBottom: 16 }}>Edit Profile</div>
@@ -581,15 +592,55 @@ function EditProfile({ profile, onSave, onCancel }) {
       <Input label="Gym" value={form.gym} onChange={e => setForm({ ...form, gym: e.target.value })} placeholder="e.g. Nuffield Health Barbican" />
       <Select label="Weight Unit" value={form.unit_pref} onChange={e => setForm({ ...form, unit_pref: e.target.value })}
         options={[{ value: 'kg', label: 'Kilograms (kg)' }, { value: 'lbs', label: 'Pounds (lbs)' }]} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginBottom: 8 }}>
+
+      <div style={{ marginTop: 4, marginBottom: 14 }}>
+        <label style={{
+          display: 'block', fontSize: 10, color: COLORS.textSubtle, marginBottom: 6,
+          fontWeight: 500, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase',
+        }}>Privacy</label>
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4,
+          padding: 4, borderRadius: 12, border: `1px solid ${COLORS.border}`, background: COLORS.card,
+        }}>
+          {PRIVACY_MODES.map(m => {
+            const active = form.privacy_mode === m.value;
+            return (
+              <button key={m.value} onClick={() => setForm({ ...form, privacy_mode: m.value })} style={{
+                padding: '9px 4px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '-0.01em',
+                background: active ? COLORS.text : 'transparent',
+                color: active ? COLORS.bg : COLORS.textDim,
+                transition: 'background 0.15s, color 0.15s',
+              }}>{m.label}</button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 8, lineHeight: 1.5 }}>{activeBlurb}</div>
+      </div>
+
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 0', marginBottom: 8,
+        opacity: isNormal ? 1 : 0.4,
+      }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Show on Leaderboards</div>
-          <div style={{ fontSize: 12, color: COLORS.textDim }}>{form.show_leaderboard ? 'Your lifts appear in gym rankings' : 'Hidden from rankings'}</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim }}>
+            {!isNormal
+              ? 'Disabled while privacy is on'
+              : form.show_leaderboard
+                ? 'Your lifts appear in gym rankings'
+                : 'Hidden from rankings'}
+          </div>
         </div>
-        <button onClick={() => setForm({ ...form, show_leaderboard: !form.show_leaderboard })} style={{
-          width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer',
-          background: form.show_leaderboard ? COLORS.accent : COLORS.border, position: 'relative',
-        }}>
+        <button
+          onClick={() => isNormal && setForm({ ...form, show_leaderboard: !form.show_leaderboard })}
+          disabled={!isNormal}
+          style={{
+            width: 48, height: 28, borderRadius: 14, border: 'none',
+            cursor: isNormal ? 'pointer' : 'not-allowed',
+            background: form.show_leaderboard && isNormal ? COLORS.accent : COLORS.border, position: 'relative',
+          }}>
           <div style={{ width: 22, height: 22, borderRadius: 11, background: '#fff', position: 'absolute', top: 3, left: form.show_leaderboard ? 23 : 3, transition: 'left 0.2s' }} />
         </button>
       </div>

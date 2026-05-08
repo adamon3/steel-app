@@ -23,7 +23,7 @@ export default function Discover({ onViewProfile }) {
   const fetchAthletes = async () => {
     setLoading(true);
     const { data: profiles } = await supabase
-      .from('profiles').select('*').neq('id', user?.id || '').order('created_at', { ascending: false });
+      .from('profiles').select('*').eq('privacy_mode', 'normal').neq('id', user?.id || '').order('created_at', { ascending: false });
     if (profiles) {
       const enriched = await Promise.all(profiles.map(async (p) => {
         const { data: workouts } = await supabase

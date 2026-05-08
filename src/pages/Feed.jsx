@@ -204,10 +204,14 @@ export default function Feed({ onSteel, onProfile, onWorkout }) {
 
       if (followIds.length > 1) { // more than just self
         const { data } = await supabase.from('workouts')
-          .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
+          .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url, privacy_mode), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
           .in('user_id', followIds).eq('is_public', true)
-          .order('created_at', { ascending: false }).limit(20);
-        setFollowingFeed(data || []);
+          .order('created_at', { ascending: false }).limit(40);
+        const filtered = (data || []).filter(w => {
+          const mode = w.profiles?.privacy_mode || 'normal';
+          return mode === 'normal' || w.user_id === user.id; // user always sees own posts
+        }).slice(0, 20);
+        setFollowingFeed(filtered);
       } else {
         setFollowingFeed([]);
       }

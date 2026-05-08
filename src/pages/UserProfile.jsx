@@ -75,6 +75,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
   if (!athlete) return <EmptyState icon="search" title="User not found" subtitle="This profile doesn't exist" />;
 
   const isMe = user?.id === userId;
+  const isPrivate = !isMe && (athlete.privacy_mode === 'private' || athlete.privacy_mode === 'solo');
   const totalWorkouts = workouts.length;
   const totalVolume = workouts.reduce((sum, w) => sum + (Number(w.total_volume) || 0), 0);
 
@@ -138,7 +139,13 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
       {/* Workouts */}
       <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Recent Workouts</div>
 
-      {workouts.length === 0 ? (
+      {isPrivate ? (
+        <EmptyState
+          icon="lock"
+          title="This athlete trains in private"
+          subtitle="Their workouts aren't visible. Send a follow request later if we add private follows."
+        />
+      ) : workouts.length === 0 ? (
         <EmptyState icon="weight" title="No workouts yet" subtitle={`${athlete.display_name} hasn't logged any workouts`} />
       ) : (
         workouts.map(w => {

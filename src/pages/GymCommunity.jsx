@@ -31,10 +31,11 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
     if (profile?.gym) {
       const { data: members } = await supabase.from('profiles')
         .select('id, display_name, username, sport, avatar_url')
-        .eq('gym', profile.gym).neq('id', user?.id || '');
+        .eq('gym', profile.gym).eq('privacy_mode', 'normal').neq('id', user?.id || '');
       if (members) setGymMembers(members);
 
-      const { data: memberProfiles } = await supabase.from('profiles').select('id').eq('gym', profile.gym);
+      const { data: memberProfiles } = await supabase.from('profiles')
+        .select('id').eq('gym', profile.gym).eq('privacy_mode', 'normal');
       if (memberProfiles) {
         const memberIds = memberProfiles.map(m => m.id);
         const { data: workouts } = await supabase.from('workouts')

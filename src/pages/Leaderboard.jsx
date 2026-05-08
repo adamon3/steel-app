@@ -41,7 +41,8 @@ export default function Leaderboard({ onViewProfile }) {
   const fetchLeaderboard = async () => {
     setLoading(true);
     const { data: gymProfiles } = await supabase
-      .from('profiles').select('id, display_name, username, sport, show_leaderboard').eq('gym', gym);
+      .from('profiles').select('id, display_name, username, sport, show_leaderboard, privacy_mode')
+      .eq('gym', gym).eq('privacy_mode', 'normal');
     if (!gymProfiles || gymProfiles.length === 0) { setEntries([]); setLoading(false); return; }
 
     const visibleProfiles = gymProfiles.filter(p => p.show_leaderboard !== false);

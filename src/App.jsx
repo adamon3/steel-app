@@ -11,11 +11,16 @@ import GymCommunity from './pages/GymCommunity';
 import Profile from './pages/Profile';
 import WorkoutDetail from './pages/WorkoutDetail';
 
-const tabs = [
+const ALL_TABS = [
   { id: 'feed', label: 'Home', icon: 'home' },
   { id: 'discover', label: 'Discover', icon: 'search' },
   { id: 'log', label: '', icon: 'plus', center: true },
   { id: 'gym', label: 'Gym', icon: 'users' },
+  { id: 'profile', label: 'You', icon: 'user' },
+];
+
+const SOLO_TABS = [
+  { id: 'log', label: '', icon: 'plus', center: true },
   { id: 'profile', label: 'You', icon: 'user' },
 ];
 
@@ -86,6 +91,8 @@ export default function App() {
   const { colors: COLORS, theme, toggle: toggleTheme } = useTheme();
   refreshColors(); // keep static COLORS in sync with theme
 
+  const isSolo = profile?.privacy_mode === 'solo';
+  const tabs = isSolo ? SOLO_TABS : ALL_TABS;
   const [tab, setTab] = useState('log');
   const [toast, setToast] = useState(null);
   const [steelPrefill, setSteelPrefill] = useState(null);
@@ -100,6 +107,14 @@ export default function App() {
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(null);
   const [workoutActive, setWorkoutActive] = useState(false);
+
+  // If user switches to solo while on a social tab, bounce them to log
+  useEffect(() => {
+    if (isSolo && (tab === 'feed' || tab === 'discover' || tab === 'gym')) {
+      setTab('log');
+      setViewUserId(null);
+    }
+  }, [isSolo]);
 
   useEffect(() => { init(); }, []);
 
