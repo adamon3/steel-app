@@ -97,7 +97,7 @@ function WorkoutCard({ workout, onSteel, onProfile, onWorkout, unitPref }) {
       <div onClick={handleOpenWorkout} style={{ cursor: 'pointer' }}>
         <div style={{ padding: '14px 16px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} onClick={handleProfile} />
+            <Avatar initials={getInitials(p?.display_name || '??')} colorIndex={p?.id?.charCodeAt(0) || 0} size={40} src={p?.avatar_url || null} onClick={handleProfile} />
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span onClick={handleProfile} style={{ fontWeight: 700, color: COLORS.text, cursor: 'pointer', fontSize: 14 }}>{p?.display_name}</span>
@@ -119,24 +119,29 @@ function WorkoutCard({ workout, onSteel, onProfile, onWorkout, unitPref }) {
               "{workout.notes}"
             </div>
           )}
-          <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
-            {[
+          {(() => {
+            const stats = [
               ...(workout.duration_mins > 0 ? [{ label: 'Duration', value: `${workout.duration_mins}m` }] : []),
               { label: `Volume (${unit})`, value: formatVolume(convertWeight(workout.total_volume, unit)) },
               { label: 'Sets', value: workout.total_sets },
               ...(prCount > 0 ? [{ label: 'PRs', value: prCount, highlight: true }] : []),
-            ].map((s, i) => (
-              <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < 3 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
-                <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: s.highlight ? COLORS.pro : COLORS.text }}>{s.value}</div>
+            ];
+            return (
+              <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
+                {stats.map((s, i) => (
+                  <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < stats.length - 1 ? `1px solid ${COLORS.border}` : 'none', padding: '0 8px' }}>
+                    <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>{s.label}</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: s.highlight ? COLORS.pro : COLORS.text }}>{s.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
         <div style={{ padding: '0 16px 12px' }}>
           {exercises.slice(0, 4).map((we, i) => {
             const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
-            const topW = Math.max(...sets.map(s => s.weight), 0);
+            const topW = Math.max(...sets.map(s => s.weight || 0), 0);
             const topSet = sets.find(s => s.weight === topW);
             const hasPr = sets.some(s => s.is_pr);
             return (

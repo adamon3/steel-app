@@ -388,7 +388,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
     if (newComment) {
       setLocalComments(prev => [...prev, {
         ...newComment,
-        profiles: { display_name: profile?.display_name, username: profile?.username, id: user.id },
+        profiles: { display_name: profile?.display_name, username: profile?.username, id: user.id, avatar_url: profile?.avatar_url },
       }]);
       setCommentInput('');
     }
@@ -615,6 +615,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
               initials={getInitials(p.display_name || '??')}
               colorIndex={p.id?.charCodeAt(0) || 0}
               size={40}
+              src={p.avatar_url || null}
               onClick={() => onProfile?.(p.id)}
             />
             <div onClick={() => onProfile?.(p.id)} style={{ cursor: 'pointer' }}>
@@ -803,6 +804,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
                       initials={getInitials(c.profiles?.display_name || '?')}
                       size={28}
                       colorIndex={c.profiles?.id?.charCodeAt(0) || 0}
+                      src={c.profiles?.avatar_url || null}
                     />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>

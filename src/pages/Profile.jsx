@@ -234,9 +234,9 @@ function ProgressView({ workouts, unit }) {
       if (!name) return;
       if (!exerciseHistory[name]) exerciseHistory[name] = [];
       const sets = (we.sets || []);
-      const maxWeight = Math.max(...sets.map(s => s.weight), 0);
-      const totalVol = sets.reduce((t, s) => t + (s.weight * s.reps), 0);
-      const est1RM = Math.max(...sets.map(s => s.reps > 0 ? Math.round(s.weight * (1 + s.reps / 30)) : 0), 0);
+      const maxWeight = Math.max(...sets.map(s => s.weight || 0), 0);
+      const totalVol = sets.reduce((t, s) => t + ((s.weight || 0) * (s.reps || 0)), 0);
+      const est1RM = Math.max(...sets.map(s => s.reps > 0 ? Math.round((s.weight || 0) * (1 + s.reps / 30)) : 0), 0);
       exerciseHistory[name].push({ date: w.created_at, maxWeight, totalVol, est1RM, sets: sets.length });
     });
   });
@@ -602,7 +602,7 @@ function EditProfile({ profile, onSave, onCancel }) {
 }
 
 export default function Profile({ onViewProfile, onWorkout }) {
-  const { profile, updateProfile, user } = useStore();
+  const { profile, updateProfile, user, deleteWorkout } = useStore();
   const [subTab, setSubTab] = useState('Stats');
   const [editing, setEditing] = useState(false);
   const [workouts, setWorkouts] = useState([]);
@@ -762,9 +762,9 @@ export default function Profile({ onViewProfile, onWorkout }) {
               setWorkouts(prev => prev.map(w => w.id === workoutId ? { ...w, title: newTitle.trim() } : w));
             }}
             onDelete={async (workoutId) => {
-              // Delete sets, workout_exercises, then workout (cascade should handle it but be safe)
-              await supabase.from('workouts').delete().eq('id', workoutId);
-              setWorkouts(prev => prev.filter(w => w.id !== workoutId));
+              const ok = await deleteWorkout(workoutId);
+              if (ok) setWorkouts(prev => prev.filter(w => w.id !== workoutId));
+              else alert('Could not delete workout. Try again.');
             }}
           />}
           {subTab === 'Progress' && <ProgressView workouts={workouts} unit={unit} />}

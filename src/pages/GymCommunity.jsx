@@ -228,7 +228,7 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
             return (
               <div key={w.id} onClick={() => onWorkout?.(w.id)} style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <Avatar initials={getInitials(p?.display_name || '??')} size={36} colorIndex={p?.id?.charCodeAt(0) || 0} onClick={(e) => { e?.stopPropagation?.(); onViewProfile?.(p?.id); }} />
+                  <Avatar initials={getInitials(p?.display_name || '??')} size={36} colorIndex={p?.id?.charCodeAt(0) || 0} src={p?.avatar_url || null} onClick={(e) => { e?.stopPropagation?.(); onViewProfile?.(p?.id); }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onViewProfile?.(p?.id); }}>{p?.display_name}</div>
                     <div style={{ fontSize: 12, color: COLORS.textDim }}>{timeAgo(w.created_at)}</div>
@@ -258,7 +258,7 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
               display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
               borderBottom: `1px solid ${COLORS.border}`, cursor: 'pointer',
             }}>
-              <Avatar initials={getInitials(m.display_name)} size={40} colorIndex={m.id?.charCodeAt(0) || 0} />
+              <Avatar initials={getInitials(m.display_name)} size={40} colorIndex={m.id?.charCodeAt(0) || 0} src={m.avatar_url || null} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{m.display_name}</div>
                 <div style={{ fontSize: 12, color: COLORS.textDim }}>@{m.username}{m.sport ? ` · ${m.sport}` : ''}</div>

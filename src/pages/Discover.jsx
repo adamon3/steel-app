@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, SPORTS, getInitials, formatVolume } from '../components/UI';
+import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, SPORTS, getInitials, formatVolume, convertWeight } from '../components/UI';
 
 export default function Discover({ onViewProfile }) {
-  const { user } = useStore();
+  const { user, profile } = useStore();
+  const unit = profile?.unit_pref || 'kg';
   const [search, setSearch] = useState('');
   const [sportFilter, setSportFilter] = useState('All');
   const [athletes, setAthletes] = useState([]);
@@ -113,7 +114,7 @@ export default function Discover({ onViewProfile }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div onClick={() => onViewProfile(athlete.id)} style={{ cursor: 'pointer' }}>
-                  <Avatar initials={getInitials(athlete.display_name)} size={48} colorIndex={athlete.id?.charCodeAt(0) || 0} />
+                  <Avatar initials={getInitials(athlete.display_name)} size={48} colorIndex={athlete.id?.charCodeAt(0) || 0} src={athlete.avatar_url || null} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }} onClick={() => onViewProfile(athlete.id)} >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, cursor: 'pointer' }}>
@@ -142,7 +143,7 @@ export default function Discover({ onViewProfile }) {
                 {[
                   { v: athlete.totalWorkouts, l: 'Workouts' },
                   { v: athlete.followers, l: 'Followers' },
-                  { v: formatVolume(athlete.totalVolume), l: 'Total kg' },
+                  { v: formatVolume(convertWeight(athlete.totalVolume, unit)), l: `Total ${unit}` },
                   ...(athlete.lastWorkout ? [{ v: daysAgo(athlete.lastWorkout), l: 'Last active' }] : []),
                 ].map((s, i) => (
                   <div key={i} style={{ flex: 1, background: `${COLORS.bg}88`, borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>

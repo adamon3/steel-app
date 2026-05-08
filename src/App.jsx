@@ -294,7 +294,9 @@ export default function App() {
                 cursor: 'pointer', fontFamily: 'inherit', width: '100%',
               }}>Create Account</button>
               <button onClick={() => promptAuth('', 'login')} style={{
-                border: `1px solid ${COLORS.border}`, color: COLORS.text, fontWeight: 600,
+                marginTop: 10, padding: '14px 32px', borderRadius: 12,
+                border: `1px solid ${COLORS.border}`, background: 'transparent',
+                color: COLORS.text, fontWeight: 600,
                 fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
               }}>Log In</button>
             </div>

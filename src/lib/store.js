@@ -274,7 +274,7 @@ export const useStore = create((set, get) => ({
     if (!isOnline()) return null;
     try {
       const { data, error } = await supabase.from('workouts')
-        .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id, body, user_id, created_at, profiles:user_id (id, username, display_name))')
+        .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id, body, user_id, created_at, profiles:user_id (id, username, display_name, avatar_url))')
         .eq('id', workoutId).maybeSingle();
       if (error) { console.error('fetchWorkout error:', error); return null; }
       return data;
@@ -396,7 +396,7 @@ export const useStore = create((set, get) => ({
     try {
       const { data } = await supabase.from('comments')
         .insert({ workout_id: workoutId, user_id: user.id, body })
-        .select('id, body, user_id, created_at, profiles:user_id (id, username, display_name)')
+        .select('id, body, user_id, created_at, profiles:user_id (id, username, display_name, avatar_url)')
         .single();
       return data;
     } catch (e) { console.error('addComment error:', e); return null; }

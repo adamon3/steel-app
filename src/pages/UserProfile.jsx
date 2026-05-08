@@ -92,7 +92,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
         background: COLORS.card, borderRadius: 16, padding: 20, marginBottom: 16,
         border: `1px solid ${COLORS.border}`, textAlign: 'center',
       }}>
-        <Avatar initials={getInitials(athlete.display_name)} size={72} colorIndex={athlete.id?.charCodeAt(0) || 0} />
+        <Avatar initials={getInitials(athlete.display_name)} size={72} colorIndex={athlete.id?.charCodeAt(0) || 0} src={athlete.avatar_url || null} />
         <div style={{ fontWeight: 800, fontSize: 20, color: COLORS.text, marginTop: 10 }}>{athlete.display_name}</div>
         <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>@{athlete.username}</div>
 
@@ -118,8 +118,8 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
             <div style={{ fontSize: 11, color: COLORS.textDim }}>Workouts</div>
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.accent }}>{formatVolume(totalVolume)}</div>
-            <div style={{ fontSize: 11, color: COLORS.textDim }}>Total kg</div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.accent }}>{formatVolume(convertWeight(totalVolume, unit))}</div>
+            <div style={{ fontSize: 11, color: COLORS.textDim }}>Total {unit}</div>
           </div>
         </div>
 
@@ -173,7 +173,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
               <div style={{ background: `${COLORS.bg}88`, borderRadius: 8, padding: 8, marginBottom: 10 }}>
                 {exercises.slice(0, 4).map((we, i) => {
                   const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
-                  const topWeight = Math.max(...sets.map(s => s.weight), 0);
+                  const topWeight = Math.max(...sets.map(s => s.weight || 0), 0);
                   const topSet = sets.find(s => s.weight === topWeight);
                   return (
                     <div key={we.id} style={{
