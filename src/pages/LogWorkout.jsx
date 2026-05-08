@@ -99,29 +99,38 @@ function RestBar({ state, elapsed, duration, onExpand }) {
         onClick={onExpand}
         style={{
           display: 'block', width: '100%',
-          margin: '4px 0', padding: 0, border: 'none',
+          margin: '8px 0', padding: 0, border: 'none',
           background: 'transparent', cursor: 'pointer',
         }}
       >
         <div style={{
           position: 'relative',
-          height: 28, borderRadius: 6,
-          background: COLORS.card2,
+          height: 32, borderRadius: 999,
+          background: COLORS.text,
           overflow: 'hidden',
+          boxShadow: COLORS.isDark
+            ? '0 4px 14px -6px rgba(0,0,0,0.5)'
+            : '0 4px 14px -6px rgba(0,0,0,0.25)',
         }}>
           <div style={{
             position: 'absolute', inset: 0,
-            width: `${pct}%`, background: COLORS.text, opacity: 0.14,
+            width: `${pct}%`, background: LIME, opacity: 0.85,
             transition: 'width 1s linear',
           }} />
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 8,
             fontFamily: FONTS.mono, fontSize: 13, fontWeight: 700,
-            color: COLORS.text, letterSpacing: '-0.02em',
+            color: COLORS.bg, letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
+            mixBlendMode: 'normal',
           }}>
-            {fmt(remaining)}
+            <span style={{
+              fontSize: 9, fontWeight: 500, letterSpacing: '0.18em',
+              opacity: 0.65, textTransform: 'uppercase',
+            }}>Rest</span>
+            <span>{fmt(remaining)}</span>
           </div>
         </div>
       </button>
