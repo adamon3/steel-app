@@ -20,33 +20,38 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
 
   const loadData = async () => {
     setLoading(true);
-    // Get all gyms with member counts from existing users
-    const { data: profiles } = await supabase.from('profiles').select('gym').neq('gym', '').not('gym', 'is', null);
-    if (profiles) {
-      const gymCounts = {};
-      profiles.forEach(p => { if (p.gym) gymCounts[p.gym] = (gymCounts[p.gym] || 0) + 1; });
-      setGyms(Object.entries(gymCounts).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })));
-    }
-
-    if (profile?.gym) {
-      const { data: members } = await supabase.from('profiles')
-        .select('id, display_name, username, sport, avatar_url')
-        .eq('gym', profile.gym).eq('privacy_mode', 'normal').neq('id', user?.id || '');
-      if (members) setGymMembers(members);
-
-      const { data: memberProfiles } = await supabase.from('profiles')
-        .select('id').eq('gym', profile.gym).eq('privacy_mode', 'normal');
-      if (memberProfiles) {
-        const memberIds = memberProfiles.map(m => m.id);
-        const { data: workouts } = await supabase.from('workouts')
-          .select('*, profiles:user_id (id, display_name, username, sport, avatar_url), workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, weight, reps, is_pr))')
-          .in('user_id', memberIds).eq('is_public', true)
-          .order('created_at', { ascending: false }).limit(15);
-        if (workouts) setGymFeed(workouts);
+    try {
+      // Get all gyms with member counts from existing users
+      const { data: profiles } = await supabase.from('profiles').select('gym').neq('gym', '').not('gym', 'is', null);
+      if (profiles) {
+        const gymCounts = {};
+        profiles.forEach(p => { if (p.gym) gymCounts[p.gym] = (gymCounts[p.gym] || 0) + 1; });
+        setGyms(Object.entries(gymCounts).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })));
       }
-      setMyGymData({ name: profile.gym, members: (members?.length || 0) + 1 });
+
+      if (profile?.gym) {
+        const { data: members } = await supabase.from('profiles')
+          .select('id, display_name, username, sport, avatar_url')
+          .eq('gym', profile.gym).eq('privacy_mode', 'normal').neq('id', user?.id || '');
+        if (members) setGymMembers(members);
+
+        const { data: memberProfiles } = await supabase.from('profiles')
+          .select('id').eq('gym', profile.gym).eq('privacy_mode', 'normal');
+        if (memberProfiles && memberProfiles.length > 0) {
+          const memberIds = memberProfiles.map(m => m.id);
+          const { data: workouts } = await supabase.from('workouts')
+            .select('*, profiles:user_id (id, display_name, username, sport, avatar_url), workout_exercises (id, sort_order, exercises:exercise_id (id, name), sets (id, weight, reps, is_pr))')
+            .in('user_id', memberIds).eq('is_public', true)
+            .order('created_at', { ascending: false }).limit(15);
+          if (workouts) setGymFeed(workouts);
+        }
+        setMyGymData({ name: profile.gym, members: (members?.length || 0) + 1 });
+      }
+    } catch (e) {
+      console.error('GymCommunity loadData error:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Search for gyms — searches both existing Steel gyms and uses the input as a direct name
