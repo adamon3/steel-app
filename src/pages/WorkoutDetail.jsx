@@ -245,8 +245,11 @@ function ExerciseBlock({ exercise, unit, editing, onUpdate, onAddSet, onRemoveEx
 
 function ExercisePicker({ exercises, onSelect, onClose }) {
   const [search, setSearch] = useState('');
+  // Strip non-alphanumerics so "t bar row" matches "T-Bar Row" etc.
+  const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const searchNorm = normalize(search);
   const filtered = exercises
-    .filter(e => e.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(e => !searchNorm || normalize(e.name).includes(searchNorm))
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, 100);
 

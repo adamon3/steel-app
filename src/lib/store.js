@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
-import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, getGuestPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
+import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, getGuestPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, removeFromOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
+
+// Race a promise against a timeout. Reject with the named error after `ms`.
+function withTimeout(promise, ms, label = 'timeout') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label)), ms)),
+  ]);
+}
 
 export const useStore = create((set, get) => ({
   user: null,
@@ -62,21 +70,30 @@ export const useStore = create((set, get) => ({
     });
   },
 
-  // Sync offline queue when back online
+  // Sync offline queue. Each item is removed individually on success — if one
+  // fails (timeout / 5xx), the rest still get processed and the failed item
+  // stays in the queue for the next attempt.
   syncOfflineQueue: async () => {
     const { user } = get();
     if (!user || !isOnline()) return;
     const queue = getOfflineQueue();
     if (queue.length === 0) return;
-    console.log(`Syncing ${queue.length} offline workouts...`);
-
+    let succeeded = 0;
     for (const workout of queue) {
       try {
-        await get()._saveWorkoutToSupabase(workout);
-      } catch (e) { console.error('Failed to sync offline workout:', e); }
+        const saved = await get()._saveWorkoutToSupabase(workout);
+        if (saved && workout.queue_id) {
+          removeFromOfflineQueue(workout.queue_id);
+          succeeded++;
+        }
+      } catch (e) {
+        console.error('Failed to sync queued workout:', e);
+        // Leave in queue for next attempt.
+      }
     }
-    clearOfflineQueue();
-    await get().fetchFeed();
+    if (succeeded > 0) {
+      await get().fetchFeed();
+    }
   },
 
   syncGuestWorkouts: async () => {
@@ -197,70 +214,93 @@ export const useStore = create((set, get) => ({
     } catch (e) { console.error('fetchFeed error:', e); }
   },
 
+  // Queue-first save: persist to localStorage immediately, then attempt the
+  // network save in the background. Returns instantly so the UI never hangs.
+  // - Online + fast network: workout syncs within seconds, queue clears.
+  // - Online + slow / flaky: workout stays queued; sync retries on each
+  //   subsequent online event or app reload.
+  // - Offline: same as above; sync will fire when online event fires.
+  // - The save will never be lost as long as localStorage isn't wiped.
   saveWorkout: async (workout) => {
     const { user, isGuest } = get();
 
-    // Guest mode: always save locally
     if (isGuest || !user) {
       return saveGuestWorkout(workout);
     }
 
-    // Logged in but offline: queue for later sync
-    if (!isOnline()) {
-      addToOfflineQueue(workout);
-      // Also save locally so it shows in history
-      saveGuestWorkout(workout);
-      return { id: `offline_${Date.now()}`, offline: true };
+    // Always queue first for resilience.
+    const queued = addToOfflineQueue(workout);
+
+    // Fire-and-forget background sync. Don't await — UI must not block.
+    if (isOnline()) {
+      setTimeout(() => { get().syncOfflineQueue(); }, 0);
     }
 
-    // Logged in and online: save to Supabase
-    return get()._saveWorkoutToSupabase(workout);
+    return { id: queued.queue_id, pending: true };
   },
 
-  // Internal: save workout to Supabase
+  // Internal: save workout to Supabase. Each Supabase call is wrapped in a
+  // 15s timeout via withTimeout so a stuck connection can't lock the queue.
+  // On any failure the function throws and the caller (syncOfflineQueue)
+  // leaves the workout in the queue for retry.
   _saveWorkoutToSupabase: async (workout) => {
     const { user } = get();
     if (!user) return null;
-    try {
-      let totalVolume = 0, totalSets = 0, hasPr = false;
-      (workout.exercises || []).forEach(ex => {
-        (ex.sets || []).forEach(s => {
-          if (s.completed !== false) {
-            totalVolume += (s.weight || 0) * (s.reps || 0);
-            totalSets += 1;
-            if (s.is_pr) hasPr = true;
-          }
-        });
+    const TIMEOUT_MS = 15000;
+    let totalVolume = 0, totalSets = 0, hasPr = false;
+    (workout.exercises || []).forEach(ex => {
+      (ex.sets || []).forEach(s => {
+        if (s.completed !== false) {
+          totalVolume += (s.weight || 0) * (s.reps || 0);
+          totalSets += 1;
+          if (s.is_pr) hasPr = true;
+        }
       });
-      const { data: w, error } = await supabase.from('workouts').insert({
+    });
+    const { data: w, error } = await withTimeout(
+      supabase.from('workouts').insert({
         user_id: user.id, title: workout.title || 'Workout', notes: workout.notes || '',
         duration_mins: workout.duration_mins || 0, total_volume: totalVolume,
         total_sets: totalSets, has_pr: hasPr, steeled_from: workout.steeled_from || null,
         is_public: workout.is_public !== false,
         created_at: workout.created_at || new Date().toISOString(),
-      }).select().single();
-      if (error || !w) { console.error('Save workout error:', error); return null; }
+      }).select().single(),
+      TIMEOUT_MS, 'workout insert timeout'
+    );
+    if (error || !w) {
+      throw new Error(`Save workout error: ${error?.message || 'no row'}`);
+    }
 
-      for (let i = 0; i < (workout.exercises || []).length; i++) {
-        const ex = workout.exercises[i];
-        const done = (ex.sets || []).filter(s => s.completed !== false);
-        if (done.length === 0) continue;
-        const { data: we } = await supabase.from('workout_exercises').insert({
+    for (let i = 0; i < (workout.exercises || []).length; i++) {
+      const ex = workout.exercises[i];
+      const done = (ex.sets || []).filter(s => s.completed !== false);
+      if (done.length === 0) continue;
+      const { data: we } = await withTimeout(
+        supabase.from('workout_exercises').insert({
           workout_id: w.id, exercise_id: ex.exercise_id, sort_order: i, notes: ex.notes || '',
-        }).select().single();
-        if (we) {
-          await supabase.from('sets').insert(done.map((s, j) => ({
+        }).select().single(),
+        TIMEOUT_MS, 'workout_exercises insert timeout'
+      );
+      if (we) {
+        await withTimeout(
+          supabase.from('sets').insert(done.map((s, j) => ({
             workout_exercise_id: we.id, set_number: j + 1,
             weight: s.weight || 0, reps: s.reps || 0,
             is_pr: s.is_pr || false, set_type: s.set_type || 'normal',
-          })));
-        }
+          }))),
+          TIMEOUT_MS, 'sets insert timeout'
+        );
       }
-      if (workout.template_id) {
-        await supabase.from('templates').update({ last_used: new Date().toISOString() }).eq('id', workout.template_id);
-      }
-      return w;
-    } catch (e) { console.error('_saveWorkoutToSupabase error:', e); return null; }
+    }
+    if (workout.template_id) {
+      try {
+        await withTimeout(
+          supabase.from('templates').update({ last_used: new Date().toISOString() }).eq('id', workout.template_id),
+          TIMEOUT_MS, 'template touch timeout'
+        );
+      } catch (e) { /* non-critical, don't fail save */ }
+    }
+    return w;
   },
 
   steelWorkout: async (workoutId) => {

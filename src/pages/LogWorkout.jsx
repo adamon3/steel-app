@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
+import { getWIPWorkout, setWIPWorkout, clearWIPWorkout } from '../lib/localStorage';
 import { COLORS, Icon, Spinner, convertWeight, convertWeightBack } from '../components/UI';
 
 const FONTS = {
@@ -60,7 +61,7 @@ function parseRestInput(raw) {
   return n; // "90" = 90s
 }
 
-// Play a subtle ding via Web Audio
+// Play a subtle ding via Web Audio + vibrate.
 function playDing() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -75,12 +76,72 @@ function playDing() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.5);
-    if (navigator.vibrate) navigator.vibrate(100);
+    if (navigator.vibrate) navigator.vibrate([100, 80, 100]);
   } catch (e) { /* no audio, no problem */ }
+}
+
+// Show a system notification so users with the phone locked / app backgrounded
+// still get a heads-up. Falls back silently if permission is denied or the
+// API isn't available (older iOS Safari, etc.). Prefers showing via the SW
+// registration so the notification persists on the lock screen even after
+// the JS context goes idle.
+async function showRestDoneNotification() {
+  if (typeof window === 'undefined') return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  const body = "Time's up — back to the bar.";
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification('Rest complete', {
+          body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: 'steel-rest-done',  // replaces older notifications of same kind
+          renotify: true,
+          requireInteraction: false,
+          silent: false,
+        });
+        return;
+      }
+    }
+    new Notification('Rest complete', { body, icon: '/icon-192.png', tag: 'steel-rest-done' });
+  } catch (e) { /* notification failed, ding still played */ }
+}
+
+// Ask once, on the first user gesture. Calling repeatedly is cheap — the
+// browser only prompts once.
+async function ensureNotificationPermission() {
+  if (typeof window === 'undefined') return false;
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try {
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  } catch (e) { return false; }
 }
 
 function haptic() {
   try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {}
+}
+
+// Detect exercises where the weight column means "added weight on top of
+// bodyweight". Used to prefix the weight with "+" so it's clear that 20kg
+// pull-up means bodyweight + 20kg, not just 20kg total.
+function isBodyweightExercise(name) {
+  if (!name) return false;
+  const n = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return [
+    'pullup', 'pullups', 'chinup', 'chinups', 'muscleup', 'muscleups',
+    'pushup', 'pushups', 'dip', 'dips', 'ringdip', 'ringdips', 'ringrow', 'ringrows',
+    'invertedrow', 'invertedrows', 'pistolsquat', 'pistolsquats',
+    'handstandpushup', 'handstandpushups', 'hspu',
+    'hanginglegraise', 'hanginglegraises', 'hangingkneeraise', 'hangingkneeraises',
+    'toestobar', 'lsit', 'situp', 'situps', 'plank', 'sideplank',
+    'archerpushup', 'archerpullup', 'diamondpushup',
+  ].some(k => n.includes(k));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -319,10 +380,11 @@ const SET_TYPES = {
 };
 
 function SetRow({
-  exIdx, setIdx, set, prevSet, unit, isActive,
+  exIdx, setIdx, set, prevSet, unit, isActive, isBodyweight,
   onComplete, onUncomplete, onUpdate, onTogglePR, onCycleSetType, onRemove,
   focusNextSet,
 }) {
+  const bwPrefix = isBodyweight ? '+' : '';
   const weightRef = `w-${exIdx}-${setIdx}`;
   const repsRef = `r-${exIdx}-${setIdx}`;
   const isPRvsPrev = prevSet && set.completed && set.weight > prevSet.weight;
@@ -400,7 +462,7 @@ function SetRow({
           fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim,
           display: 'flex', alignItems: 'center', gap: 5,
         }}>
-          {prevSet ? `${convertWeight(prevSet.weight, unit)}×${prevSet.reps}` : '—'}
+          {prevSet ? `${bwPrefix}${convertWeight(prevSet.weight, unit)}×${prevSet.reps}` : '—'}
           {(set.is_pr || isPRvsPrev) && set.completed && (
             <span style={{
               background: LIME, color: '#0A0A0A',
@@ -416,7 +478,7 @@ function SetRow({
               textAlign: 'center', fontFamily: FONTS.mono, fontSize: 15, fontWeight: 700,
               color: COLORS.text, letterSpacing: '-0.02em', cursor: 'pointer',
               fontVariantNumeric: 'tabular-nums',
-            }}>{set.weight || '—'}</span>
+            }}>{set.weight ? `${bwPrefix}${set.weight}` : (isBodyweight ? 'BW' : '—')}</span>
             <span onClick={onUncomplete} style={{
               textAlign: 'center', fontFamily: FONTS.mono, fontSize: 15, fontWeight: 700,
               color: COLORS.text, letterSpacing: '-0.02em', cursor: 'pointer',
@@ -428,7 +490,7 @@ function SetRow({
             <input
               id={weightRef} type="number" inputMode="decimal" enterKeyHint="next" min="0" max="9999"
               value={set.weight || ''}
-              placeholder={prevSet ? String(convertWeight(prevSet.weight, unit)) : '0'}
+              placeholder={prevSet ? `${bwPrefix}${convertWeight(prevSet.weight, unit)}` : (isBodyweight ? '+0' : '0')}
               onChange={e => { const v = parseFloat(e.target.value) || 0; onUpdate('weight', Math.min(Math.max(v, 0), 9999)); }}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
@@ -521,6 +583,7 @@ function ExerciseCard({
 }) {
   const lastSet = prevSets?.[0];
   const lastDate = lastSet?.workout_date;
+  const isBodyweight = isBodyweightExercise(exercise.name);
   const [showMenu, setShowMenu] = useState(false);
 
   // Active set index = first not-completed set
@@ -552,7 +615,7 @@ function ExerciseCard({
               fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
               fontWeight: 500, marginTop: 1, letterSpacing: '0.04em',
             }}>
-              LAST · {convertWeight(lastSet.weight, unit)}×{lastSet.reps}{lastDate ? ` · ${formatDate(lastDate)}` : ''}
+              LAST · {isBodyweight ? '+' : ''}{convertWeight(lastSet.weight, unit)}×{lastSet.reps}{lastDate ? ` · ${formatDate(lastDate)}` : ''}
             </div>
           )}
         </div>
@@ -601,7 +664,7 @@ function ExerciseCard({
       }}>
         <span style={{ textAlign: 'center' }}>Set</span>
         <span>Previous</span>
-        <span style={{ textAlign: 'center' }}>{unit}</span>
+        <span style={{ textAlign: 'center' }}>{isBodyweight ? `+ ${unit}` : unit}</span>
         <span style={{ textAlign: 'center' }}>Reps</span>
         <span></span>
       </div>
@@ -627,6 +690,7 @@ function ExerciseCard({
               set={set}
               prevSet={prevSet}
               unit={unit}
+              isBodyweight={isBodyweight}
               isActive={isThisActive}
               onComplete={() => onUpdate(i, { completed: true })}
               onUncomplete={() => onUpdate(i, { completed: false })}
@@ -704,10 +768,15 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
     return 'Other';
   };
 
+  // Normalize: strip dashes, spaces, punctuation so "t bar row", "tbar row",
+  // "T-Bar Row", "t.bar-row" all match the same canonical form.
+  const normalizeForSearch = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const searchNorm = normalizeForSearch(search);
+
   const filtered = exercises
     .map(e => ({ ...e, _cat: normalizeGroup(e.muscle_group) }))
     .filter(e => {
-      const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !searchNorm || normalizeForSearch(e.name).includes(searchNorm);
       const matchesCat = category === 'All' || e._cat === category;
       return matchesSearch && matchesCat;
     })
@@ -1206,24 +1275,38 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
 function ExerciseHistory({ exercise, userId, unit, onBack }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const TIMEOUT_MS = 8000;
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('workout_exercises')
-        .select('id, workout_id, workouts:workout_id (id, title, created_at, user_id), sets (weight, reps, is_pr)')
-        .eq('exercise_id', exercise.exercise_id || exercise.id);
-      if (data) {
+      setError(null);
+      try {
+        const query = supabase
+          .from('workout_exercises')
+          .select('id, workout_id, workouts:workout_id (id, title, created_at, user_id), sets (weight, reps, is_pr)')
+          .eq('exercise_id', exercise.exercise_id || exercise.id);
+        const { data, error: err } = await Promise.race([
+          query,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)),
+        ]);
+        if (cancelled) return;
+        if (err) throw err;
         const filtered = (data || [])
           .filter(we => we.workouts?.user_id === userId)
           .sort((a, b) => new Date(b.workouts?.created_at) - new Date(a.workouts?.created_at))
           .slice(0, 15);
         setHistory(filtered);
+      } catch (e) {
+        if (!cancelled) setError(e?.message || 'Could not load history');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     };
     load();
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -1248,9 +1331,18 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
         </div>
       </div>
 
-      {loading ? <Spinner /> : history.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textDim, fontSize: 14 }}>
-          No history yet — complete a set to start tracking
+      {loading ? <Spinner /> : error ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Couldn't load history</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONTS.mono, letterSpacing: '0.05em' }}>{error}</div>
+        </div>
+      ) : history.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <Icon name="weight" size={32} color={COLORS.textDim} />
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginTop: 10 }}>No history yet</div>
+          <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, lineHeight: 1.45 }}>
+            Complete a set of {exercise.name} to start tracking your progress.
+          </div>
         </div>
       ) : (
         history.map(we => {
@@ -1345,6 +1437,39 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
 
   useEffect(() => { fetchExercises(); fetchTemplates(); }, []);
 
+  // ─── WIP restore on mount ───
+  // If there's a saved work-in-progress workout (from a crash, close, or
+  // stuck save), pick up where the user left off. Prefill from a Steel'd
+  // workout takes priority — that's an explicit user intent.
+  useEffect(() => {
+    if (prefill) return; // explicit prefill wins
+    const wip = getWIPWorkout();
+    if (!wip || !wip.exercises || wip.exercises.length === 0) return;
+    // Only auto-restore if user has at least one completed set — otherwise
+    // it's likely an abandoned blank workout, just clear it.
+    const hasCompleted = wip.exercises.some(e => (e.sets || []).some(s => s.completed));
+    if (!hasCompleted) { clearWIPWorkout(); return; }
+    setWorkoutExercises(wip.exercises);
+    setTitle(wip.title || 'Workout');
+    setWorkoutNotes(wip.workoutNotes || '');
+    setStartTime(wip.startTime || Date.now());
+    setPhase('logging');
+  }, []); // mount only
+
+  // ─── WIP auto-save on every meaningful change ───
+  // Persists the current workout to localStorage so a refresh / crash /
+  // force-close can recover it. Cleared after successful save or discard.
+  useEffect(() => {
+    if (phase !== 'logging') return;
+    if (workoutExercises.length === 0) return;
+    setWIPWorkout({
+      title,
+      workoutNotes,
+      startTime,
+      exercises: workoutExercises,
+    });
+  }, [workoutExercises, title, workoutNotes, startTime, phase]);
+
   useEffect(() => {
     if (!onActiveChange) return;
     const isActive = phase === 'logging' && workoutExercises.length > 0;
@@ -1372,10 +1497,13 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
     const iv = setInterval(() => {
       const e = Math.floor((Date.now() - restStartedAt) / 1000);
       setRestElapsed(e);
-      // Ding + vibrate when we cross the boundary
+      // Ding + vibrate + lock-screen notification when we cross the boundary.
+      // playDing handles foreground audio + haptics, showRestDoneNotification
+      // handles the lock-screen / background case via the SW.
       if (e >= restDuration && !dingPlayedRef.current) {
         dingPlayedRef.current = true;
         playDing();
+        showRestDoneNotification();
       }
     }, 250);
     return () => clearInterval(iv);
@@ -1502,6 +1630,10 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
       setRestAnchor({ exIdx, setIdx });
       setRestPaused(false);
       setRestPausedAt(null);
+      // Ask for notification permission on the first set completion — this is
+      // a user gesture so iOS Safari will honor the request. Subsequent calls
+      // are no-ops if already granted/denied.
+      ensureNotificationPermission();
     }
     if (patch.completed === false) {
       // Clear rest if this was the anchor
@@ -1615,9 +1747,13 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
     setShowFinishConfirm(true);
   };
 
-  const doSave = async () => {
+  // Optimistic save: queue locally + jump to the completion screen
+  // immediately. The actual Supabase sync happens in the background via
+  // store.syncOfflineQueue. If the network call fails or stalls, the
+  // workout stays in the queue and retries on the next online event /
+  // app reload — the user never sees a stuck spinner or loses data.
+  const doSave = async ({ isPublic = true } = {}) => {
     setShowFinishConfirm(false);
-    setSaving(true);
     const durationMins = Math.max(1, Math.round((Date.now() - startTime) / 60000));
     const workout = {
       title: title.trim() || 'Workout',
@@ -1625,7 +1761,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
       duration_mins: durationMins,
       steeled_from: prefill?.steeled_from || null,
       template_id: null,
-      is_public: true,
+      is_public: isPublic,
       exercises: workoutExercises.map(e => ({
         exercise_id: e.exercise_id, name: e.name, notes: e.notes,
         sets: e.sets
@@ -1637,19 +1773,11 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
           })),
       })).filter(e => e.sets.length > 0),
     };
-    try {
-      const saved = await saveWorkout(workout);
-      if (saved) {
-        setCompletedWorkout({ ...workout, id: saved.id, duration_mins: durationMins });
-        setPhase('complete');
-      } else {
-        alert('Could not save workout. Try again.');
-      }
-    } catch (err) {
-      console.error('Save error:', err);
-      alert('Could not save workout: ' + (err.message || 'unknown error'));
-    }
-    setSaving(false);
+    // saveWorkout queues to localStorage synchronously and returns immediately.
+    const queued = await saveWorkout(workout);
+    setCompletedWorkout({ ...workout, id: queued?.id || 'local', duration_mins: durationMins });
+    setPhase('complete');
+    clearWIPWorkout();
   };
 
   const handleDiscard = () => {
@@ -1660,6 +1788,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
     setRestStartedAt(null);
     setRestAnchor(null);
     setPhase('home');
+    clearWIPWorkout();
   };
 
   const handleSaveAsTemplate = async (nameOverride) => {
@@ -2081,7 +2210,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
                     border: `1px solid ${COLORS.border}`, borderRadius: 999,
                     fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
                   }}>Keep going</button>
-                  <button onClick={doSave} style={{
+                  <button onClick={() => doSave({ isPublic: true })} style={{
                     flex: 1, padding: 11, background: COLORS.text, color: COLORS.bg,
                     border: 'none', borderRadius: 999,
                     fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans,
@@ -2175,12 +2304,23 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
                 )}
               </div>
 
-              <button onClick={doSave} style={{
+              <button onClick={() => doSave({ isPublic: true })} style={{
                 width: '100%', padding: 13, background: COLORS.text, color: COLORS.bg,
                 border: 'none', borderRadius: 12,
                 fontSize: 14, fontWeight: 700, cursor: 'pointer',
                 fontFamily: FONTS.sans, letterSpacing: '-0.01em', marginBottom: 8,
-              }}>Save & share</button>
+              }}>Save &amp; share</button>
+
+              <button onClick={() => doSave({ isPublic: false })} style={{
+                width: '100%', padding: 12, background: 'transparent', color: COLORS.text,
+                border: `1px solid ${COLORS.border}`, borderRadius: 12,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                fontFamily: FONTS.sans, letterSpacing: '-0.01em', marginBottom: 4,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}>
+                <Icon name="lock" size={13} color={COLORS.text} />
+                Save private
+              </button>
 
               <button onClick={() => setShowFinishConfirm(false)} style={{
                 width: '100%', padding: 10, background: 'transparent', color: COLORS.textDim,
