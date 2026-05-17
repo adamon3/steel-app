@@ -19,6 +19,7 @@ export const useStore = create((set, get) => ({
   loading: true,
   isGuest: true,
   offline: false,
+  _syncing: false,
 
   setUser: (user) => set({ user, isGuest: !user }),
   setProfile: (profile) => set({ profile }),
@@ -72,27 +73,34 @@ export const useStore = create((set, get) => ({
 
   // Sync offline queue. Each item is removed individually on success — if one
   // fails (timeout / 5xx), the rest still get processed and the failed item
-  // stays in the queue for the next attempt.
+  // stays in the queue for the next attempt. Mutex prevents two concurrent
+  // syncs from double-inserting the same workout when triggers overlap.
   syncOfflineQueue: async () => {
     const { user } = get();
     if (!user || !isOnline()) return;
-    const queue = getOfflineQueue();
-    if (queue.length === 0) return;
-    let succeeded = 0;
-    for (const workout of queue) {
-      try {
-        const saved = await get()._saveWorkoutToSupabase(workout);
-        if (saved && workout.queue_id) {
-          removeFromOfflineQueue(workout.queue_id);
-          succeeded++;
+    if (get()._syncing) return; // already running
+    set({ _syncing: true });
+    try {
+      const queue = getOfflineQueue();
+      if (queue.length === 0) return;
+      let succeeded = 0;
+      for (const workout of queue) {
+        try {
+          const saved = await get()._saveWorkoutToSupabase(workout);
+          if (saved && workout.queue_id) {
+            removeFromOfflineQueue(workout.queue_id);
+            succeeded++;
+          }
+        } catch (e) {
+          console.error('Failed to sync queued workout:', e);
+          // Leave in queue for next attempt.
         }
-      } catch (e) {
-        console.error('Failed to sync queued workout:', e);
-        // Leave in queue for next attempt.
       }
-    }
-    if (succeeded > 0) {
-      await get().fetchFeed();
+      if (succeeded > 0) {
+        await get().fetchFeed();
+      }
+    } finally {
+      set({ _syncing: false });
     }
   },
 
