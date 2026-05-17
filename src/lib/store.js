@@ -30,18 +30,21 @@ export const useStore = create((set, get) => ({
     // Fetch exercises (try network, fall back to cache)
     await get().fetchExercises();
 
-    if (online) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          set({ user: session.user, isGuest: false });
-          await get().fetchProfile(session.user.id);
+    // getSession() reads from localStorage — works offline too. The sync
+    // functions inside the if(online) block are guarded separately.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        set({ user: session.user, isGuest: false });
+        // fetchProfile uses NetworkFirst via SW so it serves cached when offline.
+        await get().fetchProfile(session.user.id);
+        if (online) {
           await get().syncGuestWorkouts();
           await get().syncOfflineQueue();
         }
-      } catch (e) {
-        console.log('Auth check failed (offline?):', e);
       }
+    } catch (e) {
+      console.log('Auth check failed:', e);
     }
     set({ loading: false });
 
@@ -88,7 +91,8 @@ export const useStore = create((set, get) => ({
   },
 
   fetchProfile: async (userId) => {
-    if (!isOnline()) return;
+    // No isOnline() guard — the SW NetworkFirst strategy serves cached profile
+    // when offline. The try/catch keeps a failed request from clobbering state.
     try {
       const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (data) set({ profile: data });
@@ -125,13 +129,16 @@ export const useStore = create((set, get) => ({
   fetchTemplates: async () => {
     const { user, isGuest } = get();
     if (isGuest) { set({ templates: getGuestTemplates() }); return; }
-    if (!user || !isOnline()) return;
-    const { data } = await supabase
-      .from('templates')
-      .select('*, template_exercises (id, sort_order, exercise_id, default_sets, default_reps, default_weight, exercises:exercise_id (id, name, muscle_group))')
-      .eq('user_id', user.id)
-      .order('last_used', { ascending: false, nullsFirst: false });
-    if (data) set({ templates: data });
+    if (!user) return;
+    // SW NetworkFirst serves cached templates when offline.
+    try {
+      const { data } = await supabase
+        .from('templates')
+        .select('*, template_exercises (id, sort_order, exercise_id, default_sets, default_reps, default_weight, exercises:exercise_id (id, name, muscle_group))')
+        .eq('user_id', user.id)
+        .order('last_used', { ascending: false, nullsFirst: false });
+      if (data) set({ templates: data });
+    } catch (e) { console.error('fetchTemplates error:', e); }
   },
 
   saveTemplate: async (name, exercises) => {
@@ -176,16 +183,18 @@ export const useStore = create((set, get) => ({
   },
 
   fetchFeed: async () => {
-    if (!isOnline()) return;
-    const { data } = await supabase
-      .from('workouts')
-      .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url, privacy_mode), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
-      .eq('is_public', true)
-      .order('created_at', { ascending: false }).limit(40);
-    if (data) {
-      const filtered = data.filter(w => (w.profiles?.privacy_mode || 'normal') === 'normal').slice(0, 20);
-      set({ feed: filtered });
-    }
+    // SW NetworkFirst serves cached feed when offline.
+    try {
+      const { data } = await supabase
+        .from('workouts')
+        .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url, privacy_mode), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false }).limit(40);
+      if (data) {
+        const filtered = data.filter(w => (w.profiles?.privacy_mode || 'normal') === 'normal').slice(0, 20);
+        set({ feed: filtered });
+      }
+    } catch (e) { console.error('fetchFeed error:', e); }
   },
 
   saveWorkout: async (workout) => {
@@ -274,7 +283,7 @@ export const useStore = create((set, get) => ({
   },
 
   fetchWorkout: async (workoutId) => {
-    if (!isOnline()) return null;
+    // SW NetworkFirst serves cached workout detail when offline.
     try {
       const { data, error } = await supabase.from('workouts')
         .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id, body, user_id, created_at, profiles:user_id (id, username, display_name, avatar_url))')

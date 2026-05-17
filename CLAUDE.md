@@ -162,7 +162,7 @@ Guest mode: workouts saved to localStorage if `isGuest` or offline. Sync queue g
 2. **Profile's other tabs are stale.** Progress / PRs / Body / Following still use older layouts. Stats + Workouts got refreshed (and the privacy_mode segmented control lives in EditProfile).
 3. **PWA install banner.** `manifest.json` is in place but the install prompt's reliability on fresh devices isn't verified.
 4. ~~Service worker / cache.~~ **Resolved:** `registerType: 'prompt'` + `<UpdatePrompt />` banner using `useRegisterSW`. New SW activations now ask the user to refresh (with skipWaiting) instead of being stuck on the old bundle.
-5. **Offline-first cache strategy untuned.** VitePWA generates `dist/sw.js`, but it only precaches static assets. App data (workouts, profiles) still requires network. Local queueing via localStorage covers workout-save, nothing else.
+5. ~~Offline-first cache strategy untuned.~~ **Resolved.** Workbox `runtimeCaching` now caches Supabase REST GET (NetworkFirst, 14d), Storage (CacheFirst, 30d), Google Fonts, OSM tiles. Read flows (feed / profile / workouts / templates / exercises) serve from cache when offline. Writes still queue via the existing localStorage path. Saving a workout offline works; logging a fresh one offline works; browsing your recent feed offline works. Likes/comments still fail offline — out of scope for v1.
 
 ---
 
