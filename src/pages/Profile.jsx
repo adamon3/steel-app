@@ -329,7 +329,11 @@ function ProgressView({ workouts, unit }) {
 
       {/* Exercise selector */}
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDim, marginBottom: 6 }}>EXERCISE</div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 500,
+          color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase',
+          marginBottom: 8,
+        }}>Exercise</div>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
           {exerciseNames.slice(0, 15).map(name => (
             <button key={name} onClick={() => setSelectedExercise(name)} style={{
@@ -508,7 +512,11 @@ function PRsView({ workouts, unit }) {
   if (sorted.length === 0) return <EmptyState icon="trophy" title="No PRs yet" subtitle="Complete workouts to track your personal records" />;
   return (
     <div>
-      <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 12 }}>Best set (heaviest weight) for each exercise</div>
+      <div style={{
+        fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 500,
+        color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase',
+        marginBottom: 12,
+      }}>Personal records · {sorted.length} lifts</div>
       {sorted.map((pr, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: COLORS.card, borderRadius: 10, marginBottom: 6, border: `1px solid ${i < 3 ? `${COLORS.pro}33` : COLORS.border}` }}>
           <span style={{ width: 28, textAlign: 'center', fontSize: 14, fontWeight: 700, color: i === 0 ? COLORS.pro : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : COLORS.textDim }}>{i + 1}</span>
@@ -534,9 +542,9 @@ function FollowingView({ userId, onViewProfile }) {
   useEffect(() => { load(); }, [userId]);
   const load = async () => {
     setLoading(true);
-    const { data: fData } = await supabase.from('follows').select('follower_id, profiles:follower_id (id, display_name, username, sport)').eq('following_id', userId);
+    const { data: fData } = await supabase.from('follows').select('follower_id, profiles:follower_id (id, display_name, username, sport, avatar_url)').eq('following_id', userId);
     if (fData) setFollowers(fData.map(f => f.profiles).filter(Boolean));
-    const { data: gData } = await supabase.from('follows').select('following_id, profiles:following_id (id, display_name, username, sport)').eq('follower_id', userId);
+    const { data: gData } = await supabase.from('follows').select('following_id, profiles:following_id (id, display_name, username, sport, avatar_url)').eq('follower_id', userId);
     if (gData) setFollowing(gData.map(f => f.profiles).filter(Boolean));
     setLoading(false);
   };
@@ -544,9 +552,15 @@ function FollowingView({ userId, onViewProfile }) {
   const list = tab === 'followers' ? followers : following;
   return (
     <div>
-      <div style={{ display: 'flex', gap: 0, marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${COLORS.border}`, marginBottom: 14 }}>
         {['followers', 'following'].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', background: 'transparent', color: tab === t ? COLORS.text : COLORS.textDim, borderBottom: tab === t ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.border}` }}>
+          <button key={t} onClick={() => setTab(t)} style={{
+            flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 600, fontFamily: 'inherit', background: 'transparent',
+            color: tab === t ? COLORS.accent : COLORS.textDim,
+            borderBottom: tab === t ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+            marginBottom: -1,
+          }}>
             {t === 'followers' ? `Followers (${followers.length})` : `Following (${following.length})`}
           </button>
         ))}
@@ -554,7 +568,7 @@ function FollowingView({ userId, onViewProfile }) {
       {list.length === 0 ? <EmptyState icon="users" title={tab === 'followers' ? 'No followers yet' : 'Not following anyone'} subtitle={tab === 'followers' ? 'Share your profile' : 'Discover athletes to follow'} /> : (
         list.map(p => (
           <div key={p.id} onClick={() => onViewProfile(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>
-            <Avatar initials={getInitials(p.display_name)} size={40} colorIndex={p.id?.charCodeAt(0) || 0} />
+            <Avatar initials={getInitials(p.display_name)} size={40} colorIndex={p.id?.charCodeAt(0) || 0} src={p.avatar_url || null} />
             <div>
               <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{p.display_name}</div>
               <div style={{ fontSize: 12, color: COLORS.textDim }}>@{p.username}{p.sport ? ` · ${p.sport}` : ''}</div>

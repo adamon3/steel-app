@@ -10,6 +10,7 @@ import UserProfile from './pages/UserProfile';
 import GymCommunity from './pages/GymCommunity';
 import Profile from './pages/Profile';
 import WorkoutDetail from './pages/WorkoutDetail';
+import UpdatePrompt from './components/UpdatePrompt';
 
 const ALL_TABS = [
   { id: 'feed', label: 'Home', icon: 'home' },
@@ -484,6 +485,8 @@ export default function App() {
       )}
 
       <Toast message={toast} />
+
+      <UpdatePrompt />
 
       <style>{`
         @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }

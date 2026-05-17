@@ -158,11 +158,11 @@ Guest mode: workouts saved to localStorage if `isGuest` or offline. Sync queue g
 
 ## Currently pending / known issues
 
-1. **WorkoutDetail edit needs real-world testing.** Spot-check that comments/likes survive an edit. If they don't, we may need to update the schema or change `updateWorkoutFull` to be smarter (preserve workout_exercise IDs and only update what changed).
-2. **Profile's other tabs are stale.** Stats / Progress / PRs / Body / Following all use older layouts. Only the Workouts tab and main header got refreshed.
-3. **PWA install banner.** I added `manifest.json` but haven't verified the install prompt fires reliably. Worth checking on a fresh device.
-4. **Service worker / cache.** PWA caches aggressively; users may need a hard refresh after deploys. Consider adding a version banner + "update available" prompt at some point.
-5. **Service worker doesn't exist yet.** No `sw.js`, so we don't actually have offline-first behavior. Workouts queue offline via localStorage, but that's it.
+1. ~~WorkoutDetail edit needs real-world testing.~~ **Resolved by code review:** `likes` and `comments` FK to `workout_id` (not `workout_exercise_id`), so `updateWorkoutFull`'s wipe-and-rebuild of exercises+sets leaves them untouched.
+2. **Profile's other tabs are stale.** Progress / PRs / Body / Following still use older layouts. Stats + Workouts got refreshed (and the privacy_mode segmented control lives in EditProfile).
+3. **PWA install banner.** `manifest.json` is in place but the install prompt's reliability on fresh devices isn't verified.
+4. ~~Service worker / cache.~~ **Resolved:** `registerType: 'prompt'` + `<UpdatePrompt />` banner using `useRegisterSW`. New SW activations now ask the user to refresh (with skipWaiting) instead of being stuck on the old bundle.
+5. **Offline-first cache strategy untuned.** VitePWA generates `dist/sw.js`, but it only precaches static assets. App data (workouts, profiles) still requires network. Local queueing via localStorage covers workout-save, nothing else.
 
 ---
 

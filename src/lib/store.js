@@ -284,7 +284,9 @@ export const useStore = create((set, get) => ({
     } catch (e) { console.error('fetchWorkout error:', e); return null; }
   },
 
-  // Full edit: replaces title, notes, duration, is_public, exercises, sets
+  // Full edit: replaces title, notes, duration, is_public, exercises, sets.
+  // SAFE for likes/comments — both FK to workout_id (not workout_exercise_id),
+  // so wiping+re-inserting workout_exercises+sets leaves them untouched.
   updateWorkoutFull: async (workoutId, payload) => {
     const { user } = get();
     if (!user || !isOnline()) return false;

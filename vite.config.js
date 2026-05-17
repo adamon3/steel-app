@@ -6,8 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      workbox: {
+        clientsClaim: true,
+      },
       manifest: {
         name: 'Steel',
         short_name: 'Steel',
