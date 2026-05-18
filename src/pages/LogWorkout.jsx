@@ -149,8 +149,30 @@ function isBodyweightExercise(name) {
 // ═══════════════════════════════════════════════════════════════
 
 function RestBar({ state, elapsed, duration, onExpand }) {
-  // state: 'active' (current rest running), 'past' (already rested), 'upcoming' (hidden)
-  if (state === 'upcoming') return null;
+  // state:
+  //   'active'   — current rest, dark pill with lime progress + countdown
+  //   'past'     — already rested between two completed sets, dim mono divider
+  //   'upcoming' — between sets that haven't been done yet; tap to edit
+  //                the planned rest before you get there.
+  if (state === 'upcoming') {
+    const label = duration < 60 ? `${duration}s` : fmt(duration);
+    return (
+      <button
+        onClick={onExpand}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '4px 6px', background: 'transparent', border: 'none',
+          cursor: 'pointer', opacity: 0.55,
+        }}>
+        <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+        <span style={{
+          fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
+          letterSpacing: '0.12em', fontWeight: 500, textTransform: 'uppercase',
+        }}>Rest · {label}</span>
+        <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+      </button>
+    );
+  }
 
   if (state === 'active') {
     const pct = Math.max(0, Math.min(100, (elapsed / duration) * 100));
@@ -578,8 +600,8 @@ function SetRow({
 function ExerciseCard({
   exIdx, exercise, prevSets, unit,
   restDuration, restElapsed, restAnchor, restPaused,
-  onUpdate, onAddSet, onRemove, onShowHistory, onRemoveSet,
-  onEditNotes, onExpandRest,
+  onUpdate, onAddSet, onRemove, onReplace, onShowHistory, onRemoveSet,
+  onEditNotes, onExpandRest, onCycleRestDuration,
 }) {
   const lastSet = prevSets?.[0];
   const lastDate = lastSet?.workout_date;
@@ -638,6 +660,7 @@ function ExerciseCard({
             }}>
               <MenuItem label="Add notes" onClick={() => { setShowMenu(false); onEditNotes?.(); }} />
               <MenuItem label="View history" onClick={() => { setShowMenu(false); onShowHistory?.(); }} />
+              <MenuItem label="Replace exercise" onClick={() => { setShowMenu(false); onReplace?.(); }} />
               <MenuItem label="Remove exercise" destructive onClick={() => { setShowMenu(false); onRemove?.(); }} />
             </div>
           </>
@@ -673,7 +696,7 @@ function ExerciseCard({
       {exercise.sets.map((set, i) => {
         const prevSet = prevSets?.[i];
         const isThisRestActive = restAnchor && restAnchor.exIdx === exIdx && restAnchor.setIdx === i;
-        const nextExists = i < exercise.sets.length - 1;
+        const showRestAfter = i < exercise.sets.length - 1;
 
         // Rest state after this set
         let restState = 'upcoming';
@@ -704,13 +727,19 @@ function ExerciseCard({
               }}
               onRemove={() => onRemoveSet?.(i)}
             />
-            {/* Rest bar shown AFTER every completed set that has another set following, including final */}
-            {set.completed && (
+            {/* Rest divider after every set except the last — past/active/upcoming.
+                Tapping the active timer opens the full rest panel.
+                Tapping an upcoming divider cycles the default rest duration. */}
+            {showRestAfter && (
               <RestBar
                 state={restState}
                 elapsed={restState === 'active' ? restElapsed : 0}
                 duration={restDuration}
-                onExpand={restState === 'active' ? onExpandRest : null}
+                onExpand={
+                  restState === 'active' ? onExpandRest :
+                  restState === 'upcoming' ? () => onCycleRestDuration?.() :
+                  null
+                }
               />
             )}
           </React.Fragment>
@@ -725,7 +754,7 @@ function ExerciseCard({
         fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500,
         letterSpacing: '0.1em', textTransform: 'uppercase',
         cursor: 'pointer',
-      }}>+ Add set · {fmt(restDuration)}</button>
+      }}>+ Add set</button>
     </div>
   );
 }
@@ -746,7 +775,7 @@ function MenuItem({ label, onClick, destructive }) {
 // Exercise picker with categories + create custom
 // ═══════════════════════════════════════════════════════════════
 
-function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
+function ExercisePicker({ exercises, onSelect, onClose, onCreate, mode = 'add' }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [showCreate, setShowCreate] = useState(false);
@@ -900,7 +929,7 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate }) {
           <div style={{
             fontSize: 20, fontWeight: 800, color: COLORS.text,
             letterSpacing: '-0.02em', fontFamily: FONTS.sans,
-          }}>Exercises</div>
+          }}>{mode === 'replace' ? 'Replace exercise' : 'Exercises'}</div>
         </div>
         <button onClick={() => setShowCreate(true)} style={{
           background: 'none', border: `1px solid ${COLORS.border}`,
@@ -1276,29 +1305,39 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    const TIMEOUT_MS = 8000;
+    // Phones at gyms have flaky cellular — 15s timeout is generous but
+    // beats falsely showing "Couldn't load" on a slow connection.
+    const TIMEOUT_MS = 15000;
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
+        // Filter by user_id at the DB layer instead of client-side so we
+        // only get rows we'll actually display (matters when the exercise
+        // is popular and the unfiltered query is huge).
         const query = supabase
-          .from('workout_exercises')
-          .select('id, workout_id, workouts:workout_id (id, title, created_at, user_id), sets (weight, reps, is_pr)')
-          .eq('exercise_id', exercise.exercise_id || exercise.id);
+          .from('workouts')
+          .select('id, title, created_at, workout_exercises!inner(id, exercise_id, sets(weight, reps, is_pr))')
+          .eq('user_id', userId)
+          .eq('workout_exercises.exercise_id', exercise.exercise_id || exercise.id)
+          .order('created_at', { ascending: false })
+          .limit(15);
         const { data, error: err } = await Promise.race([
           query,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), TIMEOUT_MS)),
         ]);
         if (cancelled) return;
         if (err) throw err;
-        const filtered = (data || [])
-          .filter(we => we.workouts?.user_id === userId)
-          .sort((a, b) => new Date(b.workouts?.created_at) - new Date(a.workouts?.created_at))
-          .slice(0, 15);
-        setHistory(filtered);
+        const flattened = (data || []).map(w => ({
+          id: w.workout_exercises[0]?.id,
+          workouts: { id: w.id, title: w.title, created_at: w.created_at, user_id: userId },
+          sets: w.workout_exercises[0]?.sets || [],
+        })).filter(we => we.id);
+        setHistory(flattened);
       } catch (e) {
         if (!cancelled) setError(e?.message || 'Could not load history');
       } finally {
@@ -1307,7 +1346,7 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
     };
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [retryCount]);
 
   return (
     <div style={{
@@ -1334,7 +1373,13 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
       {loading ? <Spinner /> : error ? (
         <div style={{ textAlign: 'center', padding: '40px 20px' }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Couldn't load history</div>
-          <div style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONTS.mono, letterSpacing: '0.05em' }}>{error}</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONTS.mono, letterSpacing: '0.05em', marginBottom: 14 }}>{error}</div>
+          <button onClick={() => setRetryCount(c => c + 1)} style={{
+            background: COLORS.text, color: COLORS.bg,
+            border: 'none', borderRadius: 999, padding: '9px 18px',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+          }}>Try again</button>
         </div>
       ) : history.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px' }}>
@@ -1432,6 +1477,24 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  // Index of the exercise the user is replacing (opens the picker in replace mode).
+  const [replaceExerciseIdx, setReplaceExerciseIdx] = useState(null);
+
+  // Tap an upcoming rest divider to cycle through common durations.
+  // Matches Strong's pattern: tap to step through 30s / 60s / 90s / 2m / 2:30 / 3m / 4m / 5m.
+  const REST_PRESETS = [30, 60, 90, 120, 150, 180, 240, 300];
+  const cycleRestDuration = () => {
+    haptic();
+    setRestDuration(cur => {
+      const idx = REST_PRESETS.indexOf(cur);
+      // If current value isn't a preset, snap to nearest. Otherwise advance.
+      if (idx === -1) {
+        const nearest = REST_PRESETS.reduce((b, v) => Math.abs(v - cur) < Math.abs(b - cur) ? v : b, REST_PRESETS[0]);
+        return nearest;
+      }
+      return REST_PRESETS[(idx + 1) % REST_PRESETS.length];
+    });
+  };
 
   const unit = profile?.unit_pref || 'kg';
 
@@ -1497,13 +1560,21 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
     const iv = setInterval(() => {
       const e = Math.floor((Date.now() - restStartedAt) / 1000);
       setRestElapsed(e);
-      // Ding + vibrate + lock-screen notification when we cross the boundary.
-      // playDing handles foreground audio + haptics, showRestDoneNotification
-      // handles the lock-screen / background case via the SW.
+      // Ding + vibrate + lock-screen notification + auto-advance when we
+      // cross the boundary. The auto-advance clears restAnchor so the rest
+      // bar disappears and the next not-yet-completed set becomes the
+      // active row (the activeSetIdx computation already keys off the
+      // first not-completed set, so clearing the anchor is enough).
       if (e >= restDuration && !dingPlayedRef.current) {
         dingPlayedRef.current = true;
         playDing();
         showRestDoneNotification();
+        // Brief delay so the user sees the timer hit 0:00 before it
+        // dismisses — feels less abrupt.
+        setTimeout(() => {
+          setRestStartedAt(null);
+          setRestAnchor(null);
+        }, 600);
       }
     }, 250);
     return () => clearInterval(iv);
@@ -1997,10 +2068,12 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
             onUpdate={(setIdx, patch) => updateSet(exIdx, setIdx, patch)}
             onAddSet={() => addSet(exIdx)}
             onRemove={() => removeExercise(exIdx)}
+            onReplace={() => setReplaceExerciseIdx(exIdx)}
             onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
             onShowHistory={() => setShowHistory(ex)}
             onEditNotes={() => setExerciseNotesIdx(exIdx)}
             onExpandRest={() => setShowRestPanel(true)}
+            onCycleRestDuration={cycleRestDuration}
           />
         ))}
 
@@ -2074,13 +2147,34 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
         />
       )}
 
-      {/* Exercise picker */}
-      {showPicker && (
+      {/* Exercise picker — add OR replace depending on which flow opened it */}
+      {(showPicker || replaceExerciseIdx !== null) && (
         <ExercisePicker
           exercises={exercises}
-          onSelect={addExercise}
-          onClose={() => setShowPicker(false)}
+          onSelect={(ex) => {
+            if (replaceExerciseIdx !== null) {
+              // Replace: swap the exercise_id + name on the existing row,
+              // preserve sets / notes / reps so the user keeps their data.
+              setWorkoutExercises(prev => {
+                const next = JSON.parse(JSON.stringify(prev));
+                if (next[replaceExerciseIdx]) {
+                  next[replaceExerciseIdx].exercise_id = ex.id;
+                  next[replaceExerciseIdx].name = ex.name;
+                }
+                return next;
+              });
+              loadPrevious(ex.id);
+              setReplaceExerciseIdx(null);
+            } else {
+              addExercise(ex);
+            }
+          }}
+          onClose={() => {
+            setShowPicker(false);
+            setReplaceExerciseIdx(null);
+          }}
           onCreate={createExercise}
+          mode={replaceExerciseIdx !== null ? 'replace' : 'add'}
         />
       )}
 

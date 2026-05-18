@@ -168,16 +168,27 @@ export const useStore = create((set, get) => ({
 
   saveTemplate: async (name, exercises) => {
     const { user, isGuest } = get();
-    if (isGuest) { saveGuestTemplate(name, exercises); set({ templates: getGuestTemplates() }); return; }
-    if (!user || !isOnline()) return;
-    const { data: tmpl } = await supabase.from('templates').insert({ user_id: user.id, name }).select().single();
-    if (!tmpl) return;
-    const rows = exercises.map((ex, i) => ({
+    if (isGuest) { saveGuestTemplate(name, exercises); set({ templates: getGuestTemplates() }); return { id: 'local', name }; }
+    if (!user) throw new Error('Not logged in');
+    const TIMEOUT_MS = 15000;
+    const { data: tmpl, error: tErr } = await withTimeout(
+      supabase.from('templates').insert({ user_id: user.id, name }).select().single(),
+      TIMEOUT_MS, 'template insert timeout'
+    );
+    if (tErr || !tmpl) throw new Error(tErr?.message || 'Template insert returned no row');
+    const rows = (exercises || []).map((ex, i) => ({
       template_id: tmpl.id, exercise_id: ex.exercise_id, sort_order: i,
       default_sets: ex.sets?.length || 3, default_reps: ex.sets?.[0]?.reps || 10, default_weight: ex.sets?.[0]?.weight || 0,
-    }));
-    await supabase.from('template_exercises').insert(rows);
+    })).filter(r => r.exercise_id);
+    if (rows.length > 0) {
+      const { error: rErr } = await withTimeout(
+        supabase.from('template_exercises').insert(rows),
+        TIMEOUT_MS, 'template_exercises insert timeout'
+      );
+      if (rErr) throw new Error(rErr.message);
+    }
     await get().fetchTemplates();
+    return tmpl;
   },
 
   deleteTemplate: async (templateId) => {
