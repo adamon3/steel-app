@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(npm run *)",
+      "WebSearch",
+      "WebFetch(domain:support.claude.com)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell(Get-Command winget -ErrorAction SilentlyContinue | Select-Object Source; Get-Command scoop -ErrorAction SilentlyContinue | Select-Object Source; Test-Path \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\"; Test-Path \"$env:LOCALAPPDATA\\\\Programs\\\\GitHub CLI\\\\gh.exe\")",
+      "PowerShell(winget install --id GitHub.cli --silent --accept-source-agreements --accept-package-agreements --scope user 2>&1)",
+      "PowerShell($env:Path += \";$env:LOCALAPPDATA\\\\Microsoft\\\\WinGet\\\\Links\"; & \"$env:LOCALAPPDATA\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\gh_2.92.0_windows_amd64\\\\bin\\\\gh.exe\" --version)",
+      "Bash(\"/c/Users/adamo/AppData/Local/Microsoft/WinGet/Packages/GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe/bin/gh.exe\" auth *)",
+      "Bash(curl -s \"https://api.github.com/repos/adamon3/steel-app/pulls?state=open&head=adamon3:claude/practical-archimedes-6cb14b\")",
+      "Bash(curl -s \"https://api.github.com/repos/adamon3/steel-app/pulls?state=all&head=adamon3:claude/practical-archimedes-6cb14b\")",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "mcp__Claude_in_Chrome__select_browser",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate"
+    ]
+  }
+}

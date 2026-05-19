@@ -1,0 +1,502 @@
+import React, { useState, useEffect } from 'react';
+import { useStore } from './lib/store';
+import { useTheme, getColors, refreshColors, COLORS, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
+import Auth from './pages/Auth';
+import Feed from './pages/Feed';
+import Discover from './pages/Discover';
+import LogWorkout from './pages/LogWorkout';
+import Leaderboard from './pages/Leaderboard';
+import UserProfile from './pages/UserProfile';
+import GymCommunity from './pages/GymCommunity';
+import Profile from './pages/Profile';
+import WorkoutDetail from './pages/WorkoutDetail';
+import UpdatePrompt from './components/UpdatePrompt';
+
+const ALL_TABS = [
+  { id: 'feed', label: 'Home', icon: 'home' },
+  { id: 'discover', label: 'Discover', icon: 'search' },
+  { id: 'log', label: '', icon: 'plus', center: true },
+  { id: 'gym', label: 'Gym', icon: 'users' },
+  { id: 'profile', label: 'You', icon: 'user' },
+];
+
+const SOLO_TABS = [
+  { id: 'log', label: '', icon: 'plus', center: true },
+  { id: 'profile', label: 'You', icon: 'user' },
+];
+
+// Blurred overlay for pages that need sign-up
+function AuthGate({ children, message, onSignUp }) {
+  return (
+    <div style={{ position: 'relative', minHeight: 320 }}>
+      <div style={{ filter: 'blur(6px)', pointerEvents: 'none', opacity: 0.5 }}>
+        {children}
+      </div>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', padding: 32,
+        background: COLORS.isDark ? 'rgba(10,10,10,0.6)' : 'rgba(250,250,250,0.6)',
+      }}>
+        <div style={{
+          background: COLORS.card, borderRadius: 20, padding: '28px 24px', textAlign: 'center',
+          border: `1px solid ${COLORS.border}`,
+          maxWidth: 300, width: '100%',
+          fontFamily: "'Inter Tight', sans-serif",
+        }}>
+          <Icon name="lock" size={32} color={COLORS.textDim} />
+          <div style={{
+            fontWeight: 800, fontSize: 18, color: COLORS.text,
+            letterSpacing: '-0.02em', marginTop: 12,
+          }}>
+            {message || 'Sign up to unlock'}
+          </div>
+          <div style={{
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
+            marginTop: 6, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
+          }}>
+            Free · Takes 30 seconds
+          </div>
+          <button onClick={onSignUp} style={{
+            marginTop: 18, padding: '12px 32px', borderRadius: 999, border: 'none',
+            background: COLORS.text, color: COLORS.bg,
+            fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            fontFamily: "'Inter Tight', sans-serif", letterSpacing: '-0.01em',
+            width: '100%',
+          }}>Sign up free</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Placeholder cards for blurred gated pages
+function PlaceholderCards({ count = 3, height = 120 }) {
+  return (
+    <div>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} style={{
+          background: COLORS.isDark ? COLORS.card : '#DEE2E8',
+          borderRadius: 14, padding: 14, marginBottom: 10,
+          border: `1px solid ${COLORS.isDark ? COLORS.border : '#C8CDD5'}`, height,
+        }}>
+          <div style={{ background: COLORS.isDark ? COLORS.border : '#C0C5CE', borderRadius: 8, height: 14, width: '60%', marginBottom: 8 }} />
+          <div style={{ background: COLORS.isDark ? COLORS.border : '#C0C5CE', borderRadius: 6, height: 10, width: '40%' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function App() {
+  const { user, profile, loading, init, isGuest, offline, fetchFeed, fetchTemplates } = useStore();
+  const { colors: COLORS, theme, toggle: toggleTheme } = useTheme();
+  refreshColors(); // keep static COLORS in sync with theme
+
+  const isSolo = profile?.privacy_mode === 'solo';
+  const tabs = isSolo ? SOLO_TABS : ALL_TABS;
+  const [tab, setTab] = useState('log');
+  const [toast, setToast] = useState(null);
+  const [steelPrefill, setSteelPrefill] = useState(null);
+  const [loggerSession, setLoggerSession] = useState(0);
+  const [viewUserId, setViewUserId] = useState(null);
+  const [viewWorkoutId, setViewWorkoutId] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+  const [authMode, setAuthMode] = useState('signup');
+  const [showSteelPopup, setShowSteelPopup] = useState(false);
+  const [steelData, setSteelData] = useState(null);
+  const [workoutMinimized, setWorkoutMinimized] = useState(false);
+  const [minimizedInfo, setMinimizedInfo] = useState(null);
+  const [workoutActive, setWorkoutActive] = useState(false);
+
+  // If user switches to solo while on a social tab, bounce them to log
+  useEffect(() => {
+    if (isSolo && (tab === 'feed' || tab === 'discover' || tab === 'gym')) {
+      setTab('log');
+      setViewUserId(null);
+    }
+  }, [isSolo]);
+
+  useEffect(() => { init(); }, []);
+
+  // Once logged in, fetch social data
+  useEffect(() => {
+    if (!isGuest) {
+      fetchFeed();
+      fetchTemplates();
+    }
+  }, [isGuest]);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const promptAuth = (msg, mode = 'signup') => {
+    setAuthMessage(msg || '');
+    setAuthMode(mode);
+    setShowAuth(true);
+  };
+
+  const handleSteel = async (workout) => {
+    if (isGuest) { promptAuth('Sign up to Steel workouts from other athletes'); return; }
+    const template = await useStore.getState().steelWorkout(workout.id);
+    if (template) {
+      template.steeled_from = workout.id;
+      setSteelData({ template, title: workout.title, from: workout.profiles?.display_name });
+      setShowSteelPopup(true);
+    }
+  };
+
+  const handleSteelStart = () => {
+    if (steelData) {
+      setSteelPrefill(steelData.template);
+      setViewUserId(null);
+      setTab('log');
+      showToast(`Starting "${steelData.title}" from ${steelData.from}!`);
+    }
+    setShowSteelPopup(false);
+    setSteelData(null);
+  };
+
+  const handleSteelSave = async () => {
+    if (steelData) {
+      await useStore.getState().saveTemplate(
+        `${steelData.title} (from ${steelData.from})`,
+        steelData.template.exercises
+      );
+      showToast(`Saved "${steelData.title}" as a template!`);
+    }
+    setShowSteelPopup(false);
+    setSteelData(null);
+  };
+
+  const handleSteelFromProfile = (template, title, athleteName) => {
+    setSteelPrefill(template);
+    setViewUserId(null);
+    setTab('log');
+    showToast(`Steeled "${title}" from ${athleteName}!`);
+  };
+
+  const handleViewProfile = (userId) => {
+    if (isGuest) { promptAuth('Sign up to view athlete profiles'); return; }
+    if (userId === user?.id) { setTab('profile'); } else { setViewUserId(userId); }
+  };
+
+  const handleViewWorkout = (workoutId) => {
+    if (isGuest) { promptAuth('Sign up to view workouts'); return; }
+    setViewWorkoutId(workoutId);
+  };
+
+  if (loading) {
+    return (
+      <div style={{ background: COLORS.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spinner />
+      </div>
+    );
+  }
+
+  // Main app shell — works for both guests and logged-in users
+  const renderContent = () => {
+    // Viewing another user's profile (logged in only)
+    if (viewUserId && !isGuest) {
+      return (
+        <div style={{ padding: '8px 16px 90px' }}>
+          <UserProfile userId={viewUserId} onBack={() => setViewUserId(null)} onSteel={handleSteelFromProfile} onWorkout={handleViewWorkout} />
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ padding: '0 16px 90px' }}>
+        {/* HOME / FEED */}
+        {tab === 'feed' && (
+          isGuest ? (
+            <div>
+              {/* Show a peek of the feed then gate */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Activity Feed</div>
+                <div style={{ fontSize: 13, color: COLORS.textDim }}>See what athletes at your gym are lifting</div>
+              </div>
+              <AuthGate message="Sign up to see the community feed" onSignUp={() => promptAuth('Join Steel to see workouts from athletes you follow')}>
+                <PlaceholderCards count={3} height={180} />
+              </AuthGate>
+            </div>
+          ) : (
+            <Feed onSteel={handleSteel} onProfile={handleViewProfile} onWorkout={handleViewWorkout} />
+          )
+        )}
+
+        {/* DISCOVER */}
+        {tab === 'discover' && (
+          isGuest ? (
+            <AuthGate message="Sign up to discover athletes" onSignUp={() => promptAuth('Create an account to find and follow athletes')}>
+              <PlaceholderCards count={3} height={120} />
+            </AuthGate>
+          ) : (
+            <Discover onViewProfile={handleViewProfile} onWorkout={handleViewWorkout} />
+          )
+        )}
+
+        {/* LOG WORKOUT — always mounted once started, hidden when on other tabs */}
+        {(tab === 'log' || workoutActive || workoutMinimized || steelPrefill) && (
+          <div key={`workout-logger-${loggerSession}`} style={{ display: tab === 'log' ? 'block' : 'none' }}>
+            <LogWorkout
+              prefill={steelPrefill}
+              onActiveChange={(active, info) => {
+                setWorkoutActive(active);
+                if (active && info) setMinimizedInfo(info);
+                if (!active) { setWorkoutMinimized(false); setMinimizedInfo(null); }
+              }}
+              onMinimize={(info) => {
+                setMinimizedInfo(info);
+                setWorkoutMinimized(true);
+                setTab('feed');
+              }}
+              onDone={() => {
+                setSteelPrefill(null);
+                setWorkoutActive(false);
+                setWorkoutMinimized(false);
+                setMinimizedInfo(null);
+                showToast('Workout saved!');
+                if (!isGuest) setTab('feed');
+              }}
+            />
+          </div>
+        )}
+
+        {/* GYM COMMUNITY */}
+        {tab === 'gym' && (
+          isGuest ? (
+            <AuthGate message="Sign up to join your gym's community" onSignUp={() => promptAuth('Join Steel to connect with your gym and compete on leaderboards')}>
+              <PlaceholderCards count={4} height={60} />
+            </AuthGate>
+          ) : (
+            <GymCommunity onViewProfile={handleViewProfile} onWorkout={handleViewWorkout} />
+          )
+        )}
+
+        {/* PROFILE */}
+        {tab === 'profile' && (
+          isGuest ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Icon name="user" size={48} color={COLORS.textDim} />
+              <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12 }}>Your Profile</div>
+              <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, marginBottom: 20, lineHeight: 1.5 }}>
+                Sign up to save your workouts to the cloud, access them from any device, and join the community.
+              </div>
+              {/* Show guest workout count */}
+              {(() => {
+                try {
+                  const local = JSON.parse(localStorage.getItem('steel_guest_workouts') || '[]');
+                  if (local.length > 0) {
+                    return (
+                      <div style={{ background: `${COLORS.accent}12`, border: `1px solid ${COLORS.accent}25`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                        <div style={{ fontSize: 14, color: COLORS.accent, fontWeight: 600 }}>
+                          You have {local.length} workout{local.length > 1 ? 's' : ''} saved locally
+                        </div>
+                        <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
+                          Sign up to sync them to your account
+                        </div>
+                      </div>
+                    );
+                  }
+                } catch {}
+                return null;
+              })()}
+              <button onClick={() => promptAuth('Create your account to save your workouts')} style={{
+                padding: '14px 32px', borderRadius: 12, border: 'none',
+                background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 16,
+                cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+              }}>Create Account</button>
+              <button onClick={() => promptAuth('', 'login')} style={{
+                marginTop: 10, padding: '14px 32px', borderRadius: 12,
+                border: `1px solid ${COLORS.border}`, background: 'transparent',
+                color: COLORS.text, fontWeight: 600,
+                fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+              }}>Log In</button>
+            </div>
+          ) : (
+            <Profile onViewProfile={handleViewProfile} onWorkout={handleViewWorkout} />
+          )
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div key={theme} style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
+      {/* Offline banner */}
+      {offline && (
+        <div style={{
+          background: COLORS.orange, color: '#fff', padding: '6px 16px', fontSize: 12,
+          fontWeight: 600, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        }}>
+          <Icon name="wifiOff" size={14} color="#fff" /> You're offline — workouts will sync when you're back
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ padding: '14px 16px 12px', position: 'sticky', top: 0, zIndex: 10, background: COLORS.isDark ? 'rgba(10,10,10,0.85)' : 'rgba(250,250,250,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{
+            fontFamily: "'Inter Tight', -apple-system, sans-serif",
+            fontWeight: 900,
+            fontSize: 20,
+            color: COLORS.text,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            lineHeight: 1,
+          }}>
+            STEEL
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={toggleTheme} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+            }}>
+              <Icon name={theme === 'light' ? 'moon' : 'sun'} size={18} color={COLORS.textDim} />
+            </button>
+            {isGuest ? (
+              <button onClick={() => promptAuth('')} style={{
+                background: COLORS.text, border: 'none', borderRadius: 999,
+                padding: '7px 16px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                color: COLORS.bg, fontFamily: "'Inter Tight', -apple-system, sans-serif",
+                letterSpacing: '-0.01em',
+              }}>Sign up</button>
+            ) : profile && (
+              <div onClick={() => setTab('profile')} style={{ cursor: 'pointer' }}>
+                <Avatar initials={getInitials(profile.display_name)} size={30} colorIndex={profile.id?.charCodeAt(0) || 0} src={profile.avatar_url || null} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {renderContent()}
+
+      {/* Minimized workout bar */}
+      {(workoutMinimized || workoutActive) && minimizedInfo && tab !== 'log' && (
+        <div onClick={() => setTab('log')} style={{
+          position: 'fixed', bottom: 72, left: 12, right: 12, zIndex: 25,
+          background: COLORS.text, borderRadius: 14, padding: '12px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          cursor: 'pointer',
+          boxShadow: COLORS.isDark
+            ? '0 10px 30px -10px rgba(0,0,0,0.6)'
+            : '0 10px 30px -10px rgba(0,0,0,0.3)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: 4, background: '#BFE600',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }} />
+            <div>
+              <div style={{
+                fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 700,
+                color: COLORS.bg, letterSpacing: '-0.01em',
+              }}>{minimizedInfo.title}</div>
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                color: COLORS.bg, opacity: 0.6, letterSpacing: '0.08em',
+                textTransform: 'uppercase', fontWeight: 500, marginTop: 1,
+              }}>
+                {minimizedInfo.exerciseCount} EX · {minimizedInfo.setCount} SETS
+              </div>
+            </div>
+          </div>
+          <div style={{
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 12, fontWeight: 700,
+            color: COLORS.text, background: COLORS.bg, padding: '6px 12px',
+            borderRadius: 999, letterSpacing: '-0.01em',
+          }}>
+            Resume
+          </div>
+        </div>
+      )}
+
+      <BottomTabBar tabs={tabs} active={tab} onChange={(t) => {
+        setViewUserId(null);
+        // Tapping + from a non-log tab: only start fresh if no active workout
+        if (t === 'log' && tab !== 'log' && !workoutMinimized && !workoutActive && !steelPrefill) {
+          setLoggerSession(s => s + 1);
+        }
+        // If resuming a minimized/active workout, clear minimized state
+        if (t === 'log' && (workoutMinimized || workoutActive)) {
+          setWorkoutMinimized(false);
+        }
+        setTab(t);
+        if (t !== 'log') setSteelPrefill(null);
+      }} />
+
+      {/* Workout detail modal */}
+      {viewWorkoutId && (
+        <WorkoutDetail
+          workoutId={viewWorkoutId}
+          onClose={() => setViewWorkoutId(null)}
+          onProfile={(uid) => { setViewWorkoutId(null); handleViewProfile(uid); }}
+          onSteel={(w) => { setViewWorkoutId(null); handleSteel(w); }}
+        />
+      )}
+
+      {/* Auth modal */}
+      {showAuth && <Auth onClose={() => setShowAuth(false)} message={authMessage} initialMode={authMode} />}
+
+      {/* Steel It popup */}
+      {showSteelPopup && steelData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{
+            background: COLORS.card, borderRadius: 16, padding: 22, width: '100%', maxWidth: 340,
+            border: `1px solid ${COLORS.border}`, fontFamily: "'Inter Tight', sans-serif",
+          }}>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
+              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8,
+            }}>STEEL IT</div>
+            <div style={{
+              fontSize: 20, fontWeight: 800, color: COLORS.text,
+              letterSpacing: '-0.02em', marginBottom: 4,
+            }}>{steelData.title}</div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim,
+              letterSpacing: '0.06em', marginBottom: 20,
+            }}>FROM {steelData.from?.toUpperCase()}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={handleSteelStart} style={{
+                width: '100%', padding: 13, borderRadius: 999, border: 'none',
+                background: COLORS.text, color: COLORS.bg,
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                fontFamily: "'Inter Tight', sans-serif", letterSpacing: '-0.01em',
+              }}>Start workout now</button>
+              <button onClick={handleSteelSave} style={{
+                width: '100%', padding: 13, borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: 'transparent',
+                color: COLORS.text, fontWeight: 600, fontSize: 13,
+                cursor: 'pointer', fontFamily: "'Inter Tight', sans-serif", letterSpacing: '-0.01em',
+              }}>Save for later</button>
+              <button onClick={() => { setShowSteelPopup(false); setSteelData(null); }} style={{
+                width: '100%', padding: 10, border: 'none', background: 'transparent',
+                color: COLORS.textDim, fontSize: 12, cursor: 'pointer',
+                fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.1em',
+                textTransform: 'uppercase', fontWeight: 500,
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast message={toast} />
+
+      <UpdatePrompt />
+
+      <style>{`
+        @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        * { box-sizing: border-box; } ::-webkit-scrollbar { display: none; }
+        body { margin: 0; background: ${COLORS.bg}; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+      `}</style>
+    </div>
+  );
+}
