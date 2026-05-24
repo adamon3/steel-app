@@ -1,0 +1,118 @@
+# Steel — Handover
+
+**Date:** 23 May 2026
+**From:** Claude Opus 4.6 sessions (two sessions total)
+**For:** Next Claude session picking up this project
+
+Read `CLAUDE.md` first — it has the full project context, design language, and product decisions. This doc covers what happened across both sessions and what's left.
+
+---
+
+## Session 1 — App bug fixes (7 May 2026)
+
+### Bug fixes — all committed and pushed to `main` (steel-app repo)
+
+**Commit `a20e283` — Round 1 fixes:**
+- `LogWorkout.jsx`: Completion screen 1RM section was showing blank exercise names. Fixed by adding `name: e.name` to the exercise mapping in `doSave()` (~line 1605).
+- `LogWorkout.jsx`: Completion screen showed "1 EXERCISES" instead of "1 EXERCISE". Added ternary for pluralisation.
+- `Profile.jsx`: Calendar day circles stretched absurdly wide on desktop viewports. Added `maxWidth: 420, margin: '0 auto'` to calendar grids.
+
+**Commit `d334f5f` — Round 2 fixes:**
+- `App.jsx`: Active workout was destroyed when user tapped away to another tab and back. Added `workoutActive` state + `onActiveChange` prop so LogWorkout stays mounted while a workout is in progress. BottomTabBar onChange logic updated to not reset the logger session when returning to an active workout.
+- `App.jsx`: Minimised workout bar now shows when `workoutActive` is true (not just `workoutMinimized`).
+- `Feed.jsx`: Feed could spin forever if `fetchFeed()` rejected. Added `.catch(() => setLoading(false))` to the useEffect.
+- `LogWorkout.jsx`: Weight and reps inputs had no bounds — users could enter negative numbers or absurdly large values. Added `min`/`max` attributes and clamping in onChange handlers (weight: 0–9999, reps: 0–999).
+
+---
+
+## Session 2 — Landing page updates (23 May 2026)
+
+### Landing page changes — committed and pushed to `main` (steel-landing repo)
+
+**Commit `6a66c66` — landing: update copy, add profile pics, real map, built in london**
+
+All changes in `steel-landing/index.html` (single-file landing page):
+
+- **Eyebrow:** "BETA LIVE · IOS COMING" → "IOS & ANDROID COMING" (web app is now positioned as a demo, not the product)
+- **Hero subhead:** "Free in beta." → "Free." (two instances — hero and CTA section)
+- **CTA link:** "Or try the web beta now →" → "Or try the web demo now →"
+- **Nav:** Added "Try the demo →" link alongside "Join the waitlist" so there's always a visible path to the web app from any scroll position
+- **Sara O'Brien's card:** Removed `opacity: 0.6` — was reading as a broken/disabled card
+- **Profile pictures:** Replaced all initial-only `<div class="mini-avatar">XX</div>` with DiceBear Notionists avatar `<img>` tags. Affected: Jamie Kelly (hero + leaderboard), Sara O'Brien (hero + leaderboard), Priya M. (Steel It section), Tom Chen, Maeve R., Dave H. (all leaderboard). "You" row keeps the "A" initial. Each uses `https://api.dicebear.com/9.x/notionists/svg?seed=Name&backgroundColor=hex`
+- **Map:** Replaced CSS gradient fake map with a real OpenStreetMap iframe embed of the Bank/Shoreditch area of London. `filter: saturate(0.3) brightness(1.05)` keeps it muted to match the cream palette. `pointer-events: none` prevents interaction. Pins still overlay on top.
+- **Footer:** "© 2026 · TRAIN TOGETHER" → "© 2026 · BUILT IN LONDON"
+
+---
+
+## Cleanup still needed (steel-app repo)
+
+- **`apply-fixes.js`** exists in the repo root. Failed patch script. **Delete it.**
+- **Line-ending noise:** `git diff HEAD` shows ~4200 lines changed across `store.js`, `Profile.jsx`, and `WorkoutDetail.jsx` — purely CRLF↔LF, zero code changes. Either `git checkout -- src/lib/store.js src/pages/Profile.jsx src/pages/WorkoutDetail.jsx` or add `.gitattributes` with `* text=auto`.
+- **`.claude/settings.local.json`** modified in diff. Not meaningful — reset or gitignore.
+
+---
+
+## Current state
+
+### steel-app (the PWA)
+- **Latest commit on `main`:** `d334f5f fix: prevent workout loss on tab switch, feed spinner, input validation`
+- **Live URL:** https://steel-app-eight.vercel.app
+- **Git remote:** https://github.com/adamon3/steel-app.git
+
+### steel-landing (the marketing page)
+- **Latest commit on `main`:** `6a66c66 landing: update copy, add profile pics, real map, built in london`
+- **Live URL:** https://steel-landing-sigma.vercel.app
+- **Git remote:** https://github.com/adamon3/steel-landing.git
+- **Local location:** `C:\Users\adamo\OneDrive\Desktop\steel-landing`
+
+### Key file sizes (steel-app)
+
+| File | Lines |
+|---|---|
+| `src/pages/LogWorkout.jsx` | 2272 |
+| `src/pages/WorkoutDetail.jsx` | 931 |
+| `src/pages/Profile.jsx` | 785 |
+| `src/App.jsx` | 478 |
+| `src/lib/store.js` | 404 |
+
+---
+
+## Known issues — not yet fixed
+
+### High priority
+
+1. **Duplicate templates in the template grid.** The "Start Workout" home screen shows duplicate template names (e.g. two "Legs", two "Workout"). Likely a data issue — either duplicates in the `templates` table or the query isn't deduplicating. Hasn't been investigated yet.
+
+2. **WorkoutDetail edit may break likes/comments.** `updateWorkoutFull()` in `store.js` wipes and rebuilds `workout_exercises` + `sets`. If likes or comments reference old `workout_exercise` IDs via foreign keys, they'll be orphaned. Needs a real-world test.
+
+3. **Guest mode can't open WorkoutDetail.** Tapping a workout card in guest mode likely crashes or shows blank — `fetchWorkout()` hits Supabase and guest users have no auth.
+
+### Medium priority
+
+4. **Profile tabs are stale.** Only Stats and Workouts tabs got refreshed. Progress, PRs, Body, and Following tabs use older layouts.
+
+5. **PWA install prompt.** `manifest.json` exists but no service worker (`sw.js`). Offline is localStorage-only.
+
+6. **No "update available" banner.** Users with cached PWA may miss deploys.
+
+### Low priority
+
+7. **BodyStats and Tools components** — likely stale, haven't been tested.
+
+8. **Leaderboard opt-out toggle** — `show_leaderboard` flag exists in schema but UI toggle unverified.
+
+---
+
+## Environment notes
+
+- **Git push from Cowork sandbox doesn't work.** The sandbox mounts the user's folder read-only for the git index. Workaround: use Desktop Commander MCP to write a `.bat` file (e.g. `C:\Users\adamo\push.bat`) and execute it with `shell: "cmd"`.
+- **CRLF vs LF.** Host is Windows. Files in the sandbox may get LF line endings while the repo has CRLF. Use Desktop Commander's `edit_block` tool with exact strings copied from the user's machine, or write complete files.
+- **Landing page is a separate repo.** Single `index.html` file at `C:\Users\adamo\OneDrive\Desktop\steel-landing`. Not mounted by default — you'll need the user to connect it or use Desktop Commander to read/edit it.
+- **Supabase project ID:** `tkrwctmzftnmdspioohw`. Auth + Postgres + Storage. All DB calls go through `src/lib/store.js`.
+- **DiceBear avatars on landing page** use the Notionists style from `api.dicebear.com`. If the CDN goes down the avatars will break — could inline the SVGs as a hardening step later.
+
+---
+
+## What's likely next
+
+The user has been alternating between bug-hunting and landing page polish. The landing page is in good shape now. They may pivot to fixing the known issues above (duplicate templates is the most visible one), continue testing edge cases, or start on new features. Don't start writing code until told what's next — that's in `CLAUDE.md` and they mean it.

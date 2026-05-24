@@ -108,6 +108,7 @@ export default function App() {
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(null);
   const [workoutActive, setWorkoutActive] = useState(false);
+  const [workoutActive, setWorkoutActive] = useState(false);
 
   // If user switches to solo while on a social tab, bounce them to log
   useEffect(() => {

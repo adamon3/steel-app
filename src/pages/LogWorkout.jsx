@@ -510,7 +510,7 @@ function SetRow({
         ) : (
           <>
             <input
-              id={weightRef} type="number" inputMode="decimal" enterKeyHint="next" min="0" max="9999"
+              id={weightRef} type="number" inputMode="decimal" enterKeyHint="next" min="0" max="9999" min="0" max="9999"
               value={set.weight || ''}
               placeholder={prevSet ? `${bwPrefix}${convertWeight(prevSet.weight, unit)}` : (isBodyweight ? '+0' : '0')}
               onChange={e => { const v = parseFloat(e.target.value) || 0; onUpdate('weight', Math.min(Math.max(v, 0), 9999)); }}
@@ -532,7 +532,7 @@ function SetRow({
               }}
             />
             <input
-              id={repsRef} type="number" inputMode="numeric" enterKeyHint="done" min="0" max="999" step="1"
+              id={repsRef} type="number" inputMode="numeric" enterKeyHint="done" min="0" max="999" step="1" min="0" max="999" step="1"
               value={set.reps || ''}
               placeholder={prevSet ? String(prevSet.reps) : '0'}
               onChange={e => { const v = parseInt(e.target.value) || 0; onUpdate('reps', Math.min(Math.max(v, 0), 999)); }}
