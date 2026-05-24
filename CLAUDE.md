@@ -6,11 +6,7 @@ You're picking up an existing project. Read this once, then read the actual code
 
 ## What I'm building
 
-<<<<<<< Updated upstream
 **Steel** is a social fitness app, built on the side. I'm an athlete so I'm a hard user as well as the maintainer.
-=======
-I'm building **Steel**, a social fitness app. I'm an athlete so I'm a hard user as well as the founder.
->>>>>>> Stashed changes
 
 The pitch: "the gym doesn't have to be a solo sport." Strava-style social, but built for people who lift (and run, and do anything else — we're explicitly not a powerlifters-only app). Free in beta. Differentiator vs Strong/Hevy is the social layer + Steel It (one-tap copy of someone else's workout as a template).
 
