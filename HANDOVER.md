@@ -113,6 +113,28 @@ All changes in `steel-landing/index.html` (single-file landing page):
 
 ---
 
+## Domain + email infrastructure
+
+- **Custom domain:** `getsteel.app` (Cloudflare registrar + DNS, account under `Adamon3@yahoo.com`)
+  - `getsteel.app` → Vercel `steel-landing` (A `76.76.21.21`)
+  - `www.getsteel.app` → same, redirects to apex
+  - `app.getsteel.app` → CNAME to Vercel; needs to be added as custom domain in the `steel-app` Vercel project before it serves
+- **Mailbox** (`adam@getsteel.app`): Zoho Mail Free, EU data centre. Login at https://mail.zoho.eu. Admin at https://mailadmin.zoho.eu.
+  - MX records: `mx.zoho.eu` 10, `mx2.zoho.eu` 20, `mx3.zoho.eu` 50
+  - Apex SPF: `v=spf1 include:zoho.eu ~all`
+- **Transactional email:** Resend (EU region, account on `adamon3@yahoo.com`)
+  - Sends from `hello@getsteel.app` (verified domain, DKIM at `resend._domainkey`)
+  - Bounce subdomain: `send.getsteel.app` with its own MX + SPF (`include:amazonses.com`)
+  - API key stored in Supabase Vault as `resend_api_key` (id `da91dc4f-9450-42cf-94a9-4f2b7d6633dc`)
+  - Resend dashboard: https://resend.com/domains/a87da291-9aeb-4d8a-aca0-7b637725603b
+- **DMARC:** `v=DMARC1; p=none; rua=mailto:dmarc@getsteel.app; pct=100; adkim=r; aspf=r;` — relaxed alignment, monitor-only, aggregate reports to `dmarc@getsteel.app`
+- **Waitlist signup notifications:** On every INSERT into `public.waitlist`, trigger `waitlist_to_ntfy` fires `public.notify_waitlist_signup()` which:
+  1. Pushes a notification to phone via ntfy topic `Steel-sign-free-wait-zaron`
+  2. Sends a styled welcome email via Resend (subject "You're in.", from "Steel <hello@getsteel.app>", with lime-highlighted headline + CTA to the web demo)
+- **Brand-new-domain reputation:** First ~50 emails may land in spam at Gmail/Yahoo until reputation builds.
+
+---
+
 ## What's likely next
 
 The user has been alternating between bug-hunting and landing page polish. The landing page is in good shape now. They may pivot to fixing the known issues above (duplicate templates is the most visible one), continue testing edge cases, or start on new features. Don't start writing code until told what's next — that's in `CLAUDE.md` and they mean it.
