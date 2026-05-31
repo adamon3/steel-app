@@ -161,11 +161,17 @@ export default function App() {
 
   const handleSteelSave = async () => {
     if (steelData) {
-      await useStore.getState().saveTemplate(
-        `${steelData.title} (from ${steelData.from})`,
-        steelData.template.exercises
-      );
-      showToast(`Saved "${steelData.title}" as a template!`);
+      const tmplName = `${steelData.title} (from ${steelData.from})`;
+      const exs = steelData.template.exercises;
+      let res = await useStore.getState().saveTemplate(tmplName, exs);
+      if (res?.conflict) {
+        if (window.confirm(`You already have a template called "${res.name}". Overwrite it?`)) {
+          res = await useStore.getState().saveTemplate(tmplName, exs, { overwrite: true });
+        } else {
+          res = null;
+        }
+      }
+      if (res) showToast(`Saved "${steelData.title}" as a template!`);
     }
     setShowSteelPopup(false);
     setSteelData(null);

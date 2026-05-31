@@ -1122,8 +1122,16 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
     if (!templateName.trim() || !onSaveAsTemplate) return;
     setSavingTemplate(true);
     try {
-      const result = await onSaveAsTemplate(templateName.trim());
-      if (result !== false) {
+      let result = await onSaveAsTemplate(templateName.trim());
+      if (result?.conflict) {
+        if (window.confirm(`You already have a template called "${result.name}". Overwrite it?`)) {
+          result = await onSaveAsTemplate(templateName.trim(), { overwrite: true });
+        } else {
+          setSavingTemplate(false);
+          return;
+        }
+      }
+      if (result && !result.conflict) {
         setTemplateSaved(true);
         setShowTemplateInput(false);
       }
@@ -1862,20 +1870,29 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
     clearWIPWorkout();
   };
 
-  const handleSaveAsTemplate = async (nameOverride) => {
+  const handleSaveAsTemplate = async (nameOverride, opts = {}) => {
     const name = (nameOverride || templateName).trim();
-    if (!name) return false;
+    if (!name) return null;
     try {
-      await saveTemplate(name, workoutExercises);
-      await fetchTemplates();
+      const res = await saveTemplate(name, workoutExercises, opts);
+      if (res?.conflict) return res;
       if (!nameOverride) {
         setShowSaveTemplate(false);
         setTemplateName('');
       }
-      return true;
+      return res;
     } catch (err) {
       alert('Could not save template: ' + (err.message || 'unknown error'));
       throw err;
+    }
+  };
+
+  const submitSaveTemplate = async () => {
+    let res = await handleSaveAsTemplate();
+    if (res?.conflict) {
+      if (window.confirm(`You already have a template called "${res.name}". Overwrite it?`)) {
+        await handleSaveAsTemplate(undefined, { overwrite: true });
+      }
     }
   };
 
@@ -1913,8 +1930,8 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
         onDone={onDone}
         onReopen={() => setPhase('logging')}
         unit={unit}
-        onSaveAsTemplate={async (name) => {
-          return await handleSaveAsTemplate(name);
+        onSaveAsTemplate={async (name, opts) => {
+          return await handleSaveAsTemplate(name, opts);
         }}
       />
     );
@@ -2489,7 +2506,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
               onChange={e => setTemplateName(e.target.value)}
               placeholder="Template name"
               autoFocus
-              onKeyDown={e => { if (e.key === 'Enter' && templateName.trim()) handleSaveAsTemplate(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && templateName.trim()) submitSaveTemplate(); }}
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 10,
                 border: `1px solid ${COLORS.border}`, background: COLORS.bg,
@@ -2503,7 +2520,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
                 border: `1px solid ${COLORS.border}`, borderRadius: 999,
                 fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans,
               }}>Cancel</button>
-              <button onClick={() => handleSaveAsTemplate()} disabled={!templateName.trim()} style={{
+              <button onClick={() => submitSaveTemplate()} disabled={!templateName.trim()} style={{
                 flex: 1, padding: 11,
                 background: templateName.trim() ? COLORS.text : COLORS.card2,
                 color: templateName.trim() ? COLORS.bg : COLORS.textDim,

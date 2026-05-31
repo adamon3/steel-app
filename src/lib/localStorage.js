@@ -25,7 +25,8 @@ export function getGuestTemplates() {
 }
 
 export function saveGuestTemplate(name, exercises) {
-  const templates = getGuestTemplates();
+  const norm = (name || '').trim().toLowerCase();
+  const templates = getGuestTemplates().filter(t => (t.name || '').trim().toLowerCase() !== norm);
   templates.push({ id: `local_tmpl_${Date.now()}`, name, exercises, created_at: new Date().toISOString() });
   localStorage.setItem(GUEST_TEMPLATES_KEY, JSON.stringify(templates));
 }

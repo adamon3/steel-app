@@ -166,18 +166,40 @@ export const useStore = create((set, get) => ({
     } catch (e) { console.error('fetchTemplates error:', e); }
   },
 
-  saveTemplate: async (name, exercises) => {
-    const { user, isGuest } = get();
-    if (isGuest) { saveGuestTemplate(name, exercises); set({ templates: getGuestTemplates() }); return { id: 'local', name }; }
+  saveTemplate: async (name, exercises, opts = {}) => {
+    const { user, isGuest, templates } = get();
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('Template name required');
+    const existing = (templates || []).find(
+      t => (t.name || '').trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing && !opts.overwrite) {
+      return { conflict: true, existingId: existing.id, name: existing.name };
+    }
+
+    if (isGuest) { saveGuestTemplate(trimmed, exercises); set({ templates: getGuestTemplates() }); return { id: 'local', name: trimmed }; }
     if (!user) throw new Error('Not logged in');
     const TIMEOUT_MS = 15000;
-    const { data: tmpl, error: tErr } = await withTimeout(
-      supabase.from('templates').insert({ user_id: user.id, name }).select().single(),
-      TIMEOUT_MS, 'template insert timeout'
-    );
-    if (tErr || !tmpl) throw new Error(tErr?.message || 'Template insert returned no row');
+
+    let templateId;
+    if (existing && opts.overwrite) {
+      templateId = existing.id;
+      const { error: wErr } = await withTimeout(
+        supabase.from('template_exercises').delete().eq('template_id', templateId),
+        TIMEOUT_MS, 'template_exercises wipe timeout'
+      );
+      if (wErr) throw new Error(wErr.message);
+    } else {
+      const { data: tmpl, error: tErr } = await withTimeout(
+        supabase.from('templates').insert({ user_id: user.id, name: trimmed }).select().single(),
+        TIMEOUT_MS, 'template insert timeout'
+      );
+      if (tErr || !tmpl) throw new Error(tErr?.message || 'Template insert returned no row');
+      templateId = tmpl.id;
+    }
+
     const rows = (exercises || []).map((ex, i) => ({
-      template_id: tmpl.id, exercise_id: ex.exercise_id, sort_order: i,
+      template_id: templateId, exercise_id: ex.exercise_id, sort_order: i,
       default_sets: ex.sets?.length || 3, default_reps: ex.sets?.[0]?.reps || 10, default_weight: ex.sets?.[0]?.weight || 0,
     })).filter(r => r.exercise_id);
     if (rows.length > 0) {
@@ -188,7 +210,7 @@ export const useStore = create((set, get) => ({
       if (rErr) throw new Error(rErr.message);
     }
     await get().fetchTemplates();
-    return tmpl;
+    return { id: templateId, name: trimmed };
   },
 
   deleteTemplate: async (templateId) => {
