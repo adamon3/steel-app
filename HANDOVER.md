@@ -1,10 +1,10 @@
 # Steel — Handover
 
-**Date:** 23 May 2026
-**From:** Claude Opus 4.6 sessions (two sessions total)
+**Date:** 31 May 2026 (latest session)
+**From:** Claude Opus 4.6/4.7 sessions
 **For:** Next Claude session picking up this project
 
-Read `CLAUDE.md` first — it has the full project context, design language, and product decisions. This doc covers what happened across both sessions and what's left.
+Read `CLAUDE.md` first — it has the full project context, design language, and product decisions. This doc covers what happened across sessions and what's left. Most recent session is at the bottom.
 
 ---
 
@@ -41,6 +41,44 @@ All changes in `steel-landing/index.html` (single-file landing page):
 - **Profile pictures:** Replaced all initial-only `<div class="mini-avatar">XX</div>` with DiceBear Notionists avatar `<img>` tags. Affected: Jamie Kelly (hero + leaderboard), Sara O'Brien (hero + leaderboard), Priya M. (Steel It section), Tom Chen, Maeve R., Dave H. (all leaderboard). "You" row keeps the "A" initial. Each uses `https://api.dicebear.com/9.x/notionists/svg?seed=Name&backgroundColor=hex`
 - **Map:** Replaced CSS gradient fake map with a real OpenStreetMap iframe embed of the Bank/Shoreditch area of London. `filter: saturate(0.3) brightness(1.05)` keeps it muted to match the cream palette. `pointer-events: none` prevents interaction. Pins still overlay on top.
 - **Footer:** "© 2026 · TRAIN TOGETHER" → "© 2026 · BUILT IN LONDON"
+
+---
+
+## Session 3 — Domain swap + landing polish (31 May 2026)
+
+### Custom-domain rollout (`app.getsteel.app`)
+
+DNS was already set up. This session swapped the demo URL away from `steel-app-eight.vercel.app` everywhere it was user-facing:
+
+- **Landing** (`steel-landing/index.html`): nav "Try the demo →" and CTA "Or try the web demo now →" both point to `https://app.getsteel.app` now.
+- **Welcome email** (Supabase `notify_waitlist_signup()` trigger function): both the `text` body and the HTML CTA button now link to `https://app.getsteel.app`. Applied as Supabase migration `update_waitlist_signup_url_to_app_getsteel`. Verified the old URL is gone from the function definition.
+- **In-app code**: grep'd `steel-app/src/**` — no source references to the old URL, only doc files (`CLAUDE.md`, `HANDOVER.md`, `NEXT.md`). Docs left alone for now; not user-facing.
+
+**Still needs Adam's hand:** confirm `app.getsteel.app` is actually attached as a custom domain in the Vercel `steel-app` project (Settings → Domains). DNS is configured, Vercel just needs to know the domain. Until that's done, the live demo link will 404 once Vercel finishes redeploying the landing.
+
+### Landing copy/UX
+
+All in `steel-landing/index.html`. Commits below.
+
+- **Logger pillar bullets** — removed two that read like dev-changelog notes ("Bodyweight lifts track the weight you add (a 20kg pull-up reads +20)" and "Templates load with your real last numbers, not generic defaults"). Replaced the second with a warmer line: "Templates pick up where you left off, weights and all". Final list: 1RM/top-set trends + templates remember last weights + calendar streaks.
+- **First testimonial (Tom · London)** — was about the feed. Now about gym leaderboard: *"Seeing where I rank in my gym is the thing. Two guys are above me on squats and I'm chipping at them every week."* Leans into the "people who push you" framing from CLAUDE.md.
+- **Privacy page** — Adam dropped a `privacy.html` into `steel-landing/`. Added a footer link: `© 2026 · BUILT IN LONDON · PRIVACY`, with PRIVACY as a subtle `border-bottom` link inheriting the mono-caps footer style. Page itself was authored externally — not styled to match the rest of the landing yet (uses system fonts + a different lime). Audit for design consistency later if it matters.
+
+### Commits pushed to `steel-landing` main this session
+
+```
+c5b354d  landing: add privacy page and footer link
+c997b73  landing: warmer phrasing on template prefill bullet
+b6ce28a  landing: re-add template prefill bullet, plainer wording
+b53b76c  landing: tighten logger bullets, rework first testimonial around gym leaderboard
+4197229  landing: point demo links to app.getsteel.app
+```
+
+No commits to `steel-app` this session.
+
+### Supabase changes
+
+- Migration `update_waitlist_signup_url_to_app_getsteel` applied to project `tkrwctmzftnmdspioohw`. Replaces both URL instances inside `public.notify_waitlist_signup()`. Trigger and function body otherwise unchanged. ntfy push still fires; Resend send still fires.
 
 ---
 
