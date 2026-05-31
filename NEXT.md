@@ -9,9 +9,9 @@ Read `CLAUDE.md` for product context, `HANDOVER.md` for prior session notes + cu
 
 ## Immediate (before doing anything else)
 
-1. **Attach `app.getsteel.app` in Vercel** — `steel-app` project → Settings → Domains → Add Domain → `app.getsteel.app`. DNS is configured (CNAME → `cname.vercel-dns.com`); Vercel issues SSL in ~60 sec. Until this is done, the demo link on the live landing will 404. The landing's already pointing at the new URL.
+1. ~~**Attach `app.getsteel.app` in Vercel.**~~ **Done.** Domain attached and serving — `https://app.getsteel.app` resolves to the app (verified 31 May).
 
-2. **Smoke test once Vercel is wired:** visit `https://app.getsteel.app`, sign up via the landing waitlist form, confirm the welcome email arrives with the new CTA link.
+2. **Smoke test (partly done):** `https://app.getsteel.app` confirmed serving the app. Still on Adam: sign up via the landing waitlist form and confirm the welcome email arrives with the new CTA link (lands on Adam's side via ntfy + Resend).
 
 ---
 
@@ -19,9 +19,9 @@ Read `CLAUDE.md` for product context, `HANDOVER.md` for prior session notes + cu
 
 ### Bugs
 
-1. **Duplicate templates** on "Start Workout" home grid. Two "Legs", two "Workout" — either a `templates` table dedup issue or the query is missing a `DISTINCT`. Most visible bug. Hasn't been investigated.
+1. ~~**Duplicate templates** on "Start Workout" home grid.~~ **Fixed (31 May).** Not a query/render bug — real duplicate rows. `saveTemplate` always INSERTed; now it detects a same-name template and prompts to overwrite or rename (`{conflict}` return + `{overwrite:true}` rebuild path). Exact-duplicate rows cleaned from the DB (kept one of each; left genuinely-distinct same-name templates). Commit `8e659f5`.
 
-2. **Guest mode crashes `WorkoutDetail`.** `fetchWorkout()` in `store.js` hits Supabase; guest users have no auth so the request fails / page blank-screens. Fix: skip detail-fetch in guest mode and surface a "Sign in to view" CTA, or render the locally cached version.
+2. ~~**Guest mode crashes `WorkoutDetail`.**~~ **Not a bug (verified 31 May).** `handleViewWorkout` in App.jsx already guards (`if (isGuest) promptAuth(...)`), and every guest surface is gated behind `AuthGate` with no tappable real workout cards — no path reaches `fetchWorkout`. Rendering guests' local workouts would be a new feature, not a fix.
 
 3. **PWA install banner unverified.** `manifest.json` is in place; never confirmed the install prompt fires on a fresh phone. Worth opening Chrome on a phone-shaped viewport and confirming "Add to Home Screen".
 
@@ -31,17 +31,17 @@ Read `CLAUDE.md` for product context, `HANDOVER.md` for prior session notes + cu
 
 5. **BodyStats and Tools components** — likely stale. Audit + refresh or remove.
 
-6. **`show_leaderboard` opt-out toggle** — flag exists in `profiles`; UI toggle is unverified. Confirm it's wired into EditProfile and respected by `Leaderboard.jsx`.
+6. ~~**`show_leaderboard` opt-out toggle.**~~ **Verified wired (31 May).** Toggle in EditProfile saves via `onSave(form)` → `updateProfile(form)` → `profiles.show_leaderboard`. `Leaderboard.jsx` filters both `privacy_mode='normal'` and `show_leaderboard !== false` (single gym-scoped query, no global path that bypasses it).
 
 ### Cleanup (steel-app repo)
 
-7. **`apply-fixes.js`** at repo root is a failed patch script. **Delete it.**
-8. **CRLF↔LF line-ending noise** across `store.js`, `Profile.jsx`, `WorkoutDetail.jsx` shows ~4200-line diff with zero code changes. Either `git checkout --` those files or add `.gitattributes` with `* text=auto`.
-9. **`.claude/settings.local.json`** — reset or gitignore.
+7. ~~**`apply-fixes.js`**~~ **Done** — already gone from repo root (verified 31 May).
+8. ~~**CRLF↔LF line-ending noise.**~~ **Resolved** — working tree is clean on Windows (verified 31 May); no stray line-ending diff remains.
+9. ~~**`.claude/settings.local.json`.**~~ **Resolved** — not showing as modified.
 
 ### Landing (steel-landing repo)
 
-10. **Privacy page styling** — `privacy.html` uses system fonts and a different lime token. Doesn't match the rest of the landing. Re-style with Inter Tight + JetBrains Mono + `#BFE600` + cream background if you care.
+10. ~~**Privacy page styling.**~~ **Done (31 May).** `privacy.html` restyled to match: Inter Tight + JetBrains Mono, cream `#FAFAF7`, lime `#BFE600`, STEEL wordmark linking home, mono-caps eyebrow + footer, lime highlight-bar on the heading. Content unchanged.
 
 ---
 

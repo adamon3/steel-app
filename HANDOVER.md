@@ -82,6 +82,23 @@ No commits to `steel-app` this session.
 
 ---
 
+## Session 4 — duplicate templates + verification pass (31 May 2026)
+
+**steel-app — commit `8e659f5`:**
+- **Duplicate templates fixed.** Root cause was real duplicate rows (not a query/render bug — `key={t.id}` is unique). `saveTemplate(name, exercises, opts)` now checks for an existing same-name template and returns `{conflict, existingId, name}` instead of blindly INSERTing; with `{overwrite:true}` it wipes that template's `template_exercises` and rebuilds in place. All three save entry points prompt to overwrite/rename: completion screen, logging-phase "save as template" modal (`submitSaveTemplate`), and `handleSteelSave` in App.jsx. `saveGuestTemplate` now replaces by name too. Files: `store.js`, `localStorage.js`, `App.jsx`, `LogWorkout.jsx`.
+- **DB cleanup (live):** deleted only exact-duplicate template rows (identical exercise fingerprint), keeping one of each — dropped one "Legs" and one 1-exercise "Workout (from Adam)". Left untouched the two genuinely-different "Workout" templates and the 6-exercise "Workout (from Adam)". 0 orphaned `template_exercises` after.
+- ⚠️ **Not build-verified** — the Cowork bash sandbox truncates reads over the OneDrive mount, so esbuild/Vite couldn't compile the full files. Edits verified by re-reading. Worth a local `npm run build`.
+
+**Verified already-handled (no change):**
+- Guest `WorkoutDetail` "crash" — `handleViewWorkout` guards guest mode and all guest surfaces are gated; no path reaches `fetchWorkout`.
+- `show_leaderboard` toggle — wired through EditProfile → `updateProfile` → `profiles`, and respected by the gym-scoped `Leaderboard.jsx` query.
+
+**Confirmed resolved:** `apply-fixes.js` gone; working tree clean (no CRLF noise); `app.getsteel.app` attached and serving.
+
+**steel-landing:** `privacy.html` restyled to match the landing (Inter Tight + JetBrains Mono, cream + lime, STEEL wordmark, mono-caps eyebrow/footer, highlight-bar heading). Content unchanged.
+
+---
+
 ## Cleanup still needed (steel-app repo)
 
 - **`apply-fixes.js`** exists in the repo root. Failed patch script. **Delete it.**
