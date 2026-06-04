@@ -255,7 +255,7 @@ function ExercisePicker({ exercises, onSelect, onClose }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: COLORS.bg, zIndex: 100,
+      position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 520, background: COLORS.bg, zIndex: 100,
       display: 'flex', flexDirection: 'column', padding: 16,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -485,7 +485,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
   if (loading) {
     return (
       <div style={{
-        position: 'fixed', inset: 0, background: COLORS.bg, zIndex: 80,
+        position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 520, background: COLORS.bg, zIndex: 80,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <Spinner />
@@ -496,7 +496,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
   if (!workout) {
     return (
       <div style={{
-        position: 'fixed', inset: 0, background: COLORS.bg, zIndex: 80,
+        position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 520, background: COLORS.bg, zIndex: 80,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: 32, fontFamily: FONTS.sans,
       }}>
@@ -550,7 +550,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: COLORS.bg, zIndex: 80,
+      position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 520, background: COLORS.bg, zIndex: 80,
       overflowY: 'auto', fontFamily: FONTS.sans,
       paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
     }}>
