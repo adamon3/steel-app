@@ -1039,7 +1039,7 @@ function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate }) {
             letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
             marginBottom: 10,
           }}>My templates · {templates.length}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
             {templates.map(t => {
               const exs = (t.template_exercises || []).slice(0, 4);
               return (
