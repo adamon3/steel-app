@@ -540,7 +540,7 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
 
   const totalSets = display.exercises.reduce((t, e) => t + (e.sets?.length || 0), 0);
   const totalVolume = display.exercises.reduce((t, e) =>
-    t + (e.sets || []).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
+    t + (e.sets || []).reduce((v, s) => v + (s.set_type === 'warmup' ? 0 : (s.weight || 0) * (s.reps || 0)), 0), 0);
   const prCount = display.exercises.reduce((t, e) =>
     t + (e.sets || []).filter(s => s.is_pr).length, 0);
   const volDisp = totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) : String(Math.round(totalVolume));

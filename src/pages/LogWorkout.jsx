@@ -1104,7 +1104,7 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
 
   const stats = {
     sets: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
-    volume: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0),
+    volume: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed && s.set_type !== 'warmup').reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0),
     prs: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.is_pr).length, 0),
   };
   const volDisplay = stats.volume >= 1000 ? (stats.volume / 1000).toFixed(1) : String(Math.round(stats.volume));
@@ -1455,7 +1455,7 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
 // ═══════════════════════════════════════════════════════════════
 
 export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange }) {
-  const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, saveTemplate, getPreviousSets, user } = useStore();
+  const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, saveTemplate, getPreviousSets, user, isGuest } = useStore();
   const [phase, setPhase] = useState(prefill ? 'logging' : 'home');
   const [title, setTitle] = useState(prefill?.title || 'Workout');
   const [workoutNotes, setWorkoutNotes] = useState('');
@@ -2291,7 +2291,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
         const completed = workoutExercises.reduce((total, ex) =>
           total + ex.sets.filter(s => s.completed).length, 0);
         const volume = workoutExercises.reduce((t, e) =>
-          t + e.sets.filter(s => s.completed).reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
+          t + e.sets.filter(s => s.completed && s.set_type !== 'warmup').reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
         const volDisp = volume >= 1000 ? (volume / 1000).toFixed(1) : String(Math.round(volume));
         const volSuffix = volume >= 1000 ? 'k' : unit;
         const prCount = workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.is_pr).length, 0);
@@ -2420,7 +2420,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
                 border: 'none', borderRadius: 12,
                 fontSize: 14, fontWeight: 700, cursor: 'pointer',
                 fontFamily: FONTS.sans, letterSpacing: '-0.01em', marginBottom: 8,
-              }}>Save &amp; share</button>
+              }}>{isGuest ? 'Save workout' : 'Save & share'}</button>
 
               <button onClick={() => doSave({ isPublic: false })} style={{
                 width: '100%', padding: 12, background: 'transparent', color: COLORS.text,

@@ -292,8 +292,8 @@ export const useStore = create((set, get) => ({
     (workout.exercises || []).forEach(ex => {
       (ex.sets || []).forEach(s => {
         if (s.completed !== false) {
-          totalVolume += (s.weight || 0) * (s.reps || 0);
           totalSets += 1;
+          if (s.set_type !== 'warmup') totalVolume += (s.weight || 0) * (s.reps || 0);
           if (s.is_pr) hasPr = true;
         }
       });
@@ -385,8 +385,8 @@ export const useStore = create((set, get) => ({
       let totalVolume = 0, totalSets = 0, hasPr = false;
       (payload.exercises || []).forEach(ex => {
         (ex.sets || []).forEach(s => {
-          totalVolume += (s.weight || 0) * (s.reps || 0);
           totalSets += 1;
+          if (s.set_type !== 'warmup') totalVolume += (s.weight || 0) * (s.reps || 0);
           if (s.is_pr) hasPr = true;
         });
       });

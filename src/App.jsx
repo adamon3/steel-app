@@ -332,7 +332,7 @@ export default function App() {
   };
 
   return (
-    <div key={theme} style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text }}>
+    <div key={theme} style={{ background: COLORS.bg, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text, maxWidth: 520, margin: '0 auto', position: 'relative' }}>
       {/* Offline banner */}
       {offline && (
         <div style={{
@@ -384,7 +384,7 @@ export default function App() {
       {/* Minimized workout bar */}
       {(workoutMinimized || workoutActive) && minimizedInfo && tab !== 'log' && (
         <div onClick={() => setTab('log')} style={{
-          position: 'fixed', bottom: 72, left: 12, right: 12, zIndex: 25,
+          position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 24px)', maxWidth: 496, zIndex: 25,
           background: COLORS.text, borderRadius: 14, padding: '12px 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           cursor: 'pointer',

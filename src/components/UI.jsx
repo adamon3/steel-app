@@ -310,7 +310,7 @@ export function BottomTabBar({ tabs, active, onChange }) {
   const cl = getColors();
   return (
     <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20,
+      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 520, zIndex: 20,
       background: cl.isDark ? 'rgba(10,10,10,0.85)' : 'rgba(255,255,255,0.9)',
       backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
       borderTop: `1px solid ${cl.border}`,
