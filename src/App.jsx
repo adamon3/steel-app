@@ -265,6 +265,7 @@ export default function App() {
                 setWorkoutMinimized(false);
                 setMinimizedInfo(null);
                 showToast('Workout saved!');
+                setLoggerSession(s => s + 1);
                 if (!isGuest) setTab('feed');
               }}
             />
