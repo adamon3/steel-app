@@ -1012,7 +1012,9 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate, mode = 'add' }
 
 function StartWorkoutHome({ templates, onStartEmpty, onTemplateOptions }) {
   return (
-    <div style={{ fontFamily: FONTS.sans, paddingBottom: 60 }}>
+    <div style={{ fontFamily: FONTS.sans, paddingBottom: 60, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: -20, right: -30, width: 300, height: 220, background: 'radial-gradient(circle at 72% 28%, rgba(191,230,0,0.20), transparent 62%)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <div style={{
         fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
         letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
@@ -1024,12 +1026,14 @@ function StartWorkoutHome({ templates, onStartEmpty, onTemplateOptions }) {
       }}>Start workout</h1>
 
       <button onClick={onStartEmpty} style={{
-        width: '100%', padding: 16, marginBottom: 24,
+        width: '100%', padding: 16, marginBottom: 26,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         background: COLORS.text, color: COLORS.bg,
         border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700,
         cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em',
+        boxShadow: '0 8px 22px -10px rgba(10,10,10,0.45)',
       }}>
-        Start empty workout
+        <Icon name="plus" size={17} color={COLORS.bg} /> Start empty workout
       </button>
 
       {templates.length > 0 ? (
@@ -1039,40 +1043,44 @@ function StartWorkoutHome({ templates, onStartEmpty, onTemplateOptions }) {
             letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
             marginBottom: 10,
           }}>My templates · {templates.length}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-            {templates.map(t => {
-              const exs = (t.template_exercises || []).slice(0, 4);
-              return (
-                <button key={t.id} onClick={() => onTemplateOptions(t)} style={{
-                  display: 'block', textAlign: 'left',
-                  padding: 14, background: COLORS.card,
-                  border: `1px solid ${COLORS.border}`, borderRadius: 14,
-                  cursor: 'pointer', fontFamily: FONTS.sans,
-                  minHeight: 140,
-                }}>
-                  <div style={{
-                    fontSize: 15, fontWeight: 700, color: COLORS.text,
-                    letterSpacing: '-0.01em', marginBottom: 6,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{t.name}</div>
-                  <div style={{
-                    fontSize: 12, color: COLORS.textDim, lineHeight: 1.4,
-                    display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden', marginBottom: 8,
-                  }}>
-                    {exs.map(te => te.exercises?.name).filter(Boolean).join(', ')}
-                    {(t.template_exercises?.length || 0) > 4 && ` + ${t.template_exercises.length - 4} more`}
+          {templates.map(t => {
+            const exs = (t.template_exercises || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+            const count = exs.length;
+            return (
+              <button key={t.id} onClick={() => onTemplateOptions(t)} style={{
+                display: 'block', textAlign: 'left', width: '100%', padding: 0,
+                background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 16,
+                cursor: 'pointer', fontFamily: FONTS.sans, marginBottom: 10, overflow: 'hidden',
+                boxShadow: '0 1px 3px rgba(10,10,10,0.05)',
+              }}>
+                <div style={{ padding: '14px 16px 4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                    <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: FONTS.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', color: COLORS.accentDim, background: `${COLORS.accent}1f`, border: `1px solid ${COLORS.accent}3d`, padding: '3px 8px', borderRadius: 7 }}>
+                      <Icon name="weight" size={11} color={COLORS.accentDim} /> {count}
+                    </span>
                   </div>
-                  <div style={{
-                    fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim,
-                    letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500,
-                  }}>
-                    {t.last_used ? relativeTime(t.last_used) : 'Not used'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  {count === 0 ? (
+                    <div style={{ fontSize: 13, color: COLORS.textDim, paddingBottom: 10 }}>Empty template</div>
+                  ) : (
+                    <>
+                      {exs.slice(0, 3).map((te, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 0', borderTop: i > 0 ? `1px solid ${COLORS.border}` : 'none' }}>
+                          <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{te.exercises?.name || 'Exercise'}</span>
+                          <span style={{ flexShrink: 0, fontSize: 12, color: COLORS.textDim, fontFamily: FONTS.mono, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>{te.default_sets || 3} × {te.default_reps || 10}</span>
+                        </div>
+                      ))}
+                      {count > 3 && <div style={{ fontSize: 12, color: COLORS.textSubtle, padding: '7px 0 4px', borderTop: `1px solid ${COLORS.border}` }}>+{count - 3} more</div>}
+                    </>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', borderTop: `1px solid ${COLORS.border}`, background: COLORS.card2 }}>
+                  <span style={{ fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500 }}>{t.last_used ? relativeTime(t.last_used) : 'Not used'}</span>
+                  <span style={{ fontFamily: FONTS.mono, fontSize: 9, color: COLORS.accentDim, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Options ›</span>
+                </div>
+              </button>
+            );
+          })}
         </>
       ) : (
         <div style={{
@@ -1088,6 +1096,7 @@ function StartWorkoutHome({ templates, onStartEmpty, onTemplateOptions }) {
           }}>Save a workout as template to reuse it</div>
         </div>
       )}
+      </div>
     </div>
   );
 }
