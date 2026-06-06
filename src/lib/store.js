@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
-import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, getGuestPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, removeFromOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
+import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, deleteGuestTemplate, updateGuestTemplate, getGuestPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, removeFromOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
 
 // Race a promise against a timeout. Reject with the named error after `ms`.
 function withTimeout(promise, ms, label = 'timeout') {
@@ -214,9 +214,45 @@ export const useStore = create((set, get) => ({
   },
 
   deleteTemplate: async (templateId) => {
+    const { isGuest } = get();
+    if (isGuest) { deleteGuestTemplate(templateId); set({ templates: getGuestTemplates() }); return; }
     if (!isOnline()) return;
     await supabase.from('template_exercises').delete().eq('template_id', templateId);
     await supabase.from('templates').delete().eq('id', templateId);
+    await get().fetchTemplates();
+  },
+
+  updateTemplate: async (templateId, name, exercises) => {
+    const { user, isGuest } = get();
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('Template name required');
+    if (isGuest) {
+      updateGuestTemplate(templateId, trimmed, exercises);
+      set({ templates: getGuestTemplates() });
+      return;
+    }
+    if (!user || !isOnline()) throw new Error('Not signed in or offline');
+    const TIMEOUT_MS = 15000;
+    const { error: nErr } = await withTimeout(
+      supabase.from('templates').update({ name: trimmed }).eq('id', templateId),
+      TIMEOUT_MS, 'template rename timeout'
+    );
+    if (nErr) throw new Error(nErr.message);
+    await withTimeout(
+      supabase.from('template_exercises').delete().eq('template_id', templateId),
+      TIMEOUT_MS, 'template_exercises wipe timeout'
+    );
+    const rows = (exercises || []).map((ex, i) => ({
+      template_id: templateId, exercise_id: ex.exercise_id, sort_order: i,
+      default_sets: ex.default_sets || 3, default_reps: ex.default_reps || 10, default_weight: ex.default_weight || 0,
+    })).filter(r => r.exercise_id);
+    if (rows.length > 0) {
+      const { error: rErr } = await withTimeout(
+        supabase.from('template_exercises').insert(rows),
+        TIMEOUT_MS, 'template_exercises insert timeout'
+      );
+      if (rErr) throw new Error(rErr.message);
+    }
     await get().fetchTemplates();
   },
 

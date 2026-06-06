@@ -31,6 +31,21 @@ export function saveGuestTemplate(name, exercises) {
   localStorage.setItem(GUEST_TEMPLATES_KEY, JSON.stringify(templates));
 }
 
+export function deleteGuestTemplate(id) {
+  const templates = getGuestTemplates().filter(t => t.id !== id);
+  localStorage.setItem(GUEST_TEMPLATES_KEY, JSON.stringify(templates));
+}
+
+export function updateGuestTemplate(id, name, exercises) {
+  const template_exercises = (exercises || []).map((e, i) => ({
+    exercise_id: e.exercise_id, sort_order: i,
+    default_sets: e.default_sets, default_reps: e.default_reps, default_weight: e.default_weight,
+    exercises: { name: e.name },
+  }));
+  const templates = getGuestTemplates().map(t => t.id === id ? { ...t, name, template_exercises } : t);
+  localStorage.setItem(GUEST_TEMPLATES_KEY, JSON.stringify(templates));
+}
+
 export function getGuestPrefs() {
   try { return JSON.parse(localStorage.getItem(GUEST_PREFS_KEY) || '{}'); } catch { return {}; }
 }

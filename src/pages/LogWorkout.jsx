@@ -1010,7 +1010,7 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate, mode = 'add' }
 // Start Workout home
 // ═══════════════════════════════════════════════════════════════
 
-function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate }) {
+function StartWorkoutHome({ templates, onStartEmpty, onTemplateOptions }) {
   return (
     <div style={{ fontFamily: FONTS.sans, paddingBottom: 60 }}>
       <div style={{
@@ -1043,7 +1043,7 @@ function StartWorkoutHome({ templates, onStartEmpty, onPickTemplate }) {
             {templates.map(t => {
               const exs = (t.template_exercises || []).slice(0, 4);
               return (
-                <button key={t.id} onClick={() => onPickTemplate(t)} style={{
+                <button key={t.id} onClick={() => onTemplateOptions(t)} style={{
                   display: 'block', textAlign: 'left',
                   padding: 14, background: COLORS.card,
                   border: `1px solid ${COLORS.border}`, borderRadius: 14,
@@ -1455,7 +1455,7 @@ function ExerciseHistory({ exercise, userId, unit, onBack }) {
 // ═══════════════════════════════════════════════════════════════
 
 export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange }) {
-  const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, saveTemplate, getPreviousSets, user, isGuest } = useStore();
+  const { exercises, fetchExercises, saveWorkout, profile, fetchTemplates, templates, saveTemplate, deleteTemplate, updateTemplate, getPreviousSets, user, isGuest } = useStore();
   const [phase, setPhase] = useState(prefill ? 'logging' : 'home');
   const [title, setTitle] = useState(prefill?.title || 'Workout');
   const [workoutNotes, setWorkoutNotes] = useState('');
@@ -1484,6 +1484,13 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+
+  // Template management (options menu + editor)
+  const [templateMenu, setTemplateMenu] = useState(null);
+  const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState(null);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [savingTemplateEdit, setSavingTemplateEdit] = useState(false);
   const [templateName, setTemplateName] = useState('');
   // Index of the exercise the user is replacing (opens the picker in replace mode).
   const [replaceExerciseIdx, setReplaceExerciseIdx] = useState(null);
@@ -1648,6 +1655,64 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
     setElapsed(0);
     setPhase('logging');
     exs.forEach(e => loadPrevious(e.exercise_id));
+  };
+
+  const openTemplateEditor = (t) => {
+    setTemplateMenu(null);
+    setEditingTemplate({
+      id: t.id,
+      name: t.name || '',
+      exercises: (t.template_exercises || [])
+        .slice().sort((a, b) => a.sort_order - b.sort_order)
+        .map(te => ({
+          exercise_id: te.exercise_id,
+          name: te.exercises?.name || 'Exercise',
+          default_sets: te.default_sets || 3,
+          default_reps: te.default_reps || 10,
+          default_weight: te.default_weight || 0,
+        })),
+    });
+  };
+
+  const updateEditingExercise = (i, field, val) => {
+    setEditingTemplate(p => {
+      const ex = p.exercises.slice();
+      ex[i] = { ...ex[i], [field]: val };
+      return { ...p, exercises: ex };
+    });
+  };
+
+  const addEditingExercise = (ex) => {
+    setEditingTemplate(p => ({
+      ...p,
+      exercises: [...p.exercises, { exercise_id: ex.id, name: ex.name, default_sets: 3, default_reps: 10, default_weight: 0 }],
+    }));
+    setShowTemplatePicker(false);
+  };
+
+  const saveTemplateEdit = async () => {
+    if (!editingTemplate?.name.trim()) return;
+    setSavingTemplateEdit(true);
+    try {
+      await updateTemplate(editingTemplate.id, editingTemplate.name.trim(), editingTemplate.exercises);
+      setEditingTemplate(null);
+    } catch (err) {
+      alert('Could not save template: ' + (err.message || 'unknown error'));
+    }
+    setSavingTemplateEdit(false);
+  };
+
+  const confirmRemoveTemplate = async () => {
+    const t = confirmDeleteTemplate;
+    if (!t) return;
+    try {
+      await deleteTemplate(t.id);
+    } catch (err) {
+      alert('Could not delete template: ' + (err.message || 'unknown error'));
+    }
+    setConfirmDeleteTemplate(null);
+    setTemplateMenu(null);
+    setEditingTemplate(null);
   };
 
   const addExercise = (ex) => {
@@ -1916,8 +1981,87 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
         <StartWorkoutHome
           templates={templates}
           onStartEmpty={startEmpty}
-          onPickTemplate={pickTemplate}
+          onTemplateOptions={setTemplateMenu}
         />
+
+        {/* Template options menu */}
+        {templateMenu && (
+          <div onClick={() => setTemplateMenu(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 60, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: COLORS.card, borderRadius: 16, padding: 16, width: '100%', maxWidth: 380, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans, marginBottom: 8 }}>
+              <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Template</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{templateMenu.name}</div>
+              <button onClick={() => { const t = templateMenu; setTemplateMenu(null); pickTemplate(t); }} style={{ width: '100%', padding: 14, marginBottom: 8, background: COLORS.accent, color: COLORS.accentText, border: 'none', borderRadius: 12, fontWeight: 800, fontSize: 15, cursor: 'pointer', fontFamily: FONTS.sans, letterSpacing: '-0.01em' }}>Start workout</button>
+              <button onClick={() => openTemplateEditor(templateMenu)} style={{ width: '100%', padding: 13, marginBottom: 8, background: 'transparent', color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: FONTS.sans }}>Edit template</button>
+              <button onClick={() => setConfirmDeleteTemplate(templateMenu)} style={{ width: '100%', padding: 13, background: 'transparent', color: COLORS.red, border: `1px solid ${COLORS.red}33`, borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: FONTS.sans }}>Delete template</button>
+            </div>
+          </div>
+        )}
+
+        {/* Delete confirm */}
+        {confirmDeleteTemplate && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 66, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div style={{ background: COLORS.card, borderRadius: 16, padding: 22, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, marginBottom: 6 }}>Delete template?</div>
+              <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.5 }}>"{confirmDeleteTemplate.name}" will be removed. This can't be undone.</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setConfirmDeleteTemplate(null)} style={{ flex: 1, padding: 11, background: 'transparent', color: COLORS.text, border: `1px solid ${COLORS.border}`, borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.sans }}>Keep</button>
+                <button onClick={confirmRemoveTemplate} style={{ flex: 1, padding: 11, background: COLORS.red, color: '#fff', border: 'none', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: FONTS.sans }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Template editor */}
+        {editingTemplate && (
+          <div style={{ position: 'fixed', top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 520, background: COLORS.bg, zIndex: 63, overflowY: 'auto', fontFamily: FONTS.sans }}>
+            <div style={{ padding: '16px 16px calc(env(safe-area-inset-bottom, 0px) + 32px)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <button onClick={() => setEditingTemplate(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.textDim, fontFamily: FONTS.mono, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500, padding: 0 }}>Cancel</button>
+                <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500 }}>Edit template</div>
+                <button onClick={saveTemplateEdit} disabled={!editingTemplate.name.trim() || savingTemplateEdit} style={{ background: 'none', border: 'none', cursor: editingTemplate.name.trim() ? 'pointer' : 'default', color: editingTemplate.name.trim() ? COLORS.accentDim : COLORS.textDim, fontWeight: 800, fontSize: 15, fontFamily: FONTS.sans, padding: 0, opacity: savingTemplateEdit ? 0.5 : 1 }}>Save</button>
+              </div>
+
+              <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 6 }}>Name</div>
+              <input value={editingTemplate.name} onChange={e => setEditingTemplate(p => ({ ...p, name: e.target.value }))} placeholder="Template name" style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: `1px solid ${COLORS.border}`, background: COLORS.card, color: COLORS.text, fontSize: 15, fontWeight: 600, fontFamily: FONTS.sans, outline: 'none', marginBottom: 20, boxSizing: 'border-box' }} />
+
+              <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8 }}>Exercises · {editingTemplate.exercises.length}</div>
+              {editingTemplate.exercises.length === 0 && (
+                <div style={{ fontSize: 13, color: COLORS.textDim, padding: '12px 0', marginBottom: 4 }}>No exercises — add one below.</div>
+              )}
+              {editingTemplate.exercises.map((ex, i) => (
+                <div key={i} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.name}</span>
+                    <button onClick={() => setEditingTemplate(p => ({ ...p, exercises: p.exercises.filter((_, idx) => idx !== i) }))} style={{ background: 'none', border: 'none', color: COLORS.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: FONTS.mono, letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0, padding: 0 }}>Remove</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Sets</div>
+                      <input type="number" inputMode="numeric" min="1" max="20" value={ex.default_sets} onChange={e => updateEditingExercise(i, 'default_sets', Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: FONTS.sans, outline: 'none', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: FONTS.mono, fontSize: 9, color: COLORS.textDim, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Reps</div>
+                      <input type="number" inputMode="numeric" min="1" max="99" value={ex.default_reps} onChange={e => updateEditingExercise(i, 'default_reps', Math.max(1, Math.min(99, parseInt(e.target.value) || 1)))} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: FONTS.sans, outline: 'none', boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button onClick={() => setShowTemplatePicker(true)} style={{ width: '100%', padding: 13, marginTop: 4, marginBottom: 24, background: 'transparent', color: COLORS.text, border: `1px dashed ${COLORS.border}`, borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: FONTS.sans }}>+ Add exercise</button>
+
+              <button onClick={() => setConfirmDeleteTemplate(editingTemplate)} style={{ width: '100%', padding: 13, background: 'transparent', color: COLORS.red, border: `1px solid ${COLORS.red}33`, borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: FONTS.sans }}>Delete template</button>
+            </div>
+
+            {showTemplatePicker && (
+              <ExercisePicker
+                exercises={exercises}
+                onSelect={addEditingExercise}
+                onClose={() => setShowTemplatePicker(false)}
+                onCreate={createExercise}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }
