@@ -178,10 +178,8 @@ export default function App() {
   };
 
   const handleSteelFromProfile = (template, title, athleteName) => {
-    setSteelPrefill(template);
-    setViewUserId(null);
-    setTab('log');
-    showToast(`Steeled "${title}" from ${athleteName}!`);
+    setSteelData({ template, title, from: athleteName });
+    setShowSteelPopup(true);
   };
 
   const handleViewProfile = (userId) => {

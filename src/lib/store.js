@@ -356,7 +356,7 @@ export const useStore = create((set, get) => ({
         exercises: (original.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order).map(we => ({
           exercise_id: we.exercises?.id, name: we.exercises?.name, notes: we.notes || '',
           sets: (we.sets || []).sort((a, b) => a.set_number - b.set_number).map(s => ({
-            weight: s.weight, reps: s.reps, set_type: s.set_type, is_pr: false,
+            weight: 0, reps: s.reps, set_type: s.set_type, is_pr: false,
           })),
         })),
       };
