@@ -99,7 +99,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
 
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
           {athlete.sport && <Badge color={COLORS.text}>{athlete.sport}</Badge>}
-          {athlete.gym && <Badge>{athlete.gym}</Badge>}
+          {athlete.gym && <Badge color={COLORS.textDim}>{athlete.gym}</Badge>}
         </div>
 
         {athlete.bio && <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 10, lineHeight: 1.4 }}>{athlete.bio}</div>}
@@ -119,7 +119,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
             <div style={{ fontSize: 11, color: COLORS.textDim }}>Workouts</div>
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.accent }}>{formatVolume(convertWeight(totalVolume, unit))}</div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.accentDim }}>{formatVolume(convertWeight(totalVolume, unit))}</div>
             <div style={{ fontSize: 11, color: COLORS.textDim }}>Total {unit}</div>
           </div>
         </div>
@@ -130,8 +130,8 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
             marginTop: 16, padding: '10px 32px', borderRadius: 10, fontWeight: 700,
             fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
             background: isFollowing ? 'transparent' : COLORS.accent,
-            color: isFollowing ? COLORS.accent : COLORS.bg,
-            border: isFollowing ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+            color: isFollowing ? COLORS.accentDim : COLORS.accentText,
+            border: isFollowing ? `2px solid ${COLORS.accentDim}` : '2px solid transparent',
           }}>{isFollowing ? 'Following ✓' : 'Follow'}</button>
         )}
       </div>

@@ -127,8 +127,8 @@ export default function Discover({ onViewProfile }) {
                   padding: '8px 16px', borderRadius: 8, fontWeight: 700, fontSize: 12,
                   cursor: 'pointer', fontFamily: 'inherit',
                   background: isFollowing ? 'transparent' : COLORS.accent,
-                  color: isFollowing ? COLORS.accent : COLORS.bg,
-                  border: isFollowing ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+                  color: isFollowing ? COLORS.accentDim : COLORS.accentText,
+                  border: isFollowing ? `2px solid ${COLORS.accentDim}` : '2px solid transparent',
                 }}>{isFollowing ? 'Following' : 'Follow'}</button>
               </div>
 
