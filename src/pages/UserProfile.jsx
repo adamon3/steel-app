@@ -98,7 +98,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
         <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>@{athlete.username}</div>
 
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 8, flexWrap: 'wrap' }}>
-          {athlete.sport && <Badge color={COLORS.orange}>{athlete.sport}</Badge>}
+          {athlete.sport && <Badge color={COLORS.text}>{athlete.sport}</Badge>}
           {athlete.gym && <Badge>{athlete.gym}</Badge>}
         </div>
 

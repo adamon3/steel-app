@@ -124,7 +124,7 @@ export const SPORTS = [
   'Tennis', 'Rowing', 'Cycling', 'General Fitness', 'Other'
 ];
 
-const avatarColors = ["#DFFF1C","#FB923C","#60A5FA","#F87171","#A78BFA","#2DD4BF","#F472B6"];
+const avatarColors = ["#1A1A1A","#6B8A00","#4A4A48","#2D2D2A"];
 
 // ═══════════════════════════════════════════════════════════════
 // ICONS — slightly thinner strokes for cleaner look
@@ -182,7 +182,7 @@ export function Avatar({ initials, size = 40, colorIndex = 0, onClick, src }) {
   return (
     <div onClick={onClick} style={{
       width: size, height: size, borderRadius: '50%',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle',
       background: cl.card2, border: `1px solid ${cl.border}`,
       fontSize: size * 0.38, fontWeight: 700, color, flexShrink: 0,
       fontFamily: FONTS.sans,

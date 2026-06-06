@@ -119,7 +119,7 @@ export default function Discover({ onViewProfile }) {
                 <div style={{ flex: 1, minWidth: 0 }} onClick={() => onViewProfile(athlete.id)} >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, cursor: 'pointer' }}>
                     <span style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{athlete.display_name}</span>
-                    {athlete.sport && <Badge color={COLORS.orange}>{athlete.sport}</Badge>}
+                    {athlete.sport && <Badge color={COLORS.text}>{athlete.sport}</Badge>}
                   </div>
                   <div style={{ fontSize: 12, color: COLORS.textDim }}>@{athlete.username}</div>
                 </div>
