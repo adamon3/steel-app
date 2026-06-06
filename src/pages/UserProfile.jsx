@@ -155,57 +155,70 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
               key={w.id}
               onClick={() => onWorkout?.(w.id)}
               style={{
-                background: COLORS.card, borderRadius: 14, padding: 14, marginBottom: 10,
-                border: `1px solid ${COLORS.border}`,
-                cursor: 'pointer',
+                background: COLORS.card, borderRadius: 14, marginBottom: 12,
+                border: `1px solid ${COLORS.border}`, cursor: 'pointer', overflow: 'hidden',
               }}
             >
-              {/* Workout header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{w.title}</div>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{timeAgo(w.created_at)}</div>
+              <div style={{ padding: 16 }}>
+                {/* Workout header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.text, letterSpacing: '-0.01em' }}>{w.title}</div>
+                    <div style={{ fontSize: 10, color: COLORS.textSubtle, marginTop: 3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em', textTransform: 'uppercase' }}>{timeAgo(w.created_at)}</div>
+                  </div>
+                  {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
                 </div>
-                {w.has_pr && <Badge color={COLORS.pro}>PR</Badge>}
-              </div>
 
-              {/* Stats */}
-              <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                {w.duration_mins > 0 && <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.duration_mins} min</span>}
-                <span style={{ fontSize: 12, color: COLORS.textDim }}>{formatVolume(convertWeight(w.total_volume, unit))} {unit}</span>
-                <span style={{ fontSize: 12, color: COLORS.textDim }}>{w.total_sets} sets</span>
-              </div>
+                {/* Stat strip */}
+                <div style={{ display: 'flex', marginBottom: 14 }}>
+                  {[
+                    ...(w.duration_mins > 0 ? [{ label: 'Duration', value: `${w.duration_mins}m` }] : []),
+                    { label: `Volume (${unit})`, value: formatVolume(convertWeight(w.total_volume, unit)) },
+                    { label: 'Sets', value: w.total_sets },
+                  ].map((s, i, arr) => (
+                    <div key={i} style={{ flex: 1, textAlign: 'center', borderRight: i < arr.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{s.value}</div>
+                      <div style={{ fontSize: 9, color: COLORS.textDim, marginTop: 3, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.12em', textTransform: 'uppercase' }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Exercise list */}
-              <div style={{ background: `${COLORS.bg}88`, borderRadius: 8, padding: 8, marginBottom: 10 }}>
-                {exercises.slice(0, 4).map((we, i) => {
+                {/* Exercise list */}
+                {exercises.slice(0, 4).map((we) => {
                   const sets = (we.sets || []).sort((a, b) => a.set_number - b.set_number);
                   const topWeight = Math.max(...sets.map(s => s.weight || 0), 0);
-                  const topSet = sets.find(s => s.weight === topWeight);
+                  const hasPr = sets.some(s => s.is_pr);
                   return (
                     <div key={we.id} style={{
-                      display: 'flex', justifyContent: 'space-between', padding: '4px 4px',
-                      borderBottom: i < Math.min(exercises.length, 4) - 1 ? `1px solid ${COLORS.border}` : 'none',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '9px 11px', marginBottom: 4, background: COLORS.card2, borderRadius: 8,
+                      border: hasPr ? `1px solid ${COLORS.pro}33` : '1px solid transparent',
                     }}>
-                      <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{we.exercises?.name}</span>
-                      <span style={{ fontSize: 12, color: COLORS.textDim }}>
-                        {sets.length}s · {convertWeight(topWeight, unit)}{unit} x{topSet?.reps || 0}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{we.exercises?.name}</span>
+                        {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.accentDim, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, flexShrink: 0 }}>PR</span>}
+                      </div>
+                      <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0, marginLeft: 8 }}>
+                        {sets.length}×{convertWeight(topWeight, unit)}{unit}
                       </span>
                     </div>
                   );
                 })}
                 {exercises.length > 4 && (
-                  <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 4 }}>+{exercises.length - 4} more</div>
+                  <div style={{ fontSize: 12, color: COLORS.textDim, paddingTop: 6, textAlign: 'center' }}>+{exercises.length - 4} more exercises</div>
                 )}
               </div>
 
-              {/* Steel it button */}
+              {/* Steel it — full-width footer bar */}
               {!isMe && (
                 <button onClick={(e) => { e.stopPropagation(); handleSteel(w.id, w.title); }} style={{
-                  width: '100%', padding: '9px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13,
-                  cursor: 'pointer', fontFamily: 'inherit', background: COLORS.accent,
-                  color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', transition: 'all 0.15s',
-                }}>Steel this workout</button>
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '15px 16px', background: COLORS.accent, color: COLORS.accentText,
+                  border: 'none', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                  fontFamily: 'inherit', letterSpacing: '-0.01em',
+                }}>
+                  <Icon name="copy" size={17} color={COLORS.accentText} /> Steel this workout
+                </button>
               )}
             </div>
           );
