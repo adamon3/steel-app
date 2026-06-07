@@ -150,7 +150,7 @@ function WorkoutCard({ workout, onSteel, onProfile, onWorkout, unitPref }) {
                   <span style={{ fontSize: 14, color: COLORS.text, fontWeight: 600 }}>{we.exercises?.name}</span>
                   {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.pro, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>PR</span>}
                 </div>
-                <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{sets.length}×{convertWeight(topW, unit)}{unit}</span>
+                <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{topW > 0 ? `${sets.length}×${convertWeight(topW, unit)}${unit}` : `${sets.length}×BW`}</span>
               </div>
             );
           })}

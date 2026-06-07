@@ -199,7 +199,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
                         {hasPr && <span style={{ background: `${COLORS.pro}20`, color: COLORS.accentDim, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, flexShrink: 0 }}>PR</span>}
                       </div>
                       <span style={{ fontSize: 13, color: COLORS.textDim, fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0, marginLeft: 8 }}>
-                        {sets.length}×{convertWeight(topWeight, unit)}{unit}
+                        {topWeight > 0 ? `${sets.length}×${convertWeight(topWeight, unit)}${unit}` : `${sets.length}×BW`}
                       </span>
                     </div>
                   );
