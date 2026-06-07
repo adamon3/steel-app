@@ -279,11 +279,12 @@ export const useStore = create((set, get) => ({
   fetchFeed: async () => {
     // SW NetworkFirst serves cached feed when offline.
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('workouts')
         .select('*, profiles:user_id (id, username, display_name, sport, gym, avatar_url, privacy_mode), workout_exercises (id, sort_order, notes, exercises:exercise_id (id, name, muscle_group), sets (id, set_number, weight, reps, is_pr, set_type)), likes (user_id), comments (id)')
         .eq('is_public', true)
         .order('created_at', { ascending: false }).limit(40);
+      if (error) console.error('fetchFeed query error:', error);
       if (data) {
         const filtered = data.filter(w => (w.profiles?.privacy_mode || 'normal') === 'normal').slice(0, 20);
         set({ feed: filtered });
