@@ -1012,9 +1012,8 @@ function ExercisePicker({ exercises, onSelect, onClose, onCreate, mode = 'add' }
 
 function StartWorkoutHome({ templates, onStartEmpty, onTemplateOptions }) {
   return (
-    <div style={{ fontFamily: FONTS.sans, paddingBottom: 60, position: 'relative' }}>
-      <div style={{ position: 'absolute', top: -20, right: -30, width: 300, height: 220, background: 'radial-gradient(circle at 72% 28%, rgba(191,230,0,0.20), transparent 62%)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'relative', zIndex: 1 }}>
+    <div style={{ fontFamily: FONTS.sans, paddingBottom: 60 }}>
+      <div>
       <div style={{
         fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
         letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500,
