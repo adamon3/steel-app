@@ -50,7 +50,7 @@ function CommentSection({ workoutId, initialCount }) {
                 <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add a comment..."
                   onKeyDown={e => e.key === 'Enter' && postComment()}
                   style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
-                <button onClick={postComment} style={{ background: COLORS.accent, color: COLORS.isDark ? COLORS.bg : '#fff', border: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Post</button>
+                <button onClick={postComment} style={{ background: COLORS.accent, color: COLORS.accentText, border: 'none', borderRadius: 8, padding: '8px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Post</button>
               </div>
             </>
           )}
@@ -168,11 +168,11 @@ function WorkoutCard({ workout, onSteel, onProfile, onWorkout, unitPref }) {
             <CommentSection workoutId={workout.id} initialCount={workout.comments?.length || 0} />
           </div>
           <button onClick={handleSteel} style={{
-            background: steeled ? `${COLORS.accent}22` : COLORS.accent, color: steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff'),
+            background: steeled ? `${COLORS.accent}22` : COLORS.accent, color: steeled ? COLORS.accentDim : COLORS.accentText,
             border: steeled ? `1px solid ${COLORS.accent}44` : 'none', borderRadius: 8, padding: '7px 14px',
             fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
           }}>
-            <Icon name="copy" size={14} color={steeled ? COLORS.accent : (COLORS.isDark ? COLORS.bg : '#fff')} />{steeled ? 'Steeled!' : 'Steel it'}
+            <Icon name="copy" size={14} color={steeled ? COLORS.accentDim : COLORS.accentText} />{steeled ? 'Steeled!' : 'Steel it'}
           </button>
         </div>
       </div>
@@ -253,7 +253,7 @@ export default function Feed({ onSteel, onProfile, onWorkout }) {
           <button key={t.id} onClick={() => setFeedTab(t.id)} style={{
             flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600,
             fontFamily: 'inherit', background: 'transparent',
-            color: feedTab === t.id ? COLORS.accent : COLORS.textDim,
+            color: feedTab === t.id ? COLORS.text : COLORS.textDim,
             borderBottom: feedTab === t.id ? `2px solid ${COLORS.accent}` : '2px solid transparent',
             marginBottom: -1,
           }}>{t.label}</button>
