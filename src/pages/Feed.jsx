@@ -101,7 +101,7 @@ function WorkoutCard({ workout, onSteel, onProfile, onWorkout, unitPref }) {
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span onClick={handleProfile} style={{ fontWeight: 700, color: COLORS.text, cursor: 'pointer', fontSize: 14 }}>{p?.display_name}</span>
-                {p?.sport && <Badge color={COLORS.orange}>{p.sport}</Badge>}
+                {p?.sport && <Badge color={COLORS.text}>{p.sport}</Badge>}
               </div>
               <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 1 }}>{timeAgo(workout.created_at)}{p?.gym ? ` · ${p.gym}` : ''}</div>
             </div>
