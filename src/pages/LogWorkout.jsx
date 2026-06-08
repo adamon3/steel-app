@@ -1109,6 +1109,7 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
   const [templateName, setTemplateName] = useState(workout.title || '');
   const [templateSaved, setTemplateSaved] = useState(false);
   const [showTemplateInput, setShowTemplateInput] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const stats = {
     sets: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
@@ -1153,10 +1154,10 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
     <div style={{ padding: '32px 16px', textAlign: 'center', fontFamily: FONTS.sans }}>
       <div style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 64, height: 64, borderRadius: '50%', background: COLORS.text,
-        marginBottom: 20,
+        width: 72, height: 72, borderRadius: '50%', background: COLORS.accent,
+        marginBottom: 20, boxShadow: `0 0 0 8px ${COLORS.accent}1f`,
       }}>
-        <Icon name="check" size={28} color={COLORS.bg} />
+        <Icon name="check" size={32} color={COLORS.accentText} />
       </div>
       <div style={{
         fontSize: 28, fontWeight: 800, color: COLORS.text,
@@ -1175,7 +1176,7 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
         {[
           { label: 'SETS', value: stats.sets, suffix: '' },
           { label: 'VOLUME', value: volDisplay, suffix: volSuffix },
-          { label: 'PR', value: stats.prs, suffix: '' },
+          { label: 'PR', value: stats.prs, suffix: '', hl: stats.prs > 0 },
         ].map(s => (
           <div key={s.label} style={{
             padding: 14, background: COLORS.card, borderRadius: 12,
@@ -1187,7 +1188,7 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
             }}>{s.label}</div>
             <div style={{
               fontFamily: FONTS.mono, fontSize: 24, fontWeight: 700,
-              color: COLORS.text, letterSpacing: '-0.03em', marginTop: 4,
+              color: s.hl ? COLORS.accentDim : COLORS.text, letterSpacing: '-0.03em', marginTop: 4,
             }}>
               {s.value}<span style={{ color: COLORS.textDim, fontSize: 13, fontWeight: 500 }}>{s.suffix}</span>
             </div>
@@ -1226,6 +1227,38 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Full breakdown — tap to expand */}
+      <button onClick={() => setShowBreakdown(v => !v)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '13px 14px', marginBottom: 10, background: COLORS.card,
+        border: `1px solid ${COLORS.border}`, borderRadius: 12, cursor: 'pointer', fontFamily: FONTS.sans,
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Full breakdown</span>
+        <span style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.accentDim, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>{showBreakdown ? 'Hide' : 'View ›'}</span>
+      </button>
+      {showBreakdown && (
+        <div style={{ textAlign: 'left', marginBottom: 10 }}>
+          {workout.exercises.map((ex, ei) => {
+            const done = ex.sets.filter(s => s.completed);
+            if (done.length === 0) return null;
+            return (
+              <div key={ei} style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.name}</div>
+                {done.map((s, si) => (
+                  <div key={si} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: si > 0 ? `1px solid ${COLORS.border}` : 'none' }}>
+                    <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim, letterSpacing: '0.06em' }}>SET {si + 1}{s.set_type && s.set_type !== 'normal' ? ` · ${String(s.set_type).toUpperCase()}` : ''}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      {s.is_pr && <span style={{ background: `${COLORS.accent}20`, color: COLORS.accentDim, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800, fontFamily: FONTS.mono, letterSpacing: '0.06em' }}>PR</span>}
+                      <span style={{ fontFamily: FONTS.mono, fontSize: 13, fontWeight: 600, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>{s.weight > 0 ? `${convertWeight(s.weight, unit)}${unit} × ${s.reps}` : `${s.reps} reps`}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2248,10 +2281,17 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
 
         {!hasAnyExercises && (
           <div style={{
-            textAlign: 'center', padding: '40px 20px 20px',
-            border: `1px dashed ${COLORS.border}`, borderRadius: 14,
-            marginBottom: 12,
+            textAlign: 'center', padding: '36px 20px 28px',
+            border: `1px dashed ${COLORS.borderBright}`, borderRadius: 16,
+            marginBottom: 12, background: COLORS.card,
           }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 56, height: 56, borderRadius: '50%',
+              background: `${COLORS.accent}1f`, border: `1px solid ${COLORS.accent}3d`, marginBottom: 14,
+            }}>
+              <Icon name="weight" size={26} color={COLORS.accentDim} />
+            </div>
             <div style={{
               fontSize: 18, fontWeight: 800, color: COLORS.text,
               letterSpacing: '-0.02em', marginBottom: 4,
