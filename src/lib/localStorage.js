@@ -72,6 +72,20 @@ export function getGuestPreviousSets(exerciseId) {
   return null;
 }
 
+// Most-recent sets for an exercise from workouts saved this session but not yet
+// synced to Supabase (still sitting in the offline queue). Newest queued first.
+export function getQueuedPreviousSets(exerciseId) {
+  const queue = getOfflineQueue();
+  for (let i = queue.length - 1; i >= 0; i--) {
+    for (const ex of (queue[i].exercises || [])) {
+      if (ex.exercise_id === exerciseId && ex.sets?.length > 0) {
+        return ex.sets.map((s, idx) => ({ set_number: idx + 1, weight: s.weight, reps: s.reps }));
+      }
+    }
+  }
+  return null;
+}
+
 // ── Offline queue (any pending save — even if online, queued for resilience) ──
 // Each item has a queue_id so we can remove successful syncs individually
 // without losing concurrent pending items.

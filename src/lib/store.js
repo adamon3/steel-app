@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
-import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, deleteGuestTemplate, updateGuestTemplate, getGuestPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, removeFromOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
+import { getGuestWorkouts, saveGuestWorkout, getGuestTemplates, saveGuestTemplate, deleteGuestTemplate, updateGuestTemplate, getGuestPreviousSets, getQueuedPreviousSets, clearGuestData, getOfflineQueue, addToOfflineQueue, removeFromOfflineQueue, clearOfflineQueue, getCachedExercises, setCachedExercises, isOnline } from './localStorage';
 
 // Race a promise against a timeout. Reject with the named error after `ms`.
 function withTimeout(promise, ms, label = 'timeout') {
@@ -259,6 +259,10 @@ export const useStore = create((set, get) => ({
   getPreviousSets: async (exerciseId) => {
     const { user, isGuest } = get();
     if (isGuest) return getGuestPreviousSets(exerciseId);
+    // A workout finished moments ago lives in the offline queue until it syncs —
+    // check there first so re-adding the same exercise still shows "LAST".
+    const queued = getQueuedPreviousSets(exerciseId);
+    if (queued) return queued;
     if (!user || !isOnline()) return getGuestPreviousSets(exerciseId); // fallback to local
     const { data: workouts } = await supabase
       .from('workouts').select('id').eq('user_id', user.id)

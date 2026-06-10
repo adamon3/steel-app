@@ -1109,15 +1109,15 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
   const [templateName, setTemplateName] = useState(workout.title || '');
   const [templateSaved, setTemplateSaved] = useState(false);
   const [showTemplateInput, setShowTemplateInput] = useState(false);
-  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(true);
 
   const stats = {
     sets: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed).length, 0),
     volume: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.completed && s.set_type !== 'warmup').reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0),
     prs: workout.exercises.reduce((t, e) => t + e.sets.filter(s => s.is_pr).length, 0),
   };
-  const volDisplay = stats.volume >= 1000 ? (stats.volume / 1000).toFixed(1) : String(Math.round(stats.volume));
-  const volSuffix = stats.volume >= 1000 ? ' k' : ` ${unit}`;
+  const volDisplay = Math.round(stats.volume).toLocaleString();
+  const volSuffix = ` ${unit}`;
 
   const oneRMs = workout.exercises.map(e => {
     const best = e.sets.filter(s => s.completed && s.weight > 0).reduce((b, s) => {
@@ -1236,8 +1236,8 @@ function CompletionScreen({ workout, onDone, onReopen, unit, onSaveAsTemplate })
         padding: '13px 14px', marginBottom: 10, background: COLORS.card,
         border: `1px solid ${COLORS.border}`, borderRadius: 12, cursor: 'pointer', fontFamily: FONTS.sans,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Full breakdown</span>
-        <span style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.accentDim, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>{showBreakdown ? 'Hide' : 'View ›'}</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Full workout</span>
+        <span style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.accentDim, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>{showBreakdown ? 'Hide ▴' : 'View ▾'}</span>
       </button>
       {showBreakdown && (
         <div style={{ textAlign: 'left', marginBottom: 10 }}>
@@ -2484,8 +2484,8 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
           total + ex.sets.filter(s => s.completed).length, 0);
         const volume = workoutExercises.reduce((t, e) =>
           t + e.sets.filter(s => s.completed && s.set_type !== 'warmup').reduce((v, s) => v + (s.weight || 0) * (s.reps || 0), 0), 0);
-        const volDisp = volume >= 1000 ? (volume / 1000).toFixed(1) : String(Math.round(volume));
-        const volSuffix = volume >= 1000 ? 'k' : unit;
+        const volDisp = Math.round(volume).toLocaleString();
+        const volSuffix = ` ${unit}`;
         const prCount = workoutExercises.reduce((t, e) => t + e.sets.filter(s => s.is_pr).length, 0);
 
         // Unfinished-sets variant — warning, tighter
