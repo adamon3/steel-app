@@ -41,7 +41,7 @@ src/
     ├── Auth.jsx             # Login/signup
     ├── Feed.jsx             # Home — workout feed with WorkoutCard
     ├── Discover.jsx         # Athlete discovery
-    ├── LogWorkout.jsx       # The logger (THE big component, ~2150 lines)
+    ├── LogWorkout.jsx       # The logger + CompletionScreen (THE big component, ~2400 lines)
     ├── Leaderboard.jsx      # Gym + global rankings
     ├── UserProfile.jsx      # Other people's profiles
     ├── GymCommunity.jsx     # Your gym's feed + members
@@ -105,6 +105,16 @@ I've iterated on these decisions a lot. Don't redo them.
 - Bottom Finish/Cancel buttons after exercise list for natural flow
 - Timer formats `H:MM:SS` for hours, `M:SS` otherwise
 - Enter key on weight → focus reps; Enter on reps → completes set
+- **Previous-set hint ("LAST · weight×reps")**: `loadPrevious(exId)` → store `getPreviousSets`. `getPreviousSets` now checks the offline queue FIRST (`getQueuedPreviousSets` in localStorage.js) before hitting Supabase — so a workout you finished moments ago still shows as "LAST" when you re-add the same exercise, even before it has synced. Weights stored/returned in kg; render does `convertWeight`.
+
+### `CompletionScreen` (inside LogWorkout.jsx) — redesigned
+- Reached at `phase === 'complete'` after `doSave`. Receives `{workout, onDone, onReopen, unit, onSaveAsTemplate}`.
+- Lime celebratory check circle, "Workout complete", duration · exercise count eyebrow.
+- 3 stat cards: SETS / VOLUME / PR (PR value goes lime via `COLORS.accentDim` when `prs > 0`).
+- **Volume format**: full number with thousands separator + unit, e.g. `8,200 kg` (was the ugly "8.2 k kg"). Same clean format used in the celebratory "Nice work!" finish modal. Don't reintroduce the `/1000` + " k" abbreviation.
+- Estimated 1RM list (Epley) per exercise.
+- **"Full workout" section**: full set-by-set breakdown of every completed exercise, **expanded by default** (`showBreakdown` defaults `true`, collapsible). This is the "tap into the workout from completion" that was asked for — it lives here, not on the celebratory modal (which fires pre-save, before there's a saved workout to view).
+- Save-as-template input, "Back to workout" (`onReopen`), and "Done" (`onDone`).
 
 ### `WorkoutDetail.jsx` — just shipped
 This is the **brand new** component. It opens as a fullscreen modal from anywhere a workout appears (Feed, Profile, Profile calendar, UserProfile, GymCommunity).
@@ -139,11 +149,15 @@ Athlete cards only — no workouts here. No changes needed.
 All Supabase calls live here. Workout-specific actions:
 - `saveWorkout`, `_saveWorkoutToSupabase` — for creating new workouts (existing)
 - `fetchWorkout`, `updateWorkoutFull`, `deleteWorkout` — new for the detail view
-- `steelWorkout` — copy a workout into a template structure
+- `steelWorkout` — copy a workout into a template structure (sets `weight: 0` so the steeler enters their own loads)
+- `getPreviousSets` — last sets for an exercise; checks the offline queue first, then Supabase
 - `toggleLike`, `toggleFollow`
-- `fetchFeed` — feed query with deep nested select
+- `fetchFeed` — feed query with deep nested select (now logs query errors instead of swallowing them)
 
 Guest mode: workouts saved to localStorage if `isGuest` or offline. Sync queue gets flushed when user logs in or comes back online.
+
+### localStorage.js
+Guest workouts/templates, prefs, WIP-workout autosave, cached exercises, and the offline queue. New: `getQueuedPreviousSets(exerciseId)` — scans the offline queue (newest first) for an exercise's most recent sets, so just-saved-but-not-yet-synced workouts feed the "LAST" hint.
 
 ---
 
@@ -155,13 +169,30 @@ Guest mode: workouts saved to localStorage if `isGuest` or offline. Sync queue g
 
 ---
 
+## Most recent session (logger polish + marketing pass) — June 2026
+
+Focus was making the app look good for a TikTok/marketing video and tightening the logger journey. Shipped:
+- **Logger journey aesthetics**: lime dumbbell graphic on the "Ready to lift" pre-start empty state; redesigned `CompletionScreen` (lime check, clean stats, full-workout breakdown expanded by default).
+- **3 logger bugs fixed (commit `89266c1`)**: (1) previous sets now show for an exercise you logged earlier the same session, via the offline-queue check in `getPreviousSets`; (2) the full workout breakdown shows by default on completion; (3) volume reads `8,200 kg`, not "8.2 k kg".
+- **Demo-data realism** (for the marketing vid): round/believable weights, "BW" instead of `×0kg` on bodyweight moves, seeded follower counts + recent last-active, a stronger lead feed card, real candid athlete photos (Unsplash, not headshots) on Discover + landing.
+- **Steel journey**: Discover → profile → "Steel this workout" (full-width footer w/ copy icon) → choose start-now or save-as-template. Template page got workout previews + the warmer card styling.
+- **Color/contrast**: added `COLORS.accentDim` (readable lime for text) and `COLORS.accentText` (dark ink for text ON lime). Use these instead of raw `#BFE600` whenever lime carries text. Ambient lime radial-gradient background across pages; desktop is a 520px max-width centered column.
+- **Templates**: `updateTemplate` store action + edit/delete/rename via an options popup; fixed grid overflow + duplicate-template saves.
+
 ## Currently pending / known issues
 
 1. ~~WorkoutDetail edit needs real-world testing.~~ **Resolved by code review:** `likes` and `comments` FK to `workout_id` (not `workout_exercise_id`), so `updateWorkoutFull`'s wipe-and-rebuild of exercises+sets leaves them untouched.
 2. **Profile's other tabs are stale.** Progress / PRs / Body / Following still use older layouts. Stats + Workouts got refreshed (and the privacy_mode segmented control lives in EditProfile).
 3. **PWA install banner.** `manifest.json` is in place but the install prompt's reliability on fresh devices isn't verified.
-4. ~~Service worker / cache.~~ **Resolved:** `registerType: 'prompt'` + `<UpdatePrompt />` banner using `useRegisterSW`. New SW activations now ask the user to refresh (with skipWaiting) instead of being stuck on the old bundle.
+4. ~~Service worker / cache.~~ **Resolved:** `registerType: 'prompt'` + `<UpdatePrompt />` banner using `useRegisterSW`. New SW activations now ask the user to refresh (with skipWaiting) instead of being stuck on the old bundle. **Heads-up:** Adam is often on a stale cached bundle — if something "still isn't fixed," check whether he's applied the update banner / hard-refreshed before re-debugging.
 5. ~~Offline-first cache strategy untuned.~~ **Resolved.** Workbox `runtimeCaching` now caches Supabase REST GET (NetworkFirst, 14d), Storage (CacheFirst, 30d), Google Fonts, OSM tiles. Read flows (feed / profile / workouts / templates / exercises) serve from cache when offline. Writes still queue via the existing localStorage path. Saving a workout offline works; logging a fresh one offline works; browsing your recent feed offline works. Likes/comments still fail offline — out of scope for v1.
+6. **Two pre-existing JSX warnings** in LogWorkout.jsx (duplicate `min`/`max`/`step` attrs on the weight/reps inputs, ~line 513 & 535). Harmless — build succeeds — but worth cleaning up.
+
+### Workflow / environment notes for the next model
+- **Deploys**: push to `main` → Vercel auto-deploys both app and landing. Build locally first to catch errors (`npx vite build` in the repo root).
+- **Git from this environment**: commit via the dev-machine shell. Quoting is fragile through the tool wrapper — keep commit messages to a single token with no spaces (e.g. `-m "fix_logger_volume"`), or the words get parsed as pathspecs.
+- **Don't**: enter Adam's passwords / log in for him, or permanently delete his workouts/templates (demote via dates and let him delete). He logs in himself.
+- **Supabase RLS** on `workouts`: SELECT allowed when `is_public = true OR auth.uid() = user_id`.
 
 ---
 
@@ -186,4 +217,4 @@ git log --oneline -20
 ls -R src/
 ```
 
-Skim `src/App.jsx`, `src/lib/store.js`, and `src/pages/WorkoutDetail.jsx` to orient yourself on the most recently-touched files. Then ask me what's next — don't start writing code until I tell you what I want.
+Skim `src/App.jsx`, `src/lib/store.js`, `src/pages/LogWorkout.jsx` (logger + CompletionScreen — most recently touched), and `src/pages/WorkoutDetail.jsx` to orient yourself. Then ask me what's next — don't start writing code until I tell you what I want.
