@@ -30,13 +30,13 @@ export function PlateCalculator() {
 
   return (
     <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, border: `1px solid ${COLORS.border}` }}>
-      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Icon name="weight" size={18} color={COLORS.accent} /> Plate Calculator
+      <div style={{ fontSize: 15, fontWeight: 800, color: COLORS.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.01em' }}>
+        <Icon name="weight" size={18} color={COLORS.accentDim} /> Plate calculator
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <div style={{ flex: 2 }}>
-          <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4, fontWeight: 600 }}>TARGET WEIGHT (kg)</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim, marginBottom: 4, fontWeight: 500, letterSpacing: '0.12em' }}>TARGET WEIGHT (KG)</div>
           <input type="number" inputMode="decimal" value={targetWeight} onChange={e => setTargetWeight(e.target.value)}
             placeholder="e.g. 100" style={{
               width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
@@ -45,7 +45,7 @@ export function PlateCalculator() {
             }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4, fontWeight: 600 }}>BAR (kg)</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim, marginBottom: 4, fontWeight: 500, letterSpacing: '0.12em' }}>BAR (KG)</div>
           <select value={barWeight} onChange={e => setBarWeight(Number(e.target.value))} style={{
             width: '100%', padding: '10px 8px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
             background: COLORS.bg, color: COLORS.text, fontSize: 14, fontFamily: 'inherit', outline: 'none',
@@ -61,8 +61,8 @@ export function PlateCalculator() {
 
       {target > 0 && perSide > 0 && (
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>
-            Each side: <strong style={{ color: COLORS.text }}>{perSide}kg</strong>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim, marginBottom: 8, letterSpacing: '0.04em', fontVariantNumeric: 'tabular-nums' }}>
+            EACH SIDE · <strong style={{ color: COLORS.text }}>{perSide}KG</strong>
           </div>
           {/* Visual bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '12px 0', marginBottom: 8 }}>
@@ -71,11 +71,11 @@ export function PlateCalculator() {
               const h = 20 + (p / 25) * 30;
               return (
                 <div key={`l-${i}`} style={{
-                  width: p >= 10 ? 14 : 10, height: h, borderRadius: 2,
-                  background: p >= 20 ? COLORS.accent : p >= 10 ? COLORS.orange : p >= 5 ? '#448AFF' : '#AB47BC',
+                  width: p >= 10 ? 14 : 10, height: h, borderRadius: 3,
+                  background: p >= 20 ? COLORS.accent : p >= 10 ? '#1A1A1A' : p >= 5 ? '#4A4A48' : '#9CA3AF',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 7, fontWeight: 700, color: COLORS.isDark ? COLORS.bg : '#fff', writingMode: 'vertical-rl' }}>{p}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700, color: p >= 20 ? '#0A0A0A' : '#FAFAFA', writingMode: 'vertical-rl' }}>{p}</span>
                 </div>
               );
             })}
@@ -86,11 +86,11 @@ export function PlateCalculator() {
               const h = 20 + (p / 25) * 30;
               return (
                 <div key={`r-${i}`} style={{
-                  width: p >= 10 ? 14 : 10, height: h, borderRadius: 2,
-                  background: p >= 20 ? COLORS.accent : p >= 10 ? COLORS.orange : p >= 5 ? '#448AFF' : '#AB47BC',
+                  width: p >= 10 ? 14 : 10, height: h, borderRadius: 3,
+                  background: p >= 20 ? COLORS.accent : p >= 10 ? '#1A1A1A' : p >= 5 ? '#4A4A48' : '#9CA3AF',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 7, fontWeight: 700, color: COLORS.isDark ? COLORS.bg : '#fff', writingMode: 'vertical-rl' }}>{p}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700, color: p >= 20 ? '#0A0A0A' : '#FAFAFA', writingMode: 'vertical-rl' }}>{p}</span>
                 </div>
               );
             })}
@@ -99,15 +99,17 @@ export function PlateCalculator() {
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
             {plates.map((p, i) => (
               <span key={i} style={{
-                padding: '4px 10px', borderRadius: 6, fontSize: 13, fontWeight: 700,
-                background: p >= 20 ? `${COLORS.accent}20` : p >= 10 ? `${COLORS.orange}20` : `${COLORS.border}`,
-                color: p >= 20 ? COLORS.accent : p >= 10 ? COLORS.orange : COLORS.text,
+                padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums',
+                background: p >= 20 ? 'rgba(191,230,0,0.18)' : COLORS.card2,
+                color: p >= 20 ? COLORS.accentDim : COLORS.text,
+                border: `1px solid ${p >= 20 ? `${COLORS.accent}55` : COLORS.border}`,
               }}>{p}kg</span>
             ))}
           </div>
           {actualWeight !== target && (
-            <div style={{ fontSize: 11, color: COLORS.orange, marginTop: 8, textAlign: 'center' }}>
-              Closest loadable: {actualWeight}kg
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.orange, marginTop: 8, textAlign: 'center', letterSpacing: '0.06em' }}>
+              CLOSEST LOADABLE · {actualWeight}KG
             </div>
           )}
         </div>

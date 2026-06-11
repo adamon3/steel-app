@@ -49,21 +49,24 @@ export default function BodyStats({ unit }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>Body Stats</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.01em' }}>Body stats</div>
         <button onClick={() => setShowAdd(!showAdd)} style={{
-          background: COLORS.accent, border: 'none', borderRadius: 8, padding: '7px 14px',
-          cursor: 'pointer', fontSize: 12, fontWeight: 700, color: COLORS.isDark ? COLORS.bg : '#fff', fontFamily: 'inherit',
+          background: showAdd ? 'transparent' : COLORS.accent,
+          border: showAdd ? `1px solid ${COLORS.border}` : 'none',
+          borderRadius: 999, padding: '7px 16px',
+          cursor: 'pointer', fontSize: 12, fontWeight: 700,
+          color: showAdd ? COLORS.textDim : COLORS.accentText, fontFamily: 'inherit',
         }}>{showAdd ? 'Cancel' : '+ Log'}</button>
       </div>
 
       {/* Add entry form */}
       {showAdd && (
         <div style={{ background: COLORS.card, borderRadius: 14, padding: 16, marginBottom: 14, border: `1px solid ${COLORS.border}` }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 10 }}>New Entry</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 500, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>New entry</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {MEASUREMENTS.map(m => (
               <div key={m}>
-                <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 3, fontWeight: 600 }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim, marginBottom: 4, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   {m} {m === 'Weight' ? `(${unit})` : m === 'Body Fat %' ? '' : '(cm)'}
                 </div>
                 <input type="number" inputMode="decimal" value={form[m] || ''}
@@ -78,9 +81,9 @@ export default function BodyStats({ unit }) {
             ))}
           </div>
           <button onClick={handleSave} style={{
-            width: '100%', padding: 12, borderRadius: 10, border: 'none', background: COLORS.accent,
-            color: COLORS.isDark ? COLORS.bg : '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', marginTop: 12,
-          }}>Save Entry</button>
+            width: '100%', padding: 13, borderRadius: 999, border: 'none', background: COLORS.accent,
+            color: COLORS.accentText, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', marginTop: 12, letterSpacing: '-0.01em',
+          }}>Save entry</button>
         </div>
       )}
 
@@ -92,8 +95,8 @@ export default function BodyStats({ unit }) {
               background: COLORS.card, borderRadius: 10, padding: '10px 14px', border: `1px solid ${COLORS.border}`,
               minWidth: 80, textAlign: 'center', flexShrink: 0,
             }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{latest[m]}</div>
-              <div style={{ fontSize: 10, color: COLORS.textDim }}>{m}</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 700, color: COLORS.text, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{latest[m]}</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: COLORS.textDim, marginTop: 3, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500 }}>{m}</div>
             </div>
           ))}
         </div>
@@ -105,10 +108,11 @@ export default function BodyStats({ unit }) {
           <div style={{ display: 'flex', gap: 4, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
             {MEASUREMENTS.map(m => (
               <button key={m} onClick={() => setSelectedMetric(m)} style={{
-                padding: '5px 10px', borderRadius: 16, border: 'none', cursor: 'pointer',
+                padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
                 fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
                 background: selectedMetric === m ? COLORS.accent : COLORS.card,
-                color: selectedMetric === m ? COLORS.bg : COLORS.textDim,
+                color: selectedMetric === m ? COLORS.accentText : COLORS.textDim,
+                border: `1px solid ${selectedMetric === m ? COLORS.accent : COLORS.border}`,
               }}>{m}</button>
             ))}
           </div>
@@ -116,7 +120,7 @@ export default function BodyStats({ unit }) {
           {/* Chart */}
           {history.length >= 2 ? (
             <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, border: `1px solid ${COLORS.border}` }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.textDim, marginBottom: 8 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 500, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
                 {selectedMetric} ({unitLabel}) over time
               </div>
               <svg width={chartW} height={chartH} style={{ maxWidth: '100%' }}>
@@ -159,7 +163,7 @@ export default function BodyStats({ unit }) {
               {/* Change indicator */}
               {history.length >= 2 && (
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 6 }}>
-                  Change: <span style={{ fontWeight: 700, color: history[history.length - 1].value >= history[0].value ? COLORS.accent : COLORS.red }}>
+                  Change: <span style={{ fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: history[history.length - 1].value >= history[0].value ? COLORS.accentDim : COLORS.red }}>
                     {history[history.length - 1].value >= history[0].value ? '+' : ''}{(history[history.length - 1].value - history[0].value).toFixed(1)} {unitLabel}
                   </span> over {history.length} entries
                 </div>

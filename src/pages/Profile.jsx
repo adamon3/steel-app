@@ -14,7 +14,7 @@ function SubTab({ tabs, active, onChange }) {
         <button key={t} onClick={() => onChange(t)} style={{
           flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
           fontFamily: 'inherit', background: 'transparent',
-          color: active === t ? COLORS.accent : COLORS.textDim,
+          color: active === t ? COLORS.text : COLORS.textDim,
           borderBottom: active === t ? `2px solid ${COLORS.accent}` : '2px solid transparent', marginBottom: -1,
         }}>{t}</button>
       ))}
@@ -89,7 +89,7 @@ function StatsView({ workouts, unit, onWorkout }) {
         {/* Day headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4, maxWidth: 420, margin: '0 auto 4px' }}>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-            <div key={i} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: COLORS.textDim, padding: 4 }}>{d}</div>
+            <div key={i} style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 500, letterSpacing: '0.1em', color: COLORS.textDim, padding: 4 }}>{d}</div>
           ))}
         </div>
 
@@ -189,22 +189,21 @@ function StatsView({ workouts, unit, onWorkout }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
         {[
-          { icon: 'weight', v: total, l: 'Workouts' },
-          { icon: 'weight', v: formatVolume(convertWeight(totalVol, unit)), l: `Total ${unit}` },
-          { icon: 'fire', v: streak, l: 'Week Streak' },
-          { icon: 'clock', v: `${Math.round(totalMins / 60)}h`, l: 'Total Time' },
-          { icon: 'weight', v: totalSets, l: 'Total Sets' },
-          { icon: 'trophy', v: prSessions, l: 'PR Sessions' },
+          { v: total, l: 'Workouts' },
+          { v: formatVolume(convertWeight(totalVol, unit)), l: `Total ${unit}` },
+          { v: streak, l: 'Week streak', hot: streak > 1 },
+          { v: `${Math.round(totalMins / 60)}h`, l: 'Total time' },
+          { v: totalSets, l: 'Total sets' },
+          { v: prSessions, l: 'PR sessions', hot: prSessions > 0 },
         ].map((s, i) => (
-          <div key={i} style={{ background: COLORS.card, borderRadius: 12, padding: '14px 10px', textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-            <Icon name={s.icon} size={16} color={COLORS.textDim} />
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700, color: COLORS.text, marginTop: 4, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{s.v}</div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim, marginTop: 3, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500 }}>{s.l}</div>
+          <div key={i} style={{ background: COLORS.card, borderRadius: 12, padding: 12, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: COLORS.textDim, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 500, whiteSpace: 'nowrap' }}>{s.l}</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700, color: s.hot ? COLORS.accentDim : COLORS.text, marginTop: 5, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{s.v}</div>
           </div>
         ))}
       </div>
-      <div style={{ background: `${COLORS.accent}10`, borderRadius: 12, padding: 16, border: `1px solid ${COLORS.accent}25` }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accent, marginBottom: 8 }}>This Week</div>
+      <div style={{ background: COLORS.isDark ? 'rgba(191,230,0,0.07)' : 'rgba(191,230,0,0.10)', borderRadius: 12, padding: 16, border: `1px solid ${COLORS.accent}55` }}>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 500, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>This week</div>
         <div style={{ display: 'flex', justifyContent: 'space-around' }}>
           {[
             { v: thisWeek.length, l: 'Workouts' },
@@ -212,8 +211,8 @@ function StatsView({ workouts, unit, onWorkout }) {
             { v: thisWeek.reduce((s, w) => s + (w.total_sets || 0), 0), l: 'Sets' },
           ].map((s, i) => (
             <div key={i} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text }}>{s.v}</div>
-              <div style={{ fontSize: 11, color: COLORS.textDim }}>{s.l}</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 22, fontWeight: 700, color: COLORS.text, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{s.v}</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: COLORS.textDim, marginTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500 }}>{s.l}</div>
             </div>
           ))}
         </div>
@@ -273,7 +272,7 @@ function ProgressView({ workouts, unit }) {
     }).join(' ');
     return (
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDim, marginBottom: 4 }}>{label}</div>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 500, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
         <svg width={chartW} height={chartH} style={{ maxWidth: '100%' }}>
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map(p => {
@@ -310,17 +309,18 @@ function ProgressView({ workouts, unit }) {
       {/* Muscle group heatmap */}
       {Object.keys(muscleCount).length > 0 && (
         <div style={{ background: COLORS.card, borderRadius: 12, padding: 14, marginBottom: 16, border: `1px solid ${COLORS.border}` }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>This Week's Muscle Groups</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 500, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Trained this week</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {Object.entries(muscleCount).sort((a, b) => b[1] - a[1]).map(([group, count]) => {
               const intensity = Math.min(count / 4, 1);
               return (
                 <div key={group} style={{
-                  padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  background: `rgba(191, 230, 0, ${0.1 + intensity * 0.3})`,
-                  color: COLORS.textDim,
-                  border: `1px solid rgba(191, 230, 0, ${0.2 + intensity * 0.25})`,
-                }}>{group} ({count})</div>
+                  padding: '6px 11px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+                  fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.04em',
+                  background: `rgba(191, 230, 0, ${0.10 + intensity * 0.3})`,
+                  color: COLORS.text,
+                  border: `1px solid rgba(143, 172, 0, ${0.25 + intensity * 0.3})`,
+                }}>{group} · {count}</div>
               );
             })}
           </div>
@@ -337,10 +337,11 @@ function ProgressView({ workouts, unit }) {
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
           {exerciseNames.slice(0, 15).map(name => (
             <button key={name} onClick={() => setSelectedExercise(name)} style={{
-              padding: '6px 12px', borderRadius: 16, border: 'none', cursor: 'pointer',
+              padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
               fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit',
               background: active === name ? COLORS.accent : COLORS.card,
-              color: active === name ? COLORS.bg : COLORS.textDim,
+              color: active === name ? COLORS.accentText : COLORS.textDim,
+              border: `1px solid ${active === name ? COLORS.accent : COLORS.border}`,
             }}>{name} ({exerciseHistory[name].length})</button>
           ))}
         </div>
@@ -352,8 +353,8 @@ function ProgressView({ workouts, unit }) {
           <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 12 }}>{active}</div>
           {renderChart(data.map(d => d.maxWeight), 'Max Weight', COLORS.accent)}
           {renderChart(data.map(d => d.est1RM), 'Estimated 1RM', COLORS.orange)}
-          {renderChart(data.map(d => d.totalVol), 'Session Volume', '#448AFF')}
-          <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 8 }}>{data.length} sessions tracked</div>
+          {renderChart(data.map(d => d.totalVol), 'Session Volume', COLORS.text)}
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim, marginTop: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{data.length} sessions tracked</div>
         </div>
       )}
     </div>
@@ -519,7 +520,7 @@ function PRsView({ workouts, unit }) {
       }}>Personal records · {sorted.length} lifts</div>
       {sorted.map((pr, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: COLORS.card, borderRadius: 10, marginBottom: 6, border: `1px solid ${i < 3 ? `${COLORS.pro}33` : COLORS.border}` }}>
-          <span style={{ width: 28, textAlign: 'center', fontSize: 14, fontWeight: 700, color: i === 0 ? COLORS.pro : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : COLORS.textDim }}>{i + 1}</span>
+          <span style={{ width: 28, textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: i < 3 ? 14 : 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: i === 0 ? '#D4A017' : i === 1 ? '#9CA3AF' : i === 2 ? '#CD7F32' : COLORS.textDim }}>{i + 1}</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>{pr.exerciseName}</div>
             <div style={{ fontSize: 11, color: COLORS.textDim }}>{timeAgo(pr.date)}</div>
@@ -557,7 +558,7 @@ function FollowingView({ userId, onViewProfile }) {
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
             fontSize: 13, fontWeight: 600, fontFamily: 'inherit', background: 'transparent',
-            color: tab === t ? COLORS.accent : COLORS.textDim,
+            color: tab === t ? COLORS.text : COLORS.textDim,
             borderBottom: tab === t ? `2px solid ${COLORS.accent}` : '2px solid transparent',
             marginBottom: -1,
           }}>
