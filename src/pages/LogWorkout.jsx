@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { getWIPWorkout, setWIPWorkout, clearWIPWorkout } from '../lib/localStorage';
-import { COLORS, Icon, Spinner, convertWeight, convertWeightBack } from '../components/UI';
+import { COLORS, Icon, IconTile, Spinner, convertWeight, convertWeightBack } from '../components/UI';
 
 const FONTS = {
   sans: "'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -259,7 +259,7 @@ function RestPanel({ remaining, duration, paused, onPause, onResume, onReset, on
       <div
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 44,
+          position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 44,
         }}
       />
       {/* Sheet */}
@@ -2027,7 +2027,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
 
         {/* Template options menu */}
         {templateMenu && (
-          <div onClick={() => setTemplateMenu(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 60, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16 }}>
+          <div onClick={() => setTemplateMenu(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 60, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: COLORS.card, borderRadius: 16, padding: 16, width: '100%', maxWidth: 380, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans, marginBottom: 8 }}>
               <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 4 }}>Template</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{templateMenu.name}</div>
@@ -2040,7 +2040,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
 
         {/* Delete confirm */}
         {confirmDeleteTemplate && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 66, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 66, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <div style={{ background: COLORS.card, borderRadius: 16, padding: 22, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, marginBottom: 6 }}>Delete template?</div>
               <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.5 }}>"{confirmDeleteTemplate.name}" will be removed. This can't be undone.</div>
@@ -2390,7 +2390,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
       {/* Workout notes editor */}
       {showNotesEditor && (
         <div onClick={() => setShowNotesEditor(false)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 45,
+          position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 45,
           display: 'flex', alignItems: 'flex-end',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
@@ -2428,7 +2428,7 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
       {/* Exercise notes editor */}
       {editingExercise && (
         <div onClick={() => setExerciseNotesIdx(null)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 45,
+          position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.5)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 45,
           display: 'flex', alignItems: 'flex-end',
         }}>
           <div onClick={e => e.stopPropagation()} style={{
@@ -2492,13 +2492,22 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
         if (unfinished > 0) {
           return (
             <div style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
+              position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 55,
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
             }}>
               <div style={{
-                background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 320, width: '100%',
+                background: `radial-gradient(200px 120px at 88% -25px, ${COLORS.isDark ? 'rgba(251,146,60,0.10)' : 'rgba(234,88,12,0.07)'}, transparent 60%), ${COLORS.card}`,
+                borderRadius: 20, padding: 22, maxWidth: 320, width: '100%',
                 border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
+                boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
               }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 16, height: 2, background: COLORS.orange, borderRadius: 1 }} />
+                    Unfinished sets
+                  </span>
+                  <IconTile name="clock" tone="orange" size={40} />
+                </div>
                 <div style={{
                   fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
                 }}>Finish without these sets?</div>
@@ -2527,12 +2536,14 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
         // Everything-complete variant — celebratory summary
         return (
           <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 55,
+            position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 55,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
           }}>
             <div style={{
-              background: COLORS.card, borderRadius: 20, padding: '28px 22px 22px', maxWidth: 340, width: '100%',
+              background: `radial-gradient(240px 140px at 88% -30px, rgba(191,230,0,0.16), transparent 60%), ${COLORS.card}`,
+              borderRadius: 20, padding: '28px 22px 22px', maxWidth: 340, width: '100%',
               border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans, textAlign: 'center',
+              boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
             }}>
               {/* Lime check circle */}
               <div style={{
@@ -2642,13 +2653,22 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
           t + ex.sets.filter(s => s.completed).length, 0);
         return (
           <div style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55,
+            position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 55,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
           }}>
             <div style={{
-              background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 320, width: '100%',
+              background: `radial-gradient(200px 120px at 88% -25px, ${completedCount > 0 ? (COLORS.isDark ? 'rgba(248,113,113,0.10)' : 'rgba(220,38,38,0.06)') : 'rgba(191,230,0,0.12)'}, transparent 60%), ${COLORS.card}`,
+              borderRadius: 20, padding: 22, maxWidth: 320, width: '100%',
               border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
+              boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
             }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 16, height: 2, background: completedCount > 0 ? COLORS.red : COLORS.accent, borderRadius: 1 }} />
+                  {completedCount > 0 ? 'Unsaved sets' : 'Cancel workout'}
+                </span>
+                <IconTile name={completedCount > 0 ? 'trash' : 'back'} tone={completedCount > 0 ? 'red' : 'neutral'} size={40} />
+              </div>
               <div style={{
                 fontSize: 17, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6,
               }}>Cancel workout?</div>
@@ -2686,13 +2706,18 @@ export default function LogWorkout({ prefill, onDone, onMinimize, onActiveChange
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 340, width: '100%',
+            background: `radial-gradient(220px 130px at 88% -25px, rgba(191,230,0,0.16), transparent 60%), ${COLORS.card}`,
+            borderRadius: 20, padding: 22, maxWidth: 340, width: '100%',
             border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
+            boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
           }}>
-            <div style={{
-              fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
-              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 10,
-            }}>New template</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 16, height: 2, background: COLORS.accent, borderRadius: 1 }} />
+                New template
+              </span>
+              <IconTile name="copy" tone="lime" size={40} />
+            </div>
             <input
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}

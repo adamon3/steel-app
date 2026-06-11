@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Icon, Spinner, Avatar, convertWeight, convertWeightBack, getInitials } from '../components/UI';
+import { COLORS, Icon, IconTile, Spinner, Avatar, convertWeight, convertWeightBack, getInitials } from '../components/UI';
 
 const FONTS = {
   sans: "'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -897,13 +897,22 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
       {/* Delete confirm */}
       {showDeleteConfirm && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 90,
+          position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 90,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
         }}>
           <div style={{
-            background: COLORS.card, borderRadius: 16, padding: 22, maxWidth: 320, width: '100%',
+            background: `radial-gradient(200px 120px at 88% -25px, ${COLORS.isDark ? 'rgba(248,113,113,0.10)' : 'rgba(220,38,38,0.06)'}, transparent 60%), ${COLORS.card}`,
+            borderRadius: 20, padding: 22, maxWidth: 320, width: '100%',
             border: `1px solid ${COLORS.border}`, fontFamily: FONTS.sans,
+            boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
           }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 16, height: 2, background: COLORS.red, borderRadius: 1 }} />
+                Permanent
+              </span>
+              <IconTile name="trash" tone="red" size={40} />
+            </div>
             <div style={{
               fontSize: 17, fontWeight: 800, color: COLORS.text,
               letterSpacing: '-0.02em', marginBottom: 6,

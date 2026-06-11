@@ -67,7 +67,7 @@ export default function Auth({ onClose, message, initialMode }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 60,
+      position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 60,
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
     }}>
       <div style={{

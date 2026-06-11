@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+import { COLORS, Avatar, Badge, Icon, IconTile, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
 import Leaderboard from './Leaderboard';
 
 const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -325,9 +325,11 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
         )}
 
         {!searchQuery && pinnedGyms.length === 0 && legacyGyms.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <Icon name="pin" size={32} color={COLORS.textDim} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginTop: 8 }}>Be the first!</div>
+          <div style={{ textAlign: 'center', padding: '28px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <IconTile name="pin" tone="lime" size={52} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: COLORS.text, marginTop: 12, letterSpacing: '-0.01em' }}>Be the first!</div>
             <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4 }}>Search your gym above to drop the first pin.</div>
           </div>
         )}

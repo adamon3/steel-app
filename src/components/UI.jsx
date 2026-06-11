@@ -407,22 +407,92 @@ export function Spinner() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ICON TILE — rounded square icon chip used in modals + empty states
+// ═══════════════════════════════════════════════════════════════
+
+export function IconTile({ name, tone = 'lime', size = 48 }) {
+  const cl = getColors();
+  const tones = {
+    lime: { bg: cl.isDark ? 'rgba(191,230,0,0.12)' : 'rgba(191,230,0,0.18)', border: cl.isDark ? 'rgba(191,230,0,0.3)' : 'rgba(143,172,0,0.35)', icon: cl.accentDim },
+    red: { bg: cl.isDark ? 'rgba(248,113,113,0.12)' : 'rgba(220,38,38,0.08)', border: cl.isDark ? 'rgba(248,113,113,0.3)' : 'rgba(220,38,38,0.22)', icon: cl.red },
+    orange: { bg: cl.isDark ? 'rgba(251,146,60,0.12)' : 'rgba(234,88,12,0.08)', border: cl.isDark ? 'rgba(251,146,60,0.3)' : 'rgba(234,88,12,0.22)', icon: cl.orange },
+    neutral: { bg: cl.card2, border: cl.border, icon: cl.textDim },
+  };
+  const t = tones[tone] || tones.lime;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: Math.round(size * 0.28),
+      background: t.bg, border: `1px solid ${t.border}`, flexShrink: 0,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Icon name={name} size={Math.round(size * 0.46)} color={t.icon} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL PRIMITIVES — blurred overlay + card with ambient lime
+// ═══════════════════════════════════════════════════════════════
+
+export function ModalOverlay({ children, onClick, z = 55 }) {
+  return (
+    <div onClick={onClick} style={{
+      position: 'fixed', inset: 0, zIndex: z,
+      background: 'rgba(10,10,10,0.55)',
+      backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }}>{children}</div>
+  );
+}
+
+export function ModalCard({ children, maxWidth = 340, tone = 'lime', style: s = {} }) {
+  const cl = getColors();
+  const ambient = {
+    lime: 'rgba(191,230,0,0.16)',
+    red: cl.isDark ? 'rgba(248,113,113,0.10)' : 'rgba(220,38,38,0.07)',
+    orange: cl.isDark ? 'rgba(251,146,60,0.10)' : 'rgba(234,88,12,0.07)',
+    neutral: 'transparent',
+  };
+  return (
+    <div onClick={e => e.stopPropagation()} style={{
+      background: `radial-gradient(240px 140px at 88% -30px, ${ambient[tone] || ambient.lime}, transparent 60%), ${cl.card}`,
+      borderRadius: 20, padding: '22px 22px 20px', width: '100%', maxWidth,
+      border: `1px solid ${cl.border}`,
+      boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
+      fontFamily: FONTS.sans,
+      ...s,
+    }}>{children}</div>
+  );
+}
+
+export function ModalEyebrow({ children, color }) {
+  const cl = getColors();
+  return (
+    <div style={{
+      fontFamily: FONTS.mono, fontSize: 10, fontWeight: 500,
+      letterSpacing: '0.14em', textTransform: 'uppercase',
+      color: color || cl.textDim,
+      display: 'flex', alignItems: 'center', gap: 8,
+    }}>
+      <span style={{ width: 16, height: 2, background: cl.accent, borderRadius: 1 }} />
+      {children}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EMPTY STATE
 // ═══════════════════════════════════════════════════════════════
 
 export function EmptyState({ icon, title, subtitle }) {
   const cl = getColors();
   return (
-    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%', background: cl.card2,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 16, border: `1px solid ${cl.border}`,
-      }}>
-        <Icon name={icon || 'search'} size={22} color={cl.textDim} />
+    <div style={{ textAlign: 'center', padding: '52px 24px' }}>
+      <div style={{ display: 'inline-block', marginBottom: 16 }}>
+        <IconTile name={icon || 'search'} tone="lime" size={56} />
       </div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: cl.text, marginBottom: 4, fontFamily: FONTS.sans, letterSpacing: '-0.01em' }}>{title}</div>
-      <div style={{ fontSize: 13, color: cl.textDim }}>{subtitle}</div>
+      <div style={{ fontSize: 16, fontWeight: 800, color: cl.text, marginBottom: 5, fontFamily: FONTS.sans, letterSpacing: '-0.01em' }}>{title}</div>
+      <div style={{ fontSize: 13, color: cl.textDim, lineHeight: 1.5, maxWidth: 260, margin: '0 auto' }}>{subtitle}</div>
     </div>
   );
 }

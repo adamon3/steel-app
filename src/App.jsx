@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from './lib/store';
-import { useTheme, getColors, refreshColors, COLORS, BottomTabBar, Toast, Spinner, Avatar, Icon, getInitials } from './components/UI';
+import { useTheme, getColors, refreshColors, COLORS, FONTS, BottomTabBar, Toast, Spinner, Avatar, Icon, IconTile, ModalOverlay, ModalCard, ModalEyebrow, getInitials } from './components/UI';
 import Auth from './pages/Auth';
 import Feed from './pages/Feed';
 import Discover from './pages/Discover';
@@ -37,15 +37,19 @@ function AuthGate({ children, message, onSignUp }) {
         background: COLORS.isDark ? 'rgba(10,10,10,0.6)' : 'rgba(250,250,250,0.6)',
       }}>
         <div style={{
-          background: COLORS.card, borderRadius: 20, padding: '28px 24px', textAlign: 'center',
+          background: `radial-gradient(200px 120px at 85% -25px, rgba(191,230,0,0.16), transparent 60%), ${COLORS.card}`,
+          borderRadius: 20, padding: '28px 24px', textAlign: 'center',
           border: `1px solid ${COLORS.border}`,
+          boxShadow: '0 24px 64px -16px rgba(0,0,0,0.35)',
           maxWidth: 300, width: '100%',
           fontFamily: "'Inter Tight', sans-serif",
         }}>
-          <Icon name="lock" size={32} color={COLORS.textDim} />
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <IconTile name="lock" tone="lime" size={52} />
+          </div>
           <div style={{
             fontWeight: 800, fontSize: 18, color: COLORS.text,
-            letterSpacing: '-0.02em', marginTop: 12,
+            letterSpacing: '-0.02em', marginTop: 14,
           }}>
             {message || 'Sign up to unlock'}
           </div>
@@ -107,6 +111,7 @@ export default function App() {
   const [workoutMinimized, setWorkoutMinimized] = useState(false);
   const [minimizedInfo, setMinimizedInfo] = useState(null);
   const [workoutActive, setWorkoutActive] = useState(false);
+  const [overwriteAsk, setOverwriteAsk] = useState(null);
 
   // If user switches to solo while on a social tab, bounce them to log
   useEffect(() => {
@@ -162,13 +167,12 @@ export default function App() {
     if (steelData) {
       const tmplName = `${steelData.title} (from ${steelData.from})`;
       const exs = steelData.template.exercises;
-      let res = await useStore.getState().saveTemplate(tmplName, exs);
+      const res = await useStore.getState().saveTemplate(tmplName, exs);
       if (res?.conflict) {
-        if (window.confirm(`You already have a template called "${res.name}". Overwrite it?`)) {
-          res = await useStore.getState().saveTemplate(tmplName, exs, { overwrite: true });
-        } else {
-          res = null;
-        }
+        setOverwriteAsk({ name: tmplName, exs, existingName: res.name, title: steelData.title });
+        setShowSteelPopup(false);
+        setSteelData(null);
+        return;
       }
       if (res) showToast(`Saved "${steelData.title}" as a template!`);
     }
@@ -284,8 +288,10 @@ export default function App() {
         {tab === 'profile' && (
           isGuest ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <Icon name="user" size={48} color={COLORS.textDim} />
-              <div style={{ fontWeight: 700, fontSize: 18, color: COLORS.text, marginTop: 12 }}>Your Profile</div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <IconTile name="user" tone="lime" size={56} />
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 18, color: COLORS.text, marginTop: 14, letterSpacing: '-0.01em' }}>Your Profile</div>
               <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 4, marginBottom: 20, lineHeight: 1.5 }}>
                 Sign up to save your workouts to the cloud, access them from any device, and join the community.
               </div>
@@ -447,23 +453,42 @@ export default function App() {
 
       {/* Steel It popup */}
       {showSteelPopup && steelData && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{
-            background: COLORS.card, borderRadius: 16, padding: 22, width: '100%', maxWidth: 340,
-            border: `1px solid ${COLORS.border}`, fontFamily: "'Inter Tight', sans-serif",
-          }}>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: COLORS.textDim,
-              letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 8,
-            }}>STEEL IT</div>
-            <div style={{
-              fontSize: 20, fontWeight: 800, color: COLORS.text,
-              letterSpacing: '-0.02em', marginBottom: 4,
-            }}>{steelData.title}</div>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.textDim,
-              letterSpacing: '0.06em', marginBottom: 20,
-            }}>FROM {steelData.from?.toUpperCase()}</div>
+        <ModalOverlay onClick={() => { setShowSteelPopup(false); setSteelData(null); }}>
+          <ModalCard maxWidth={350}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+              <div style={{ minWidth: 0 }}>
+                <ModalEyebrow>Steel it</ModalEyebrow>
+                <div style={{
+                  fontSize: 22, fontWeight: 800, color: COLORS.text,
+                  letterSpacing: '-0.02em', marginTop: 10,
+                }}>{steelData.title}</div>
+                <div style={{
+                  fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim,
+                  letterSpacing: '0.1em', marginTop: 4, textTransform: 'uppercase',
+                }}>From {steelData.from}</div>
+              </div>
+              <IconTile name="copy" tone="lime" size={44} />
+            </div>
+
+            {(steelData.template?.exercises || []).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                {steelData.template.exercises.slice(0, 4).map((ex, i) => (
+                  <div key={i} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 11px', marginBottom: 4, background: COLORS.card2, borderRadius: 8,
+                  }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.name}</span>
+                    <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textDim, fontVariantNumeric: 'tabular-nums', flexShrink: 0, marginLeft: 10 }}>{(ex.sets || []).length} sets</span>
+                  </div>
+                ))}
+                {steelData.template.exercises.length > 4 && (
+                  <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textDim, textAlign: 'center', paddingTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    +{steelData.template.exercises.length - 4} more
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button onClick={handleSteelStart} style={{
                 width: '100%', padding: 13, borderRadius: 999, border: 'none',
@@ -484,8 +509,42 @@ export default function App() {
                 textTransform: 'uppercase', fontWeight: 500,
               }}>Cancel</button>
             </div>
-          </div>
-        </div>
+          </ModalCard>
+        </ModalOverlay>
+      )}
+
+      {/* Template overwrite confirm */}
+      {overwriteAsk && (
+        <ModalOverlay onClick={() => setOverwriteAsk(null)} z={56}>
+          <ModalCard tone="orange" maxWidth={330}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <ModalEyebrow>Template exists</ModalEyebrow>
+              <IconTile name="copy" tone="orange" size={40} />
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, letterSpacing: '-0.02em', marginBottom: 6 }}>
+              Overwrite "{overwriteAsk.existingName}"?
+            </div>
+            <div style={{ fontSize: 13, color: COLORS.textDim, lineHeight: 1.5, marginBottom: 18 }}>
+              You already have a template with this name. Overwriting replaces its exercises with this workout's.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setOverwriteAsk(null)} style={{
+                flex: 1, padding: 11, background: 'transparent', color: COLORS.text,
+                border: `1px solid ${COLORS.border}`, borderRadius: 999,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}>Cancel</button>
+              <button onClick={async () => {
+                const res = await useStore.getState().saveTemplate(overwriteAsk.name, overwriteAsk.exs, { overwrite: true });
+                if (res) showToast(`Updated "${overwriteAsk.title}" template!`);
+                setOverwriteAsk(null);
+              }} style={{
+                flex: 1, padding: 11, background: COLORS.text, color: COLORS.bg,
+                border: 'none', borderRadius: 999,
+                fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              }}>Overwrite</button>
+            </div>
+          </ModalCard>
+        </ModalOverlay>
       )}
 
       <Toast message={toast} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { COLORS, Avatar, Badge, Button, Icon, Input, Select, Spinner, EmptyState, SPORTS, getInitials, formatVolume, timeAgo, convertWeight, calcWeekStreak } from '../components/UI';
+import { COLORS, Avatar, Badge, Button, Icon, IconTile, Input, Select, Spinner, EmptyState, SPORTS, getInitials, formatVolume, timeAgo, convertWeight, calcWeekStreak } from '../components/UI';
 import BodyStatsComponent from '../components/BodyStats';
 import { PlateCalculator as PlateCalcComponent } from '../components/Tools';
 
@@ -125,15 +125,13 @@ function StatsView({ workouts, unit, onWorkout }) {
                 }}>
                 <span style={{
                   fontSize: 12, fontWeight: hasWorkout || isToday ? 800 : 500,
-                  color: hasWorkout
-                    ? hasPr ? COLORS.pro : COLORS.accent
-                    : isToday ? COLORS.accent : COLORS.textDim,
+                  color: hasWorkout || isToday ? COLORS.accentDim : COLORS.textDim,
                 }}>{day}</span>
                 {/* Green tick for workout days */}
                 {hasWorkout && !hasPr && (
                   <span style={{
                     position: 'absolute', top: 0, right: 0, fontSize: 9, lineHeight: 1,
-                    color: COLORS.accent,
+                    color: COLORS.accentDim,
                   }}>✓</span>
                 )}
                 {/* Gold trophy for PR days */}
@@ -472,10 +470,21 @@ function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle, 
 
       {/* Delete confirmation */}
       {confirmDelete && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={e => e.stopPropagation()}>
-          <div style={{ background: COLORS.card, borderRadius: 16, padding: 24, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}` }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Delete Workout?</div>
-            <div style={{ fontSize: 14, color: COLORS.textDim, marginBottom: 20, lineHeight: 1.5 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={e => e.stopPropagation()}>
+          <div style={{
+            background: `radial-gradient(200px 120px at 88% -25px, ${COLORS.isDark ? 'rgba(248,113,113,0.10)' : 'rgba(220,38,38,0.06)'}, transparent 60%), ${COLORS.card}`,
+            borderRadius: 20, padding: 22, width: '100%', maxWidth: 320, border: `1px solid ${COLORS.border}`,
+            boxShadow: '0 24px 64px -16px rgba(0,0,0,0.45)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLORS.textDim, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 16, height: 2, background: COLORS.red, borderRadius: 1 }} />
+                Permanent
+              </span>
+              <IconTile name="trash" tone="red" size={40} />
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, marginBottom: 6, letterSpacing: '-0.02em' }}>Delete workout?</div>
+            <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 18, lineHeight: 1.5 }}>
               This can't be undone. The workout and all its data will be permanently removed.
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
