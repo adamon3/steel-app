@@ -442,16 +442,16 @@ function WorkoutsView({ workouts, unit, onTogglePrivacy, onDelete, onEditTitle, 
                 {isMenuOpen && (
                   <div style={{ position: 'absolute', right: 0, top: 28, background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 10, minWidth: 150, overflow: 'hidden' }}>
                     <button onClick={() => { onWorkout?.(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Icon name="settings" size={14} color={COLORS.textDim} /> View / Edit
+                      <Icon name="eye" size={14} color={COLORS.textDim} /> View / Edit
                     </button>
                     <button onClick={() => { setEditTitle(w.title); setEditingId(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Icon name="settings" size={14} color={COLORS.textDim} /> Quick rename
+                      <Icon name="edit" size={14} color={COLORS.textDim} /> Quick rename
                     </button>
                     <button onClick={() => { onTogglePrivacy(w.id, w.is_public); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Icon name={w.is_public !== false ? 'lock' : 'globe'} size={14} color={COLORS.textDim} /> {w.is_public !== false ? 'Make Private' : 'Make Public'}
                     </button>
                     <button onClick={() => { setConfirmDelete(w.id); setMenuOpen(null); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', color: COLORS.red, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${COLORS.border}` }}>
-                      <Icon name="lock" size={14} color={COLORS.red} /> Delete Workout
+                      <Icon name="trash" size={14} color={COLORS.red} /> Delete Workout
                     </button>
                   </div>
                 )}
@@ -797,7 +797,7 @@ export default function Profile({ onViewProfile, onWorkout }) {
               fontWeight: 600, fontFamily: 'inherit', marginBottom: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
-              <Icon name="settings" size={16} color={COLORS.textDim} />
+              <Icon name="download" size={16} color={COLORS.textDim} />
               Download My Data (CSV)
             </button>
           )}

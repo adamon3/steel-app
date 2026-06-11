@@ -54,11 +54,11 @@ const THEMES = {
   },
 };
 
-const ThemeContext = createContext({ theme: 'dark', colors: THEMES.dark, toggle: () => {} });
+const ThemeContext = createContext({ theme: 'light', colors: THEMES.light, toggle: () => {} });
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch { return 'dark'; }
+    try { return localStorage.getItem(THEME_KEY) || 'light'; } catch { return 'light'; }
   });
   const toggle = () => {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -105,13 +105,13 @@ export function useTheme() { return useContext(ThemeContext); }
 
 export function getColors() {
   try {
-    const t = localStorage.getItem(THEME_KEY) || 'dark';
+    const t = localStorage.getItem(THEME_KEY) || 'light';
     return THEMES[t];
-  } catch { return THEMES.dark; }
+  } catch { return THEMES.light; }
 }
 
 // Mutable COLORS — shared reference
-export const COLORS = { ...THEMES.dark };
+export const COLORS = { ...THEMES.light };
 export function refreshColors() {
   const c = getColors();
   Object.keys(c).forEach(k => { COLORS[k] = c[k]; });
@@ -159,6 +159,10 @@ export function Icon({ name, size = 20, color }) {
     moon: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>,
     wifi: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>,
     wifiOff: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55"/><path d="M5 12.55a10.94 10.94 0 015.17-2.39"/><path d="M10.71 5.05A16 16 0 0122.56 9"/><path d="M1.42 9a15.91 15.91 0 014.7-2.88"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>,
+    trash: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+    edit: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+    eye: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+    download: <svg style={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
   };
   return icons[name] || null;
 }

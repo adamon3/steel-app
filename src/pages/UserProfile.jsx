@@ -10,6 +10,7 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [totals, setTotals] = useState({ workouts: 0, volume: 0 });
   const [loading, setLoading] = useState(true);
   const unit = myProfile?.unit_pref || 'kg';
 
@@ -33,6 +34,16 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
         .order('created_at', { ascending: false })
         .limit(10);
       if (wks) setWorkouts(wks);
+
+      // Lifetime totals (lightweight — volumes only, not capped at 10)
+      const { data: allVols } = await supabase.from('workouts')
+        .select('total_volume').eq('user_id', userId).eq('is_public', true);
+      if (allVols) {
+        setTotals({
+          workouts: allVols.length,
+          volume: allVols.reduce((s, w) => s + (Number(w.total_volume) || 0), 0),
+        });
+      }
 
       // Check if following
       if (user) {
@@ -76,8 +87,8 @@ export default function UserProfile({ userId, onBack, onSteel, onWorkout }) {
 
   const isMe = user?.id === userId;
   const isPrivate = !isMe && (athlete.privacy_mode === 'private' || athlete.privacy_mode === 'solo');
-  const totalWorkouts = workouts.length;
-  const totalVolume = workouts.reduce((sum, w) => sum + (Number(w.total_volume) || 0), 0);
+  const totalWorkouts = totals.workouts;
+  const totalVolume = totals.volume;
 
   return (
     <div>

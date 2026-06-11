@@ -330,7 +330,7 @@ export default function App() {
   };
 
   return (
-    <div key={theme} style={{ background: `radial-gradient(700px 320px at 85% -40px, rgba(191,230,0,0.18), transparent 60%), ${COLORS.bg}`, minHeight: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: COLORS.text, maxWidth: 520, margin: '0 auto', position: 'relative' }}>
+    <div key={theme} style={{ background: `radial-gradient(700px 320px at 85% -40px, rgba(191,230,0,0.18), transparent 60%), ${COLORS.bg}`, minHeight: '100vh', fontFamily: "'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif", color: COLORS.text, maxWidth: 520, margin: '0 auto', position: 'relative' }}>
       {/* Offline banner */}
       {offline && (
         <div style={{

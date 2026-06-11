@@ -76,7 +76,7 @@ export default function Auth({ onClose, message, initialMode }) {
         maxHeight: '90vh', overflowY: 'auto',
         fontFamily: FONTS.sans,
       }}>
-        {/* Header: serif italic STEEL wordmark with lime dot */}
+        {/* Header: STEEL wordmark */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
           <div style={{
             fontFamily: "'Inter Tight', -apple-system, sans-serif",

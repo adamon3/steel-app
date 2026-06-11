@@ -123,7 +123,9 @@ function SetRow({ set, idx, unit, editing, onUpdate, onDelete, onCycleType }) {
           cursor: editing ? 'pointer' : 'default',
           fontSize: 14, lineHeight: 1, textAlign: 'center',
         }}>
-        {set.is_pr ? '🏆' : (editing ? <span style={{ color: COLORS.textDim, fontSize: 11 }}>—</span> : '')}
+        {set.is_pr
+          ? <span style={{ fontFamily: FONTS.mono, fontSize: 9, fontWeight: 700, color: COLORS.accentDim, letterSpacing: '0.08em' }}>PR</span>
+          : (editing ? <span style={{ color: COLORS.textDim, fontSize: 11 }}>—</span> : '')}
       </button>
 
       {editing && (
@@ -543,8 +545,8 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
     t + (e.sets || []).reduce((v, s) => v + (s.set_type === 'warmup' ? 0 : (s.weight || 0) * (s.reps || 0)), 0), 0);
   const prCount = display.exercises.reduce((t, e) =>
     t + (e.sets || []).filter(s => s.is_pr).length, 0);
-  const volDisp = totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) : String(Math.round(totalVolume));
-  const volSuffix = totalVolume >= 1000 ? 'k' : ` ${unit}`;
+  const volDisp = Math.round(totalVolume).toLocaleString('en-GB');
+  const volSuffix = ` ${unit}`;
 
   const p = workout.profiles;
 
@@ -751,16 +753,14 @@ export default function WorkoutDetail({ workoutId, onClose, onProfile, onSteel }
               display: 'flex', alignItems: 'center', gap: 5,
               background: 'none', border: 'none', cursor: 'pointer', padding: 0,
             }}>
-              <span style={{ fontSize: 18, color: likedByMe ? LIME : COLORS.textDim, lineHeight: 1 }}>
-                {likedByMe ? '♥' : '♡'}
-              </span>
+              <Icon name={likedByMe ? 'heartFill' : 'heart'} size={18} color={likedByMe ? COLORS.red : COLORS.textDim} />
               <span style={{
                 fontFamily: FONTS.mono, fontSize: 12, fontWeight: 600,
-                color: likedByMe ? LIME : COLORS.textDim,
+                color: likedByMe ? COLORS.red : COLORS.textDim,
               }}>{likeCount}</span>
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontSize: 15, color: COLORS.textDim, lineHeight: 1 }}>💬</span>
+              <Icon name="comment" size={16} color={COLORS.textDim} />
               <span style={{
                 fontFamily: FONTS.mono, fontSize: 12, fontWeight: 600, color: COLORS.textDim,
               }}>{localComments.length}</span>
