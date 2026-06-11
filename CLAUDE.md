@@ -179,14 +179,34 @@ Focus was making the app look good for a TikTok/marketing video and tightening t
 - **Color/contrast**: added `COLORS.accentDim` (readable lime for text) and `COLORS.accentText` (dark ink for text ON lime). Use these instead of raw `#BFE600` whenever lime carries text. Ambient lime radial-gradient background across pages; desktop is a 520px max-width centered column.
 - **Templates**: `updateTemplate` store action + edit/delete/rename via an options popup; fixed grid overflow + duplicate-template saves.
 
+## Debug + redesign sweep — June 2026 (this session)
+
+Full audit pass. Shipped:
+- **PWA install fixed**: index.html linked a stale root `manifest.json` (old `#0A0A0A` theme) that beat the VitePWA-generated `manifest.webmanifest` — two competing manifest links in the built page. Removed the manual link + root manifest.json; VitePWA manifest now has cream `#FAFAFA` colors, `start_url`, and a maskable icon entry. Splash/theme-color in index.html also cream now.
+- **Leaderboard was unreachable** — imported in App.jsx but never rendered. Now a third sub-tab in GymCommunity (Feed / Members / Leaderboard). Rewrote its fetch from an N+1 loop (1 query per member per workout) to ONE nested PostgREST query on `sets` with `workout_exercises!inner(workouts!inner(...))` — verified against the live REST API. Also: 'Pull-ups' in MAIN_LIFTS was an unused duplicate exercise row (0 uses) — the real one is 'Pull Up' (121 uses), so that board was always empty. Warmup sets excluded from rankings. The dup 'Pull-ups' exercise row still exists in the DB (left for Adam to delete).
+- **Light mode actually default now**: ThemeProvider/getColors fell back to `'dark'`, contradicting the design doc. New users got dark mode.
+- **App-wide font fixed**: App.jsx root div set `-apple-system`, overriding Inter Tight for almost all app text. One line, big visual diff.
+- **Profile tabs redesigned** (Stats / Progress / PRs / Following): mono-eyebrow stat cards, lime-wash This Week card, readable medal colors (gold `#D4A017` not lime), heatmap chips in mono with ink text, chart palette reduced to lime/orange/ink, pills use `accentText` on lime. Active sub-tab text is ink (was unreadable lime).
+- **BodyStats + Plate calculator restyled**: mono labels, `accentText` on lime buttons (was white-on-lime in light mode), plate visual uses lime+ink scale instead of orange/blue/purple.
+- **WorkoutDetail**: volume now `8,200 kg` format (k-abbreviation removed here too), PR trophy emoji → mono PR tag, heart/comment emoji → Icon set (red heart, matches Feed).
+- **UserProfile**: lifetime totals were computed from the last 10 workouts only; now a separate lightweight volumes query.
+- **Icons added**: trash / edit / eye / download (Profile ⋯ menu had a lock icon on Delete).
+- **Supabase hardening migration** (`harden_security_definer_functions`): pinned `search_path` on `handle_new_user`, revoked anon/authenticated EXECUTE on both SECURITY DEFINER functions (they're trigger-only). Remaining advisor warnings are deliberate (public waitlist INSERT) or dashboard-level (enable leaked-password protection in Auth settings — can't be done via SQL).
+- **Repo**: `.gitattributes` added (the all-files-modified CRLF noise was a corrupt/stale git index — OneDrive interferes with `.git/index` writes; if git starts erroring with "index file corrupt", delete `.git/index` and `git reset`).
+- Fixed the two duplicate min/max/step JSX warnings in LogWorkout (~line 513/535). Build is warning-free.
+
+**Untested-but-verified-by-API**: the new leaderboard query was smoke-tested against the live REST endpoint and returns the expected shape, but the full UI flow hasn't been clicked through on a device yet.
+
 ## Currently pending / known issues
 
 1. ~~WorkoutDetail edit needs real-world testing.~~ **Resolved by code review:** `likes` and `comments` FK to `workout_id` (not `workout_exercise_id`), so `updateWorkoutFull`'s wipe-and-rebuild of exercises+sets leaves them untouched.
 2. **Profile's other tabs are stale.** Progress / PRs / Body / Following still use older layouts. Stats + Workouts got refreshed (and the privacy_mode segmented control lives in EditProfile).
-3. **PWA install banner.** `manifest.json` is in place but the install prompt's reliability on fresh devices isn't verified.
+3. ~~PWA install banner.~~ **Fixed this session** — competing manifest links removed; re-verify install prompt on a fresh device after deploy.
 4. ~~Service worker / cache.~~ **Resolved:** `registerType: 'prompt'` + `<UpdatePrompt />` banner using `useRegisterSW`. New SW activations now ask the user to refresh (with skipWaiting) instead of being stuck on the old bundle. **Heads-up:** Adam is often on a stale cached bundle — if something "still isn't fixed," check whether he's applied the update banner / hard-refreshed before re-debugging.
 5. ~~Offline-first cache strategy untuned.~~ **Resolved.** Workbox `runtimeCaching` now caches Supabase REST GET (NetworkFirst, 14d), Storage (CacheFirst, 30d), Google Fonts, OSM tiles. Read flows (feed / profile / workouts / templates / exercises) serve from cache when offline. Writes still queue via the existing localStorage path. Saving a workout offline works; logging a fresh one offline works; browsing your recent feed offline works. Likes/comments still fail offline — out of scope for v1.
-6. **Two pre-existing JSX warnings** in LogWorkout.jsx (duplicate `min`/`max`/`step` attrs on the weight/reps inputs, ~line 513 & 535). Harmless — build succeeds — but worth cleaning up.
+6. ~~Two pre-existing JSX warnings in LogWorkout.jsx.~~ **Fixed this session.**
+7. **Duplicate 'Pull-ups' exercise row** in the exercises table (0 uses; 'Pull Up' is canonical). Delete when convenient — left alone per the no-deleting-Adam's-data rule.
+8. **Discover N+1**: 2 queries per athlete card (workouts + follower count). Parallelised, fine at beta scale, will need batching as user count grows.
 
 ### Workflow / environment notes for the next model
 - **Deploys**: push to `main` → Vercel auto-deploys both app and landing. Build locally first to catch errors (`npx vite build` in the repo root).
