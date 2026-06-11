@@ -5,7 +5,6 @@ import Auth from './pages/Auth';
 import Feed from './pages/Feed';
 import Discover from './pages/Discover';
 import LogWorkout from './pages/LogWorkout';
-import Leaderboard from './pages/Leaderboard';
 import UserProfile from './pages/UserProfile';
 import GymCommunity from './pages/GymCommunity';
 import Profile from './pages/Profile';

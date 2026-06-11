@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { COLORS, Avatar, Badge, Icon, Spinner, EmptyState, getInitials, formatVolume, timeAgo, convertWeight } from '../components/UI';
+import Leaderboard from './Leaderboard';
 
 const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -359,14 +360,14 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
       </div>
 
       <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${COLORS.border}`, marginBottom: 14 }}>
-        {['feed', 'members'].map(t => (
+        {['feed', 'members', 'leaderboard'].map(t => (
           <button key={t} onClick={() => setSubTab(t)} style={{
             flex: 1, padding: '10px 4px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
             fontFamily: 'inherit', background: 'transparent',
-            color: subTab === t ? COLORS.accent : COLORS.textDim,
+            color: subTab === t ? COLORS.text : COLORS.textDim,
             borderBottom: subTab === t ? `2px solid ${COLORS.accent}` : '2px solid transparent',
             marginBottom: -1, textTransform: 'capitalize',
-          }}>{t === 'feed' ? `Gym Feed (${gymFeed.length})` : `Members (${gymMembers.length})`}</button>
+          }}>{t === 'feed' ? `Feed (${gymFeed.length})` : t === 'members' ? `Members (${gymMembers.length})` : 'Leaderboard'}</button>
         ))}
       </div>
 
@@ -398,6 +399,10 @@ export default function GymCommunity({ onViewProfile, onWorkout }) {
             );
           })
         )
+      )}
+
+      {subTab === 'leaderboard' && (
+        <Leaderboard gym={profile.gym} onViewProfile={onViewProfile} />
       )}
 
       {subTab === 'members' && (
