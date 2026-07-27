@@ -1,6 +1,21 @@
 # Steel — App Store handover
 
-Goal: get Steel into the iOS App Store and Google Play Store as a proper native app, from a Windows machine, with a fresh design pass because the current web UI isn't the final look.
+## Where we're at
+
+**The decision is made: Steel is going native.**
+
+Steel has been a React PWA since day one. It's live at `steel-app-eight.vercel.app`, has a real (small) beta user base, a growing waitlist, and a proven feature set. That's done its job. The final home is the **iOS App Store** and **Google Play Store**, shipped as a proper native app that a stranger can install with one tap.
+
+**Nothing native has been built yet.** No Xcode, no Expo project, no `steel-native` repo. This document is Day 0. Whoever picks up next opens VS Code, `npx create-expo-app`, and starts.
+
+**Constraints shaping the plan**:
+- Dev works on Windows. No Mac available or wanted.
+- The current web UI is fine but not the final look. The rewrite is also a redesign, not just a port.
+- The web app stays live during and after the migration. It's the fallback while native is in review, and the "try it in your browser" demo path from the landing page.
+
+The rest of this doc is how to get from here to "live on both stores."
+
+---
 
 This doc is written for whoever picks up this work next (future me, another dev, another Claude session). It assumes zero prior context beyond "Steel is a workout app that lives at steel-app-eight.vercel.app and I want it on the stores."
 
