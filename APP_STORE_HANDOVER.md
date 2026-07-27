@@ -1,6 +1,6 @@
 # Steel — App Store handover
 
-Goal: get Steel into the iOS App Store and the Google Play Store without rebuilding it from scratch.
+Goal: get Steel into the iOS App Store and Google Play Store as a proper native app, from a Windows machine, with a fresh design pass because the current web UI isn't the final look.
 
 This doc is written for whoever picks up this work next (future me, another dev, another Claude session). It assumes zero prior context beyond "Steel is a workout app that lives at steel-app-eight.vercel.app and I want it on the stores."
 
@@ -8,140 +8,259 @@ This doc is written for whoever picks up this work next (future me, another dev,
 
 ## Current state
 
-- **Stack:** React 18 + Vite + Zustand + Supabase (Postgres + Auth + Storage + Realtime).
-- **PWA:** installable via Add-to-Home-Screen. Service worker with workbox runtime caching. Works offline for logging + browsing.
+- **Stack:** React 18 + Vite + Zustand + Supabase (Postgres + Auth + Storage). Web only.
+- **PWA:** installable via Add-to-Home-Screen. Service worker with workbox runtime caching.
 - **Deployed:** Vercel → `steel-app-eight.vercel.app`. Landing at `steel-landing-sigma.vercel.app`.
 - **Supabase project:** `tkrwctmzftnmdspioohw`. Anon key baked into JS bundle (public by design; RLS enforced).
-- **Repo layout:** everything's in this one repo. `src/` is the React app; `supabase-*.sql` files are the migrations already applied to prod.
-- **User count:** small (real beta users measured in tens, waitlist growing).
+- **User count:** small but real. Waitlist growing (`waitlist` table in Supabase; ntfy topic `steel-signups-7k9x2qp4mr` pings on insert).
+- **Constraints on the dev:** Windows machine, no Mac, no dedicated designer.
 
-The app is genuinely used. Migration must not break existing accounts, existing workouts, existing offline queues.
-
----
-
-## Three paths to the stores
-
-| Path | Time to shelf | Native feel | Code reuse | Cost |
-|---|---|---|---|---|
-| **A. PWABuilder / Capacitor wrap** | 1–2 weeks | Webview (mediocre) | ~95% | Apple Dev $99/yr, Play $25 one-off |
-| **B. React Native + Expo** | 4–8 weeks | Excellent | ~40% (business logic reuses, UI rewrite) | Same store fees |
-| **C. Swift + Kotlin native** | 3–6 months | Best possible | ~0% (full rewrite) | Same, plus dev time |
-
-**Recommended: staged A → B.** Ship Capacitor now to test whether App Store presence actually moves the needle. If it does (real installs, real retention), invest in the Expo rewrite for the long term. If it doesn't, you spent one week not three months.
-
-**Not recommended: C.** Solo dev + hobby project ≠ Swift/Kotlin from scratch.
+The app is genuinely used. Migration must not break existing accounts or workouts.
 
 ---
 
-## Path A: Capacitor wrap (recommended first step)
+## The path: Expo React Native + EAS Build
 
-Capacitor bundles the existing React app as a native shell that runs the web code inside a `WKWebView` (iOS) / `WebView` (Android). Same JS runtime, same Supabase, same everything — just packaged as `.ipa` and `.apk`.
+Chosen because:
+- **No Mac needed.** Expo's EAS Build spins up iOS build machines in the cloud. Development, testing, submission — all doable from Windows.
+- **Adam wants to redesign anyway.** Since we're not preserving the current inline-style React UI, the "Capacitor wrap it" argument for keeping the web code disappears. The tradeoff flips: rewriting the UI in React Native components (`<View>`, `<Text>`, `<Pressable>` etc.) buys us a genuinely native feel, real modals, real haptics, real gesture handling, and a proper starting point for design.
+- **Lowest App Store rejection risk.** Guideline 4.7 catches webview-wrapper apps; a real RN app doesn't trigger it.
+- **Reuses business logic wholesale.** All of `src/lib/store.js`, the Supabase queries, the 1RM math, the WIP recovery — all straight ports.
 
-### What breaks and needs fixing
+Skipped alternatives (previous versions of this doc considered these; here for context):
+- **Capacitor wrap** — good on paper, but painful without a Mac and doesn't solve the "UI needs redoing" problem.
+- **PWABuilder** — fastest possible but very likely to hit App Store 4.7 rejection.
+- **Native Swift + Kotlin** — solo dev + hobby project ≠ two full rewrites.
 
-1. **Service worker.** Capacitor serves files from `capacitor://` on iOS, not `https://`. Workbox runtime caching config in `vite.config.js` filters by URL origin — that filter needs `https:` origins swapped for both `capacitor:` and `https:`. Or move offline caching to native (Capacitor Preferences + Http plugins) — cleaner.
-2. **Auth callbacks.** Supabase's auth deep-link callbacks currently go to Vercel URLs. Need a custom URL scheme (`steel://auth-callback`) registered in `Info.plist` / `AndroidManifest.xml`, plus the corresponding entry in Supabase Dashboard → Auth → URL Configuration.
-3. **Safe areas.** Add `viewport-fit=cover` (already set) plus CSS `env(safe-area-inset-*)` on the top bar and bottom tab bar (already partially done). Double-check on iPhone 15 Pro notch and Dynamic Island.
-4. **Keyboard.** iOS keyboard covers form inputs at the bottom of the screen. Use `@capacitor/keyboard` to shift the viewport or add padding when keyboard opens.
-5. **Haptics.** `navigator.vibrate` doesn't work on iOS. Swap for `@capacitor/haptics` (`Haptics.impact({ style: ImpactStyle.Light })`).
-6. **Push notifications.** Web `Notification` API doesn't work when app is backgrounded on iOS. Need `@capacitor/push-notifications` + APNs (iOS) + FCM (Android) setup. Store push token per-user in `profiles` (new column `push_token`).
-7. **Nominatim on gym map.** May hit CORS restrictions in webview — verify. If broken, proxy through a Supabase Edge Function.
-8. **App Store 4.7 risk.** Apple rejects apps that are "primarily web content." Mitigate by leaning on native features that don't work in Safari: push notifications, HealthKit integration (import bodyweight), background sync, camera for progress pics. Add at least one of these before submitting.
+---
 
-### Implementation steps
+## Phase 0: Design pass (do this BEFORE writing any RN code)
+
+The current web UI is functional but was built by iterating on inline styles. A native app needs a real design system. This phase takes ~1 week and saves ~2 weeks of code churn later.
+
+### What to keep from the current identity
+
+- **Wordmark**: `STEEL`, Inter Tight 900, uppercase, letter-spacing 0.04em. Do not resurrect the italic-lowercase serif attempt.
+- **Accent**: lime `#BFE600` on light surfaces, darker olive `#6B8A00` for text on cream, black-on-lime for buttons.
+- **Type**: Inter Tight for display + body, JetBrains Mono for data / labels / timecodes. Tabular numerals everywhere for stats.
+- **Surface**: warm cream `#FAFAF7` (light) / near-black `#0A0A0A` (dark), not pure white/black.
+- **Voice**: athletic but not gym-bro. Concrete, punchy, no problem-setup pitch framing.
+
+### What to redesign
+
+- **Bottom tab bar**: currently inline-styled with an offset centre button. Rebuild with `expo-router`'s Tabs and native `Pressable`. Keep the lime centre "Log" button; use native icons via `@expo/vector-icons`.
+- **Cards**: standardise border-radius (14 for cards, 8 for inner items, 999 for pills). Use one card component with variants, not inline `<div style={{}}>` every time.
+- **Modals & sheets**: replace fixed-position overlays with `@gorhom/bottom-sheet` for actions/pickers, `Modal` for confirmations. Big UX upgrade for the finish flow, exercise picker, and rest panel.
+- **Rest timer**: currently a lime-fill pill on a dark background inline in the set list. Native version should probably be a floating bottom banner that stays visible even when scrolling the exercise list.
+- **Charts**: current SVG line charts are OK but rewrite with `victory-native` or `react-native-svg` primitives for gesture support (tap a point, see the workout).
+- **Empty states**: fine as-is, port them.
+
+### Recommended UI kit
+
+**Tamagui** — universal (web + iOS + Android from the same components), compiler-optimised, native design tokens. Steel could then still have a web landing/preview alongside the mobile app if useful. Steepest learning curve of the options.
+
+Alternatives:
+- **gluestack-ui v2** — headless components, less magic than Tamagui, easier to eject from.
+- **NativeBase** — mature but heavier, less styling flexibility.
+- **Roll your own** — build a small `<Text>`, `<Card>`, `<Button>` set from RN primitives + a `theme.ts` tokens file. Cleanest, most work.
+
+Recommend Tamagui unless the LTV of "web parity" is zero, in which case roll your own.
+
+### Design deliverables before writing code
+
+- Figma or similar: Log Workout flow, Feed, Profile stats + calendar, Workout detail, Gym map + join, Privacy modes
+- Token file (colors, spacing, radii, font sizes) that maps cleanly to the code
+- One reference screen fully polished (recommend the Log Workout logging screen — it's the hardest one)
+
+---
+
+## Phase 1: Scaffolding (week 1)
 
 ```bash
-# in the existing repo
-npm i @capacitor/core @capacitor/cli
-npx cap init "Steel" "com.steel.app"
-npm run build                # produces dist/
-npx cap add ios              # requires macOS or GitHub Actions with macos-latest runner
-npx cap add android          # works on Windows
-npx cap copy                 # sync web assets into native projects
-npx cap open ios             # opens Xcode
-npx cap open android         # opens Android Studio
+# Windows works fine
+npx create-expo-app@latest steel-native --template
+cd steel-native
+npx expo install expo-router @react-navigation/native
+npx expo install @gorhom/bottom-sheet react-native-reanimated react-native-gesture-handler
+npx expo install @supabase/supabase-js @react-native-async-storage/async-storage react-native-url-polyfill
+npx expo install expo-notifications expo-haptics expo-secure-store expo-linking
 ```
 
-**No Mac?** Options:
-- Rent one for a day on MacInCloud ($20).
-- Use **Ionic AppFlow** or **EAS Build** for cloud iOS builds (~$0–$100/month).
-- Use GitHub Actions with a `macos-latest` runner to build the `.ipa` in CI.
+Directory layout roughly:
+```
+steel-native/
+├── app/                    # expo-router routes
+│   ├── (tabs)/
+│   │   ├── feed.tsx
+│   │   ├── discover.tsx
+│   │   ├── log.tsx
+│   │   ├── gym.tsx
+│   │   └── profile.tsx
+│   ├── workout/[id].tsx
+│   └── _layout.tsx
+├── lib/
+│   ├── supabase.ts         # ported from src/lib/supabase.js
+│   ├── store.ts            # ported from src/lib/store.js
+│   └── storage.ts          # AsyncStorage + SecureStore replacements
+├── components/             # design system components
+└── theme.ts                # tokens
+```
 
-### Native features to add BEFORE first submission
+### Direct ports from the web app
 
-- **Push notifications** for rest timer completion (already wired for web; port to Capacitor push).
-- **HealthKit import** for bodyweight (iOS) / Google Fit (Android). Small feature, huge "why native" credibility with Apple review.
-- **Share sheet** to share a workout to Instagram/Messages. `@capacitor/share`.
+These files convert almost 1:1 to TS + slight API tweaks:
+- `src/lib/store.js` → `lib/store.ts` (swap zustand's `persist` middleware to AsyncStorage adapter)
+- `src/lib/localStorage.js` → `lib/storage.ts` (AsyncStorage for user data, SecureStore for auth tokens)
+- `src/lib/supabase.js` → `lib/supabase.ts` (swap `localStorage` for AsyncStorage in auth persistence)
+- All migration files in `supabase-migration-*.sql` — leave alone, they're already applied to prod. Same Supabase project serves both web and mobile.
 
-### App Store submission checklist
+### What needs real rewrites
 
-- [ ] Apple Developer account ($99/yr, up to a week for verification)
-- [ ] Google Play Developer account ($25 one-off, ~2 days for verification)
-- [ ] App icon at 1024×1024 (already have 512, just upscale/redraw)
-- [ ] Launch screen (native splash, not the web loader)
-- [ ] Screenshots: iPhone 6.7" (mandatory), 6.1" (recommended), iPad (optional). Take from a real device or use Simulator.
-- [ ] App name (30 chars): "Steel: Workouts with friends" or similar
-- [ ] Subtitle (30 chars): "The gym doesn't have to be solo"
-- [ ] Description (up to 4000 chars): reuse the landing copy, less em-dashes
-- [ ] Keywords (100 chars, comma-separated): workout tracker, gym log, powerlifting, personal records, PRs, strong, lifting…
-- [ ] Category: Health & Fitness
-- [ ] Age rating: 4+ (no user-generated content beyond text comments)
-- [ ] **Privacy policy URL** (required). Draft one — the app collects email, workout data, gym location (opt-in), device push token. Boilerplate template + your specifics.
-- [ ] Support URL
-- [ ] Marketing URL (landing page)
-- [ ] Demo account (Apple reviewers need to log in): create `demo@steel.app` / a random password, seed with a few workouts
-- [ ] Review notes: explain that the app is a social workout tracker; social features require log-in
-
-Expect **1–3 rejection cycles** before acceptance. Common reasons: 4.7 (web content), 5.1.1 (missing privacy policy), 4.3 (spam / low quality). Budget 2 weeks between "ready to submit" and "live in store."
-
----
-
-## Path B: Expo React Native (when Capacitor proves the market)
-
-Only worth doing if Capacitor ships, gets real users, and you want the app to feel genuinely native (smoother scroll, real modals, no webview lag).
-
-- **What reuses:** Zustand store, Supabase queries, business logic in `store.js`, all the workout math, all the migrations.
-- **What rewrites:** every `.jsx` in `src/pages/` and `src/components/`. Inline `<div style={...}>` becomes `<View style={...}>`, `<span>` becomes `<Text>`, scrollable containers become `<ScrollView>` or `<FlatList>`. `localStorage` becomes `@react-native-async-storage/async-storage`. Web `Notification` becomes Expo Notifications. Router (currently ad-hoc via `tab` state) probably wants to become `expo-router`.
-- **Estimated:** 4–8 focused weeks depending on how much of the logger you can lift-and-shift.
-- **Cloud build:** EAS Build handles iOS + Android without a Mac. Free tier: 30 builds/month.
+- All `src/pages/*.jsx` — these were the UI; redo in RN with the new design system.
+- All `src/components/UI.jsx` — same.
+- `App.jsx` bottom tab bar — replace with expo-router `<Tabs>`.
+- Workbox service worker — gone. Replace runtime cache with `@tanstack/react-query` or SWR with AsyncStorage persistence.
+- Web `Notification` API — replace with `expo-notifications`.
+- `navigator.vibrate` → `expo-haptics`.
 
 ---
 
-## Android is easier
+## Phase 2: Screens (weeks 2–5)
 
-Android accepts hybrid apps like Capacitor without the App Store 4.7-style scrutiny. Ship Path A → Play Store first if you want a quick confidence win.
+Build order (motivated by what unblocks the rest):
+
+1. **Auth** — Supabase auth with SecureStore token persistence. Sign up, sign in, sign out.
+2. **Log Workout** (the hardest screen; do it first while you're fresh)
+   - Exercise picker with the same search normalisation
+   - Set rows with weight/reps inputs, PR detection, bodyweight `+kg` mode
+   - Rest timer (floating banner, native buzz, expo-notifications on background)
+   - WIP recovery (port `steel_wip_workout` pattern to AsyncStorage)
+   - Save flow: same queue-first pattern, background sync
+3. **Feed** — workout cards, like/comment (comment sheet), Steel It.
+4. **Workout detail** — view + edit + delete.
+5. **Profile** — stats, workouts list, calendar, PRs, following. Calendar heatmap from `react-native-calendar-heatmap` or custom.
+6. **Discover** — athlete list with follow.
+7. **Gym** — map with `react-native-maps`, Nominatim search, join/leave.
+8. **Settings + Privacy modes**.
 
 ---
 
-## What NOT to touch
+## Phase 3: Native features that justify "not just a website" (week 6)
 
-- **Supabase schema.** It's already in prod with real user data. If you need changes, add a new migration file next to the existing `supabase-migration-*.sql` scripts.
-- **Anon key.** Baked into the bundle. That's fine — RLS protects. Don't accidentally check in the service_role key.
-- **Waitlist table.** Notification trigger fires on insert (ntfy.sh topic `steel-signups-7k9x2qp4mr`). Keep it working.
-- **Rest timer / WIP recovery.** Recently rebuilt after a real data-loss bug in beta. Don't undo the queue-first save pattern or the `steel_wip_workout` localStorage key.
+App Store review specifically looks for whether the app does things a website can't. Ship at least one from each column:
+
+**Cheap, high impact:**
+- Real push notifications for rest timer completion (works when app is backgrounded, which is the whole point)
+- Native share sheet from a workout ("share to Instagram / Messages")
+- Haptic feedback on set completion, PR, and rest timer end
+
+**Bigger, one-of-these-is-plenty:**
+- HealthKit integration (iOS): read bodyweight, write workout sessions
+- Google Fit integration (Android)
+- Native camera for progress photos + before/after (also great for the feed)
+- Live Activities on iOS for the rest timer (this is the killer feature — appears on the lock screen)
+
+Recommend push + haptics + Live Activities for rest timer if time allows. That last one is the "why native" pitch for both users and reviewers.
+
+---
+
+## Phase 4: EAS Build + submission (week 7)
+
+### One-time setup
+
+- Sign up: `eas.dev`. Free tier: 30 builds/month, unlimited for internal distribution.
+- Apple Developer account: `developer.apple.com/programs`. $99/year, verification 1–7 days. Start this on day 1 of Phase 0 — everything else waits on it.
+- Google Play Console: `play.google.com/console`. $25 one-off, verification ~2 days.
+
+### Build + upload
+
+```bash
+eas login
+eas build:configure                    # creates eas.json
+eas build --platform ios --profile production
+# Cloud spins up macOS runner, produces .ipa, uploads to your EAS dashboard
+eas submit --platform ios              # posts to App Store Connect
+eas build --platform android --profile production
+eas submit --platform android
+```
+
+### App Store Connect (all web-based, no Mac needed)
+
+- App name (30 chars): "Steel · Workouts, together" or similar. Steel alone is a hard search keyword to rank on.
+- Subtitle (30 chars): "The gym doesn't have to be solo"
+- Description (up to 4000 chars): reuse landing copy, tighten em-dashes
+- Keywords (100 chars): `workout tracker, gym log, powerlifting, 1RM, personal records, PRs, lifting, training, gym feed, community`
+- Category: Health & Fitness
+- Age rating: 4+ (comments are the only UGC; add report/block if reviewers push back)
+- **Privacy policy URL** (mandatory): draft covers email collection, workout data, gym location (opt-in), device push token
+- Support URL, Marketing URL (landing page)
+- **Demo account for reviewers**: seed `demo@steel.app` with a gym, some workouts, followers
+- Review notes: explain that social features need log-in; here's the demo account
+
+### Screenshots
+
+Required sizes for iOS 2024+:
+- iPhone 6.7" (Pro Max, mandatory) — 1290×2796
+- iPhone 6.5" (recommended) — 1242×2688
+- iPad 12.9" (only if targeting iPad)
+
+Take with a real device (borrow one) or from the Simulator (`⌘S` in iOS Simulator, but that needs a Mac). Cloud alternative: `Xcode Cloud` snapshots, or Screenshots.pro / Previewed.app for mocked-in-device shots.
+
+Recommended shots (5 max per size):
+1. Log workout mid-set with rest timer
+2. Feed with a friend's PR
+3. Gym map with pins
+4. Personal records list
+5. Leaderboard with "You" highlighted
+
+### Expected timeline once submitted
+
+- Apple review: 24–72 hours for first review
+- Rejection cycle likely on first submission. Common reasons: 4.7 (mitigated by Phase 3), 5.1.1 (privacy policy details), 2.1 (missing metadata). Budget 1–2 rounds.
+- Live on store: 1–2 weeks from first submission.
+
+Google Play is easier and usually accepts within 24 hours.
+
+---
+
+## What NOT to touch during the migration
+
+- **Supabase schema**. Prod data. Add new migration files if changes needed; never rewrite existing ones.
+- **Anon key**. Public by design; RLS protects. Do not commit the service_role key.
+- **Waitlist table + ntfy trigger**. The signup notification pipeline works; keep it running.
+- **The web app**. Leave `steel-app-eight.vercel.app` deployed until the native app hits parity — the landing page still links there under "Or try the web beta now →". Web serves as the fallback while native is in review, and as the "no app store" demo for anyone who wants to try before installing.
 
 ---
 
 ## Suggested first-week plan
 
-**Day 1** — Buy Apple Dev account + Google Play account. Both take a few days to verify; get them queued immediately.
+**Day 1**
+- Apply for Apple Developer account (this is the long pole — start immediately)
+- Sign up for EAS at expo.dev
+- Read the Expo docs on `expo-router` and `expo-notifications`
 
-**Day 2–3** — `npx cap init` and get the app booting inside iOS Simulator (borrow a Mac / rent one). Fix the obvious safe-area and auth-callback issues.
+**Day 2–3**
+- Design pass in Figma (or equivalent): one polished reference screen (Log Workout logging), plus token file
+- Pick UI kit (default: Tamagui) or decide to roll your own
 
-**Day 4–5** — Wire push notifications (rest timer end). Add HealthKit bodyweight import as the "why native" feature.
+**Day 4–5**
+- Scaffold `steel-native` with Expo + expo-router
+- Port `lib/store.ts`, `lib/supabase.ts`, `lib/storage.ts` from the web app
+- Build the theme layer
 
-**Day 6–7** — Assemble screenshots, write App Store metadata, draft privacy policy, submit.
+**Day 6–7**
+- First screen (Feed is easiest starting point; it's mostly read-only)
+- Run on your phone via Expo Go, iterate
 
-**Week 2** — Play Store submission runs in parallel (easier). Handle Apple's first rejection round.
-
-**Week 3–4** — Live on both stores.
+Then Phase 2 builds out from there over 4 more weeks.
 
 ---
 
-## Open questions for the next session
+## Open questions to answer before starting
 
-1. Does Adam already have an Apple Developer account or is that day 1?
-2. Mac access, or fully remote / cloud-build path?
-3. Which "why native" feature do we lead with — push, HealthKit, or something else? (Recommend push since we already ship the web version and it's rest-timer critical.)
-4. In-app purchases planned? (Currently free. Apple takes 30% of any IAP. If Steel goes freemium later, that's a whole separate design conversation about what's premium and what's free.)
-5. Rename "Steel" for App Store search? Steel is a generic-heavy keyword; App Store SEO may favour a more distinctive name in the App Store title (subtitle can carry "Steel").
+1. **Apple Developer account status?** (Application takes days; start immediately regardless.)
+2. **Design pass: solo, hire, or use a starter kit?** (Solo works if Adam has taste — the web app already has decent taste. Hiring for a week gets a proper Figma. Starter kit like Rork or Tamagui's Bento saves weeks.)
+3. **Which "why native" feature ships in v1?** (Recommend: push notifications for rest timer + iOS Live Activities. Skip HealthKit v1, save for v1.1.)
+4. **Rename in App Store search?** "Steel" alone is very generic. Consider "Steel Workouts" or "Steel · Gym Log" in the App Store title for keyword ranking. Subtitle carries the positioning.
+5. **In-app purchases planned?** Currently free. Apple takes 30% of any IAP. If Steel goes freemium later, that's a whole separate design + Supabase billing conversation.
+6. **App name conflict check?** Search "Steel" on the App Store before submitting. If there's a well-known app already called Steel, decide now whether to rename to avoid confusion + rejection risk.
