@@ -8,10 +8,11 @@ Steel has been a React PWA since day one. It's live at `steel-app-eight.vercel.a
 
 **Nothing native has been built yet.** No Xcode, no Expo project, no `steel-native` repo. This document is Day 0. Whoever picks up next opens VS Code, `npx create-expo-app`, and starts.
 
+**The web app is legacy from this point.** No new features go into `steel-app-eight.vercel.app`. It stays deployed only because existing beta users are on it and the landing page links to it as a "try it in your browser" demo. No effort spent maintaining, polishing, or extending it. Every hour goes to native.
+
 **Constraints shaping the plan**:
 - Dev works on Windows. No Mac available or wanted.
 - The current web UI is fine but not the final look. The rewrite is also a redesign, not just a port.
-- The web app stays live during and after the migration. It's the fallback while native is in review, and the "try it in your browser" demo path from the landing page.
 
 The rest of this doc is how to get from here to "live on both stores."
 
@@ -243,7 +244,7 @@ Google Play is easier and usually accepts within 24 hours.
 - **Supabase schema**. Prod data. Add new migration files if changes needed; never rewrite existing ones.
 - **Anon key**. Public by design; RLS protects. Do not commit the service_role key.
 - **Waitlist table + ntfy trigger**. The signup notification pipeline works; keep it running.
-- **The web app**. Leave `steel-app-eight.vercel.app` deployed until the native app hits parity — the landing page still links there under "Or try the web beta now →". Web serves as the fallback while native is in review, and as the "no app store" demo for anyone who wants to try before installing.
+- **The web app**. Leave `steel-app-eight.vercel.app` deployed. Don't ship new features to it, don't refactor it, don't polish it. It exists so existing beta users keep working and the landing "Or try the web beta now →" link still resolves. Kill it eventually once the native app is live and the landing switches to App Store / Play Store buttons.
 
 ---
 
